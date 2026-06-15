@@ -8,14 +8,12 @@ from utils.roast_panel_parser import extract_roast_panel
 from judges.schemas import RoastPanel
 from pydantic import ValidationError
 
-load_dotenv()
+from config import PROMPTS_DIR, get_settings
 
-MODEL_NAME = os.getenv("LOCAL_MODEL")
-
-template_env = Environment(loader=FileSystemLoader("src/prompts"))
+template_env = Environment(loader=FileSystemLoader(PROMPTS_DIR))
 
 def build_coordinator_agent():
-    model = init_chat_model(MODEL_NAME)
+    model = init_chat_model(get_settings().local_model)
 
     subagents = [
         {
@@ -56,7 +54,7 @@ def main():
     agent = build_coordinator_agent()
 
     startup_idea = (
-        "A browser extension that summarizes privacy policies before you click accept."
+        "A B2B SaaS tool that predicts customer churn from support tickets."
     )
 
     user_prompt = (

@@ -1,9 +1,5 @@
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
-
-JUDGE_ORDER = os.getenv("JUDGE_ORDER").split(",")
+from config import JUDGE_ORDER
 
 def route_next_speaker(state:dict) -> str:
     if state["current_speaker_idx"] < len(JUDGE_ORDER):

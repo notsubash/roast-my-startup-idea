@@ -4,12 +4,8 @@ from typing import Any
 from dotenv import load_dotenv
 from jinja2 import Environment, FileSystemLoader
 
-template_env = Environment(loader=FileSystemLoader("src/prompts"))
-
-load_dotenv()
-
-DEBATE_PERSONAS = os.getenv("DEBATE_PERSONAS").split(",")
-JUDGE_ORDER = os.getenv("JUDGE_ORDER").split(",")
+from config import PROMPTS_DIR, JUDGE_ORDER, DEBATE_PERSONAS
+template_env = Environment(loader=FileSystemLoader(PROMPTS_DIR))
 
 def _response_text(response: Any) -> str:
     content = getattr(response, "content", response)
@@ -38,7 +34,15 @@ def make_speaker_node(judge:str, model: Any):
         response = model.invoke(
             [{
                 "role": "user",
-                "content": template_env.get_template("speaker_node_prompt.jinja2").render(judge=judge, state=state, DEBATE_PERSONAS=DEBATE_PERSONAS)
+                "content": template_env.get_template("speaker_node_prompt.jinja2").render(
+                    judge=judge, 
+                    state=state, 
+                    personas=DEBATE_PERSONAS[judge],
+                    startup_idea=state["startup_idea"],
+                    own_verdict=json.dumps(_own_verdict(state, judge), indent=2),
+                    other_verdicts=json.dumps(state["verdicts"], indent=2),
+                    recent_transcript=_recent_transcript(state)
+                )
             }]
         )
 
@@ -67,7 +71,12 @@ def make_moderator_node(model: Any):
         response = model.invoke(
             [{
                 "role": "user",
-                "content": template_env.get_template("moderator_node_prompt.jinja2").render(state=state, transcript=transcript)
+                "content": template_env.get_template("moderator_node_prompt.jinja2").render(
+                    state=state, 
+                    startup_idea=state["startup_idea"],
+                    original_verdicts=json.dumps(state["verdicts"], indent=2),
+                    transcript=transcript
+                )
             }]
         )
 
