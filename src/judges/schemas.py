@@ -1,5 +1,4 @@
 from enum import Enum
-from typing import Literal 
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 class VerdictLabel(str, Enum):
@@ -19,9 +18,9 @@ class Verdict(BaseModel):
 
     judge: judgeLabel
     verdict: VerdictLabel
-    roast: str = Field(min_length=20, max_length=600, description="A sharp, 1-3 sentence critique of the startup idea")
+    roast: str = Field(min_length=20, max_length=1200, description="A sharp, 1-3 sentence critique of the startup idea")
     score:int = Field(ge=1, le=10, description="A score between 1 and 10 based on the quality of the critique")
-    key_concern: str = Field(min_length=5, max_length=400, description="The #1 issue with the startup idea")
+    key_concern: str = Field(min_length=5, max_length=800, description="The #1 issue with the startup idea")
 
 class RoastPanel(BaseModel):
     model_config = ConfigDict(extra="forbid")

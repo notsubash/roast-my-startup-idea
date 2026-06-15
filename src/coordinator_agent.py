@@ -1,12 +1,11 @@
 from deepagents import create_deep_agent
 from langchain.chat_models import init_chat_model
 import os
-import re
-import json
 from dotenv import load_dotenv
 from jinja2 import Environment, FileSystemLoader
 from utils.tool_call_tracer import print_trace
-from judges.schemas import Verdict, RoastPanel
+from utils.roast_panel_parser import extract_roast_panel
+from judges.schemas import RoastPanel
 from pydantic import ValidationError
 
 load_dotenv()
@@ -52,53 +51,6 @@ def build_coordinator_agent():
         response_format=RoastPanel,
         system_prompt=template_env.get_template("startup_orchestrator_prompt.jinja2").render()
     )
-
-def _strip_code_fences(text: str) -> str:
-    """Remove ```json ... ``` (or plain ```) wrappers some models add."""
-    text = text.strip()
-    if text.startswith("```"):
-        text = re.sub(r"^```[a-zA-Z0-9]*\s*", "", text)
-        text = re.sub(r"\s*```$", "", text)
-    return text.strip()
-
-
-def _coerce_roast_panel_dict(data: dict) -> dict:
-    """Normalize known model quirks before schema validation."""
-    if "verdicts" in data and isinstance(data["verdicts"], list):
-        for verdict in data["verdicts"]:
-            if "judge" in verdict and isinstance(verdict["judge"], str):
-                verdict["judge"] = verdict["judge"].strip().lower()
-            if "verdict" in verdict and isinstance(verdict["verdict"], str):
-                verdict["verdict"] = verdict["verdict"].strip().upper()
-    return data
-
-def extract_roast_panel(result: dict) -> RoastPanel:
-    """Robustly pull a validated RoastPanel out of a deepagents result."""
-    structured = result.get("structured_response")
-    if structured is not None:
-        if isinstance(structured, RoastPanel):
-            return structured
-        return RoastPanel.model_validate(structured)
-
-    for message in reversed(result.get("messages", [])):
-        content = getattr(message, "content", None)
-        if not isinstance(content, str) or not content.strip():
-            continue
-        candidate = _strip_code_fences(content)
-        try:
-            data = json.loads(candidate)
-        except json.JSONDecodeError:
-            continue
-        if not isinstance(data, dict):
-            continue
-        try:
-            return RoastPanel.model_validate(_coerce_roast_panel_dict(data))
-        except ValidationError as e:
-            print(f"\nError validating RoastPanel: {e}")
-            continue
-
-    raise ValueError("No valid RoastPanel found in agent result messages")
-
 
 def main():
     agent = build_coordinator_agent()
