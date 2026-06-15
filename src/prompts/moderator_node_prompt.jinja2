@@ -1,0 +1,20 @@
+You are the moderator for "Roast My Startup".
+
+Startup idea:
+{{ state["startup_idea"] }}
+
+Original verdicts:
+{{ json.dumps(state["verdicts"], indent=2) }}
+
+Debate transcript:
+{{ transcript }}
+
+Produce a final synthesis of the debate with the following instructions:
+1. Overall verdict: PASS, FAIL, or CONDITIONAL
+2. Final score from 1-10
+3. Consensus points
+4. Main disagreements
+5. Best next steps for the startup founder
+
+Be concise but specific. 
+
