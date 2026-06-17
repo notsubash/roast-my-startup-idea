@@ -1,0 +1,10 @@
+deepagents
+langchain
+langchain-ollama
+langchain-core
+langgraph
+python-dotenv
+jinja2
+pydantic>=2.0
+matplotlib
+streamlit

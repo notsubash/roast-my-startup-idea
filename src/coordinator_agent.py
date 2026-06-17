@@ -42,6 +42,21 @@ def run_roast_panel(model, startup_idea: str) -> RoastPanel:
     return RoastPanel(verdicts=verdicts)
 
 
+def run_debate(model, startup_idea: str, roast_panel: RoastPanel, max_rounds: int = 3) -> dict:
+    """Phase 2: Run the multi-round debate graph and return the full result dict."""
+    debate_graph = build_debate_graph(model)
+    return debate_graph.invoke({
+        "messages": [HumanMessage(content="Begin the debate.")],
+        "startup_idea": startup_idea,
+        "verdicts": [v.model_dump() for v in roast_panel.verdicts],
+        "debate_messages": [],
+        "round": 1,
+        "max_rounds": max_rounds,
+        "current_speaker_idx": 0,
+        "final_synthesis": None,
+    })
+
+
 def main():
     settings = get_settings()
     model = init_chat_model(settings.local_model)
@@ -61,20 +76,9 @@ def main():
     print("Roast Panel:\n")
     print(roast_panel.model_dump_json(indent=2))
 
-    # ── Phase 2: Debate graph invoked directly ──
+    # ── Phase 2: Debate graph ──
     print("\n\nPhase 2 — Running debate...\n")
-    debate_graph = build_debate_graph(model)
-
-    debate_result = debate_graph.invoke({
-        "messages": [HumanMessage(content="Begin the debate.")],
-        "startup_idea": startup_idea,
-        "verdicts": [v.model_dump() for v in roast_panel.verdicts],
-        "debate_messages": [],
-        "round": 1,
-        "max_rounds": settings.max_debate_rounds,
-        "current_speaker_idx": 0,
-        "final_synthesis": None,
-    })
+    debate_result = run_debate(model, startup_idea, roast_panel, settings.max_debate_rounds)
 
     synthesis = debate_result.get("final_synthesis", "No synthesis produced.")
     print("Debate Synthesis:\n")
