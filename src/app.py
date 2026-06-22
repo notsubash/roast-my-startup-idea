@@ -1,6 +1,6 @@
+import base64
 import sys
 from pathlib import Path
-from uuid import uuid4
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -12,6 +12,7 @@ from appeal.service import run_appeal
 from ui.streamlit_runner import run_debate_in_container, run_roast_panel_in_status
 from config import get_settings
 from memory.context import build_memory_context
+from memory.identity import get_local_user_id
 from memory.models import IdeaRecord
 from memory.store import IdeaStore
 from utils.scoring_chart import generate_radar_chart
@@ -34,6 +35,12 @@ st.markdown("""
         padding-left: 1rem;
         margin-bottom: 0.5rem;
     }
+    img.radar-chart-img {
+        width: 100%;
+        height: auto;
+        display: block;
+        max-width: 100%;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -42,10 +49,10 @@ st.markdown("""
 st.title("Roast My Startup")
 st.caption("Submit your startup idea. Five AI judges will roast it, then debate each other.")
 
-if "user_id" not in st.session_state:
-    st.session_state.user_id = str(uuid4())
-
 idea_store = IdeaStore()
+
+if "user_id" not in st.session_state:
+    st.session_state.user_id = get_local_user_id(idea_store)
 
 # ── Sidebar: settings ──
 
@@ -179,7 +186,12 @@ if roast_panel is not None:
 
     col_chart, col_summary = st.columns([1, 1])
     with col_chart:
-        st.image(str(chart_path), use_container_width=True)
+        chart_b64 = base64.b64encode(chart_path.read_bytes()).decode()
+        st.markdown(
+            f'<img class="radar-chart-img" src="data:image/png;base64,{chart_b64}" '
+            f'alt="Judge Scores Radar Chart">',
+            unsafe_allow_html=True,
+        )
     with col_summary:
         avg = sum(v.score for v in roast_panel.verdicts) / len(roast_panel.verdicts)
         pass_count = sum(1 for v in roast_panel.verdicts if v.verdict.value == "PASS")

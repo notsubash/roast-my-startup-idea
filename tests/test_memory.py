@@ -3,11 +3,13 @@ import tempfile
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from judges.schemas import RoastPanel, Verdict
 from memory.context import build_memory_context
+from memory.identity import get_local_user_id
 from memory.models import IdeaRecord
 from memory.store import IdeaStore
 
@@ -81,6 +83,53 @@ class MemoryTest(unittest.TestCase):
         self.assertIn("Users will ignore passive summaries.", context)
         self.assertIn("The panel agreed passive summaries are too weak.", context)
         self.assertNotIn("long transcript that should not leak", context)
+
+    def test_get_local_user_id_persists_across_calls(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            id_path = Path(tmpdir) / "local_user_id"
+            db_path = Path(tmpdir) / "ideas.db"
+
+            with patch("memory.identity.LOCAL_USER_ID_PATH", id_path):
+                with IdeaStore(db_path) as store:
+                    first = get_local_user_id(store)
+                    second = get_local_user_id(store)
+
+            self.assertEqual(first, second)
+            self.assertEqual(id_path.read_text(encoding="utf-8"), first)
+
+    def test_get_local_user_id_migrates_existing_db_records(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            id_path = Path(tmpdir) / "local_user_id"
+            db_path = Path(tmpdir) / "ideas.db"
+
+            with IdeaStore(db_path) as store:
+                store.save(
+                    IdeaRecord(
+                        user_id="session-a",
+                        idea_text="First pitch",
+                        roast_panel=_panel(4, "Needs clearer buyer."),
+                        debate_result={"final_synthesis": "Needs work."},
+                    )
+                )
+                store.save(
+                    IdeaRecord(
+                        user_id="session-b",
+                        idea_text="Second pitch",
+                        roast_panel=_panel(5, "Long sales cycle."),
+                        debate_result={"final_synthesis": "Maybe."},
+                    )
+                )
+
+            with patch("memory.identity.LOCAL_USER_ID_PATH", id_path):
+                with IdeaStore(db_path) as store:
+                    user_id = get_local_user_id(store)
+                    records = store.list_recent(user_id, limit=10)
+
+            self.assertEqual(user_id, "local")
+            self.assertEqual(
+                {record.idea_text for record in records},
+                {"First pitch", "Second pitch"},
+            )
 
 
 if __name__ == "__main__":
