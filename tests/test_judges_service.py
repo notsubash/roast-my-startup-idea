@@ -1,0 +1,67 @@
+import sys
+import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from judges.service import invoke_judge
+
+
+class FakeStructuredModel:
+    def __init__(self, responses):
+        self.responses = list(responses)
+        self.calls = 0
+
+    def invoke(self, messages):
+        self.calls += 1
+        return self.responses.pop(0)
+
+
+class FakeModel:
+    def __init__(self, responses):
+        self.structured_model = FakeStructuredModel(responses)
+
+    def with_structured_output(self, schema):
+        return self.structured_model
+
+
+class JudgeServiceTest(unittest.TestCase):
+    def test_invoke_judge_rejects_missing_structured_verdict(self):
+        model = FakeModel([None, None, None])
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "pm judge returned no structured verdict",
+        ):
+            invoke_judge(
+                model=model,
+                judge="pm",
+                startup_idea="AI pothole detection for municipalities",
+            )
+
+        self.assertEqual(model.structured_model.calls, 3)
+
+    def test_invoke_judge_retries_missing_structured_verdict(self):
+        model = FakeModel([
+            None,
+            {
+                "judge": "pm",
+                "verdict": "FAIL",
+                "roast": "The target buyer and workflow are too fuzzy for a reliable product strategy.",
+                "score": 4,
+                "key_concern": "The municipal buyer path is not clear enough.",
+            },
+        ])
+
+        verdict = invoke_judge(
+            model=model,
+            judge="pm",
+            startup_idea="AI pothole detection for municipalities",
+        )
+
+        self.assertEqual(verdict.judge.value, "pm")
+        self.assertEqual(model.structured_model.calls, 2)
+
+
+if __name__ == "__main__":
+    unittest.main()

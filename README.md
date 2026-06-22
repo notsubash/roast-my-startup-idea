@@ -141,7 +141,14 @@ If you use a different model, set it in `.env`:
 
 ```bash
 LOCAL_MODEL=ollama:qwen3.5:9b
+DEEPSEEK_MODEL=deepseek-v4-pro
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_BACKEND=langchain
+DEEPSEEK_API_KEY=your_deepseek_api_key
 MAX_DEBATE_ROUNDS=3
+ENABLE_WEB_SEARCH=false
+WEB_SEARCH_MAX_RESULTS=3
+TAVILY_API_KEY=your_tavily_api_key
 ```
 
 Use a model with decent structured-output and instruction-following behavior. Local models vary a lot here. If judge outputs fail validation, try a stronger tool-calling/instruct model.
@@ -157,10 +164,21 @@ streamlit run src/app.py
 Then:
 
 1. Enter a startup idea.
-2. Click `Roast It!`.
-3. Review individual verdicts, score chart, debate transcript, and final synthesis.
-4. Use Appeal Mode to argue back with concrete evidence.
-5. Download the transcript if needed.
+2. Choose execution flow:
+   - `Deterministic (production)` for stable local-first orchestration.
+   - `DeepAgents (experimental phase 1)` to route phase 1 through `task()` subagents.
+3. Choose model runtime:
+   - `local` (Ollama via `LOCAL_MODEL`)
+   - `deepseek` (DeepSeek API via `DEEPSEEK_API_KEY`)
+4. If using DeepSeek runtime, choose backend:
+   - `langchain` (`ChatDeepSeek` from `langchain_deepseek`)
+   - `openai` (DeepSeek's OpenAI-compatible endpoint)
+5. Optionally enable `Web research (Tavily)` for bounded factual context.
+   - Search usage is decided by a model policy prompt, not keyword matching.
+6. Click `Roast It!`.
+7. Review individual verdicts, score chart, debate transcript, and final synthesis.
+8. Use Appeal Mode to argue back with concrete evidence.
+9. Download the transcript if needed.
 
 ## Memory
 

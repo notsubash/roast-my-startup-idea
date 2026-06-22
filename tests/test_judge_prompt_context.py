@@ -1,0 +1,29 @@
+import sys
+import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from judges.service import build_judge_user_prompt
+
+
+class JudgePromptContextTest(unittest.TestCase):
+    def test_build_judge_user_prompt_includes_memory_and_research_context(self):
+        prompt = build_judge_user_prompt(
+            startup_idea="AI compliance copilot for hospitals",
+            memory_context="- Prior pitch avg 4.2/10",
+            research_context=(
+                "Web research:\n"
+                "- Source: https://example.com/compliance-market\n"
+                "  Finding: Compliance spend is growing."
+            ),
+        )
+
+        self.assertIn("Evaluate this startup idea", prompt)
+        self.assertIn("Prior user memory", prompt)
+        self.assertIn("Web research", prompt)
+        self.assertIn("https://example.com/compliance-market", prompt)
+
+
+if __name__ == "__main__":
+    unittest.main()
