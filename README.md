@@ -6,24 +6,19 @@ The app is built for learning and experimentation with LangGraph, LangChain, loc
 
 ## Screenshots
 
-Roast Panel main page
-
+![Roast Panel main page](images/Roast%20Panel%20Main%20Page.png)
 
 | Individual verdicts | Judge scores radar |
-| ------------------- | ------------------ |
-| Judge verdicts      | Judge scores radar |
-
-
+| --- | --- |
+| ![Judge verdicts](images/Judge%20Verdicts.png) | ![Judge scores radar](src/roast_radar.png) |
 
 | Debate round 1 | Debate round 2 | Debate round 3 |
-| -------------- | -------------- | -------------- |
-| Debate round 1 | Debate round 2 | Debate round 3 |
-
-
+| --- | --- | --- |
+| ![Debate round 1](images/Debate%20Round%201.png) | ![Debate round 2](images/Debate%20Round%202.png) | ![Debate round 3](images/Debate%20Round%203.png) |
 
 | Final synthesis | Appeal mode | After appeal synthesis |
-| --------------- | ----------- | ---------------------- |
-| Final synthesis | Appeal mode | After appeal synthesis |
+| --- | --- | --- |
+| ![Final synthesis](images/Final%20Synthesis.png) | ![Appeal mode](images/Appeal%20Mode.png) | ![After appeal synthesis](images/After%20Appeal%20Synthesis.png) |
 
 
 ## What It Does
