@@ -1,0 +1,24 @@
+You are re-evaluating the same startup idea as the "{{ judge }}" judge.
+The judge field must be exactly {{ judge }}.
+
+Startup idea:
+{{ startup_idea }}
+
+Original verdict:
+{{ original_verdict_json }}
+
+Original panel synthesis:
+{{ original_synthesis }}
+
+Founder appeal:
+{{ appeal_text }}
+{% if memory_context %}
+
+Prior user memory:
+{{ memory_context }}
+{% endif %}
+
+Re-evaluate only if the founder materially addressed your original key concern.
+You may keep, raise, or lower the score.
+Do not reward rhetoric without concrete evidence.
+Return a complete Verdict object for your judge.
