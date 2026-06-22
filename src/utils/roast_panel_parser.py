@@ -40,6 +40,40 @@ def _parse_json_dict(content: str) -> dict | None:
     return data
 
 
+def _extract_markdown_field(content: str, label: str) -> str | None:
+    pattern = rf"(?is){re.escape(label)}\s*:\s*(.+?)(?=\n\s*(?:Verdict|Roast|Score|Key concern)\s*:|\Z)"
+    match = re.search(pattern, content)
+    if not match:
+        return None
+    value = match.group(1).strip()
+    return re.sub(r"^\*\*|\*\*$", "", value).strip()
+
+
+def _parse_markdown_verdict(content: str, judge: str | None) -> dict | None:
+    if judge is None:
+        return None
+
+    verdict = _extract_markdown_field(content, "Verdict")
+    roast = _extract_markdown_field(content, "Roast")
+    score = _extract_markdown_field(content, "Score")
+    key_concern = _extract_markdown_field(content, "Key concern")
+
+    if not all([verdict, roast, score, key_concern]):
+        return None
+
+    score_match = re.search(r"\d+", score or "")
+    if not score_match:
+        return None
+
+    return {
+        "judge": judge,
+        "verdict": verdict,
+        "roast": roast,
+        "score": int(score_match.group(0)),
+        "key_concern": key_concern,
+    }
+
+
 def _judge_from_subagent_type(subagent_type: str | None) -> str | None:
     if not isinstance(subagent_type, str):
         return None
@@ -94,9 +128,14 @@ def extract_roast_panel(result: dict) -> RoastPanel:
         if not isinstance(content, str) or not content.strip():
             continue
 
+        tool_call_id = getattr(message, "tool_call_id", None)
+        tool_judge = tool_call_judges.get(tool_call_id)
+
         data = _parse_json_dict(content)
         if data is None:
-            continue
+            data = _parse_markdown_verdict(content, tool_judge)
+            if data is None:
+                continue
 
         if "verdicts" in data and isinstance(data["verdicts"], list):
             try:
@@ -107,10 +146,8 @@ def extract_roast_panel(result: dict) -> RoastPanel:
                 continue
 
         if "judge" not in data:
-            tool_call_id = getattr(message, "tool_call_id", None)
-            judge = tool_call_judges.get(tool_call_id)
-            if judge:
-                data["judge"] = judge
+            if tool_judge:
+                data["judge"] = tool_judge
 
         try:
             verdict = Verdict.model_validate(_coerce_verdict_dict(data))

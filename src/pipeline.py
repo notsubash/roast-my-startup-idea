@@ -20,18 +20,30 @@ from events import (
 )
 from judges.panel import run_roast_panel, stream_roast_panel
 from judges.schemas import RoastPanel
+from memory.context import build_memory_context
+from memory.models import IdeaRecord
+from memory.store import IdeaStore
 
 
 def stream_pipeline(
     model,
     startup_idea: str,
     max_debate_rounds: int = 3,
+    user_id: str | None = None,
+    idea_store: IdeaStore | None = None,
+    memory_limit: int = 3,
 ) -> Iterator[PipelineEvent]:
     """Run roast panel then debate, yielding all intermediate events."""
+    memory_context = ""
+    if user_id and idea_store:
+        memory_context = build_memory_context(
+            idea_store.list_recent(user_id, limit=memory_limit)
+        )
+
     yield PhaseStarted(phase="roast")
 
     roast_panel: RoastPanel | None = None
-    for event in stream_roast_panel(model, startup_idea):
+    for event in stream_roast_panel(model, startup_idea, memory_context):
         yield event
         if isinstance(event, RoastPanelCompleted):
             roast_panel = event.panel
@@ -53,11 +65,43 @@ def stream_pipeline(
     if debate_result is None:
         raise RuntimeError("Debate did not complete")
 
+    if user_id and idea_store:
+        idea_store.save(
+            IdeaRecord(
+                user_id=user_id,
+                idea_text=startup_idea,
+                roast_panel=roast_panel,
+                debate_result=debate_result,
+            )
+        )
+
     yield PipelineCompleted(roast_panel=roast_panel, debate_result=debate_result)
 
 
-def run_pipeline(model, startup_idea: str, max_debate_rounds: int = 3) -> tuple[RoastPanel, dict]:
+def run_pipeline(
+    model,
+    startup_idea: str,
+    max_debate_rounds: int = 3,
+    user_id: str | None = None,
+    idea_store: IdeaStore | None = None,
+    memory_limit: int = 3,
+) -> tuple[RoastPanel, dict]:
     """Blocking convenience wrapper for CLI and tests."""
-    roast_panel = run_roast_panel(model, startup_idea)
+    memory_context = ""
+    if user_id and idea_store:
+        memory_context = build_memory_context(
+            idea_store.list_recent(user_id, limit=memory_limit)
+        )
+
+    roast_panel = run_roast_panel(model, startup_idea, memory_context)
     debate_result = run_debate(model, startup_idea, roast_panel, max_debate_rounds)
+    if user_id and idea_store:
+        idea_store.save(
+            IdeaRecord(
+                user_id=user_id,
+                idea_text=startup_idea,
+                roast_panel=roast_panel,
+                debate_result=debate_result,
+            )
+        )
     return roast_panel, debate_result

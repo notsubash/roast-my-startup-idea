@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from uuid import uuid4
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -7,8 +8,12 @@ import streamlit as st
 from langchain.chat_models import init_chat_model
 from pydantic import ValidationError
 
+from appeal.service import run_appeal
 from ui.streamlit_runner import run_debate_in_container, run_roast_panel_in_status
 from config import get_settings
+from memory.context import build_memory_context
+from memory.models import IdeaRecord
+from memory.store import IdeaStore
 from utils.scoring_chart import generate_radar_chart
 from utils.transcript_exporter import export_transcript
 
@@ -37,6 +42,11 @@ st.markdown("""
 st.title("Roast My Startup")
 st.caption("Submit your startup idea. Five AI judges will roast it, then debate each other.")
 
+if "user_id" not in st.session_state:
+    st.session_state.user_id = str(uuid4())
+
+idea_store = IdeaStore()
+
 # ── Sidebar: settings ──
 
 with st.sidebar:
@@ -44,6 +54,15 @@ with st.sidebar:
     settings = get_settings()
     model_name = st.text_input("Model", value=settings.local_model)
     max_rounds = st.slider("Debate rounds", min_value=1, max_value=5, value=settings.max_debate_rounds)
+    st.divider()
+    st.subheader("Memory")
+    recent_records = idea_store.list_recent(st.session_state.user_id, limit=5)
+    if recent_records:
+        for record in recent_records:
+            avg = sum(v.score for v in record.roast_panel.verdicts) / len(record.roast_panel.verdicts)
+            st.caption(f"{record.created_at.date()} · {avg:.1f}/10 · {record.idea_text[:60]}")
+    else:
+        st.caption("No previous ideas remembered yet.")
     st.divider()
     st.caption(f"Running on: `{model_name}`")
 
@@ -65,21 +84,36 @@ if "debate_result" not in st.session_state:
     st.session_state.debate_result = None
 if "startup_idea_used" not in st.session_state:
     st.session_state.startup_idea_used = None
+if "current_record" not in st.session_state:
+    st.session_state.current_record = None
+if "revised_panel" not in st.session_state:
+    st.session_state.revised_panel = None
+if "revised_synthesis" not in st.session_state:
+    st.session_state.revised_synthesis = None
+if "appeal_text_used" not in st.session_state:
+    st.session_state.appeal_text_used = None
 
 # ── Run the pipeline ──
 
 if run_clicked and startup_idea.strip():
     st.session_state.roast_panel = None
     st.session_state.debate_result = None
+    st.session_state.current_record = None
+    st.session_state.revised_panel = None
+    st.session_state.revised_synthesis = None
+    st.session_state.appeal_text_used = None
     st.session_state.startup_idea_used = startup_idea
 
     model = init_chat_model(model_name)
+    memory_context = build_memory_context(
+        idea_store.list_recent(st.session_state.user_id, limit=3)
+    )
 
     # ── Phase 1: Roast Panel with streaming verdicts ──
 
     with st.status("Phase 1: Judges are roasting your idea...", expanded=True) as status:
         try:
-            roast_panel = run_roast_panel_in_status(model, startup_idea, status)
+            roast_panel = run_roast_panel_in_status(model, startup_idea, status, memory_context)
         except (ValidationError, Exception) as exc:
             st.error(f"Phase 1 failed: {exc}")
             st.stop()
@@ -103,6 +137,14 @@ if run_clicked and startup_idea.strip():
         status.update(label="\u2705 Phase 2 complete — debate concluded!", state="complete")
 
     st.session_state.debate_result = debate_result
+    record = IdeaRecord(
+        user_id=st.session_state.user_id,
+        idea_text=startup_idea,
+        roast_panel=roast_panel,
+        debate_result=debate_result,
+    )
+    idea_store.save(record)
+    st.session_state.current_record = record
 
 elif run_clicked:
     st.warning("Please enter a startup idea first.")
@@ -111,6 +153,8 @@ elif run_clicked:
 
 roast_panel = st.session_state.roast_panel
 debate_result = st.session_state.debate_result
+revised_panel = st.session_state.revised_panel
+revised_synthesis = st.session_state.revised_synthesis
 
 if roast_panel is not None:
     st.subheader("Individual Verdicts")
@@ -183,10 +227,95 @@ if debate_result is not None:
     synthesis = debate_result.get("final_synthesis", "No synthesis produced.")
     st.info(synthesis)
 
+    # ── Appeal mode ──
+
+    st.subheader("Appeal Mode")
+    st.caption("Argue back with concrete evidence. Judges will re-evaluate without rerunning the full debate.")
+    appeal_text = st.text_area(
+        "Your appeal:",
+        height=100,
+        placeholder="e.g., We already have three signed LOIs worth $180k ARR and pilots in two hospitals.",
+    )
+    appeal_clicked = st.button("Submit Appeal", type="secondary", use_container_width=True)
+
+    if appeal_clicked:
+        if not appeal_text.strip():
+            st.warning("Write an appeal first.")
+        else:
+            model = init_chat_model(model_name)
+            current_record = st.session_state.current_record
+            prior_records = [
+                record
+                for record in idea_store.list_recent(st.session_state.user_id, limit=4)
+                if current_record is None or record.id != current_record.id
+            ][:3]
+            try:
+                with st.status("Appeal mode: judges are re-evaluating...", expanded=True) as status:
+                    status.write("Sending your appeal to all five judges...")
+                    appeal_result = run_appeal(
+                        model=model,
+                        startup_idea=st.session_state.startup_idea_used or "",
+                        roast_panel=roast_panel,
+                        debate_result=debate_result,
+                        appeal_text=appeal_text,
+                        memory_context=build_memory_context(prior_records),
+                    )
+                    status.update(label="\u2705 Appeal complete — revised panel ready!", state="complete")
+            except (ValidationError, Exception) as exc:
+                st.error(f"Appeal failed: {exc}")
+                st.stop()
+
+            st.session_state.revised_panel = appeal_result.revised_panel
+            st.session_state.revised_synthesis = appeal_result.revised_synthesis
+            st.session_state.appeal_text_used = appeal_text.strip()
+
+            if current_record is not None:
+                updated_record = current_record.model_copy(
+                    update={
+                        "appeal_text": appeal_text,
+                        "revised_panel": appeal_result.revised_panel,
+                        "revised_synthesis": appeal_result.revised_synthesis,
+                    }
+                )
+                idea_store.save(updated_record)
+                st.session_state.current_record = updated_record
+
+            st.rerun()
+
+    if revised_panel is not None:
+        st.markdown("#### Revised Verdicts")
+        revised_cols = st.columns(5)
+        for i, v in enumerate(revised_panel.verdicts):
+            original = next(
+                original_v for original_v in roast_panel.verdicts
+                if original_v.judge.value == v.judge.value
+            )
+            delta = v.score - original.score
+            delta_label = f"{delta:+d}" if delta else "0"
+            with revised_cols[i]:
+                st.metric(
+                    label=v.judge.value.upper(),
+                    value=f"{v.score}/10",
+                    delta=delta_label,
+                )
+                st.caption(v.verdict.value)
+                st.markdown(f"*\"{v.roast}\"*")
+                st.markdown(f"**Key concern:** {v.key_concern}")
+
+        if revised_synthesis:
+            st.info(revised_synthesis)
+
     # ── Export ──
 
     startup_idea_used = st.session_state.startup_idea_used or ""
-    transcript_path = export_transcript(startup_idea_used, roast_panel, debate_result)
+    transcript_path = export_transcript(
+        startup_idea_used,
+        roast_panel,
+        debate_result,
+        appeal_text=st.session_state.appeal_text_used,
+        revised_panel=revised_panel,
+        revised_synthesis=revised_synthesis,
+    )
     transcript_content = transcript_path.read_text(encoding="utf-8")
 
     st.download_button(

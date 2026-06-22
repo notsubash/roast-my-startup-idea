@@ -27,12 +27,17 @@ JUDGE_AVATARS = {
 }
 
 
-def run_roast_panel_in_status(model, startup_idea: str, status) -> RoastPanel:
+def run_roast_panel_in_status(
+    model,
+    startup_idea: str,
+    status,
+    memory_context: str | None = None,
+) -> RoastPanel:
     """Consume roast events and render progress inside a st.status block."""
     panel: RoastPanel | None = None
     progress_bar = None
 
-    for event in stream_roast_panel(model, startup_idea):
+    for event in stream_roast_panel(model, startup_idea, memory_context):
         if isinstance(event, JudgesDispatched):
             status.write(f"Dispatching {event.total} judges in parallel...")
             progress_bar = status.progress(0, text=f"0/{event.total} judges responded")

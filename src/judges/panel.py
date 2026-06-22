@@ -9,14 +9,18 @@ from judges.schemas import RoastPanel, Verdict
 from judges.service import invoke_judge
 
 
-def stream_roast_panel(model, startup_idea: str) -> Iterator[JudgeVerdictCompleted | JudgesDispatched | RoastPanelCompleted]:
+def stream_roast_panel(
+    model,
+    startup_idea: str,
+    memory_context: str | None = None,
+) -> Iterator[JudgeVerdictCompleted | JudgesDispatched | RoastPanelCompleted]:
     """Run all judges in parallel; yield events as each completes."""
     total = len(JUDGE_ORDER)
     yield JudgesDispatched(total=total)
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=total) as pool:
         future_to_judge = {
-            pool.submit(invoke_judge, model, judge, startup_idea): judge
+            pool.submit(invoke_judge, model, judge, startup_idea, memory_context): judge
             for judge in JUDGE_ORDER
         }
 
@@ -39,10 +43,14 @@ def stream_roast_panel(model, startup_idea: str) -> Iterator[JudgeVerdictComplet
     yield RoastPanelCompleted(panel=panel)
 
 
-def run_roast_panel(model, startup_idea: str) -> RoastPanel:
+def run_roast_panel(
+    model,
+    startup_idea: str,
+    memory_context: str | None = None,
+) -> RoastPanel:
     """Blocking convenience wrapper — returns the final panel."""
     panel = None
-    for event in stream_roast_panel(model, startup_idea):
+    for event in stream_roast_panel(model, startup_idea, memory_context):
         if isinstance(event, RoastPanelCompleted):
             panel = event.panel
     assert panel is not None

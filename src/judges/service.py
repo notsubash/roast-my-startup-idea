@@ -21,10 +21,23 @@ def judge_system_prompt(judge: str) -> str:
     return template_env.get_template(JUDGE_TEMPLATES[judge]).render()
 
 
-def invoke_judge(model, judge: str, startup_idea: str) -> Verdict:
+def invoke_judge(
+    model,
+    judge: str,
+    startup_idea: str,
+    memory_context: str | None = None,
+) -> Verdict:
     """Evaluate one startup idea with structured output."""
+    user_content = f"Evaluate this startup idea:\n\n{startup_idea}"
+    if memory_context:
+        user_content += (
+            "\n\nPrior user memory:\n"
+            f"{memory_context}\n\n"
+            "If this is a revision of an earlier pitch, call out whether the founder addressed prior criticism."
+        )
+
     structured_model = model.with_structured_output(Verdict)
     return structured_model.invoke([
         SystemMessage(content=judge_system_prompt(judge)),
-        HumanMessage(content=f"Evaluate this startup idea:\n\n{startup_idea}"),
+        HumanMessage(content=user_content),
     ])

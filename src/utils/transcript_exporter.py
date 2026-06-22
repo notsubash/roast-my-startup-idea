@@ -9,6 +9,9 @@ def export_transcript(
     roast_panel: RoastPanel,
     debate_result: dict,
     output_dir: Path = Path("transcripts"),
+    appeal_text: str | None = None,
+    revised_panel: RoastPanel | None = None,
+    revised_synthesis: str | None = None,
 ) -> Path:
     """Export the full roast + debate session to a Markdown file."""
     output_dir.mkdir(exist_ok=True)
@@ -52,6 +55,28 @@ def export_transcript(
     synthesis = debate_result.get("final_synthesis", "")
     if synthesis:
         lines.extend(["---", "", "## Final Synthesis", "", synthesis, ""])
+
+    if appeal_text and revised_panel is not None:
+        lines.extend(["---", "", "## Phase 3: Appeal", "", "### Founder Appeal", "", appeal_text, ""])
+        lines.extend(["### Revised Verdicts", ""])
+        for v in revised_panel.verdicts:
+            original = next(
+                orig for orig in roast_panel.verdicts if orig.judge.value == v.judge.value
+            )
+            delta = v.score - original.score
+            delta_label = f", {delta:+d}" if delta else ""
+            lines.append(
+                f"#### {v.judge.value.upper()} — {v.verdict.value} "
+                f"({v.score}/10, was {original.score}/10{delta_label})"
+            )
+            lines.append("")
+            lines.append(f"> {v.roast}")
+            lines.append("")
+            lines.append(f"**Key concern:** {v.key_concern}")
+            lines.append("")
+
+        if revised_synthesis:
+            lines.extend(["### Appeal Synthesis", "", revised_synthesis, ""])
 
     filepath.write_text("\n".join(lines), encoding="utf-8")
     return filepath
