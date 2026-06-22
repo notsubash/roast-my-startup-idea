@@ -43,7 +43,7 @@ class TestDebateGraph(unittest.TestCase):
         )
 
         speaker_messages = [
-            message for message in result["messages"] if message["speaker"] != "moderator"
+            message for message in result["debate_messages"] if message["speaker"] != "moderator"
         ]
 
         self.assertEqual(
@@ -57,7 +57,7 @@ class TestDebateGraph(unittest.TestCase):
         )
 
         self.assertEqual(
-            result["messages"][-1]["speaker"],
+            result["debate_messages"][-1]["speaker"],
             "moderator",
         )
 

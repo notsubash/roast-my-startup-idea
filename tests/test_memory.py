@@ -1,0 +1,87 @@
+import sys
+import tempfile
+import unittest
+from datetime import datetime, timezone
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from judges.schemas import RoastPanel, Verdict
+from memory.context import build_memory_context
+from memory.models import IdeaRecord
+from memory.store import IdeaStore
+
+
+def _panel(score: int, concern: str) -> RoastPanel:
+    return RoastPanel(
+        verdicts=[
+            Verdict(judge="vc", verdict="FAIL", roast="Distribution is expensive and the market does not look venture scale.", score=score, key_concern=concern),
+            Verdict(judge="engineer", verdict="CONDITIONAL", roast="The build is feasible, but reliability will be harder than the demo suggests.", score=score, key_concern=concern),
+            Verdict(judge="pm", verdict="FAIL", roast="The target user is too broad, so the product will struggle to find a repeatable wedge.", score=score, key_concern=concern),
+            Verdict(judge="customer", verdict="FAIL", roast="I would not change my workflow unless this saves obvious time immediately.", score=score, key_concern=concern),
+            Verdict(judge="competitor", verdict="FAIL", roast="This is easy for incumbents to copy once they see any traction.", score=score, key_concern=concern),
+        ]
+    )
+
+
+class MemoryTest(unittest.TestCase):
+    def test_store_returns_recent_records_for_only_requested_user(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with IdeaStore(Path(tmpdir) / "ideas.db") as store:
+                older = IdeaRecord(
+                    user_id="user-1",
+                    idea_text="AI calendar for founders",
+                    created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+                    roast_panel=_panel(3, "No urgent buyer."),
+                    debate_result={"final_synthesis": "Too vague to fund."},
+                )
+                newer = IdeaRecord(
+                    user_id="user-1",
+                    idea_text="AI compliance copilot for hospitals",
+                    created_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
+                    roast_panel=_panel(6, "Sales cycles are long."),
+                    debate_result={"final_synthesis": "Specific but slow to sell."},
+                )
+                other_user = IdeaRecord(
+                    user_id="user-2",
+                    idea_text="Consumer habit tracker",
+                    roast_panel=_panel(2, "No willingness to pay."),
+                    debate_result={"final_synthesis": "Weak consumer urgency."},
+                )
+
+                store.save(older)
+                store.save(newer)
+                store.save(other_user)
+
+                records = store.list_recent("user-1", limit=2)
+
+            self.assertEqual([record.idea_text for record in records], [
+                "AI compliance copilot for hospitals",
+                "AI calendar for founders",
+            ])
+
+    def test_memory_context_summarizes_prior_ideas_without_full_transcripts(self):
+        records = [
+            IdeaRecord(
+                user_id="user-1",
+                idea_text="AI privacy policy summarizer for browser users",
+                created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+                roast_panel=_panel(3, "Users will ignore passive summaries."),
+                debate_result={
+                    "debate_messages": [{"speaker": "vc", "content": "long transcript that should not leak"}],
+                    "final_synthesis": "The panel agreed passive summaries are too weak.",
+                },
+            )
+        ]
+
+        context = build_memory_context(records)
+
+        self.assertIn("AI privacy policy summarizer", context)
+        self.assertIn("avg 3.0/10", context)
+        self.assertIn("Users will ignore passive summaries.", context)
+        self.assertIn("The panel agreed passive summaries are too weak.", context)
+        self.assertNotIn("long transcript that should not leak", context)
+
+
+if __name__ == "__main__":
+    unittest.main()
