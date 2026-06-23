@@ -1,15 +1,32 @@
 import base64
+import os
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import streamlit as st
-from langchain.chat_models import init_chat_model
 from pydantic import ValidationError
 
 from appeal.service import run_appeal
-from ui.streamlit_runner import run_debate_in_container, run_roast_panel_in_status
+from modeling import build_chat_model
+from research.service import (
+    TavilyHttpClient,
+    build_research_context,
+    decide_web_search_usage,
+    format_research_context,
+)
+from ui.streamlit_runner import (
+    run_debate_in_container,
+    run_deepagent_roast_in_status,
+    run_roast_panel_in_status,
+)
+from ui.text_display import (
+    write_labelled_plain,
+    write_plain_text,
+    write_roast_quote,
+    write_synthesis,
+)
 from config import get_settings
 from memory.context import build_memory_context
 from memory.identity import get_local_user_id
@@ -42,6 +59,12 @@ st.markdown("""
         display: block;
         max-width: 100%;
     }
+    .llm-plain-text {
+        font-family: inherit;
+        font-size: inherit;
+        font-style: normal;
+        color: inherit;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -60,7 +83,32 @@ if "user_id" not in st.session_state:
 with st.sidebar:
     st.header("\u2699\ufe0f Settings")
     settings = get_settings()
-    model_name = st.text_input("Model", value=settings.local_model)
+    execution_flow = st.selectbox(
+        "Execution flow",
+        options=["deterministic", "deepagents"],
+        format_func=lambda value: (
+            "Deterministic"
+            if value == "deterministic"
+            else "DeepAgents"
+        ),
+    )
+    model_runtime = st.selectbox(
+        "Model",
+        options=["local", "deepseek"],
+        format_func=lambda value: (
+            f"Local ({settings.local_model})"
+            if value == "local"
+            else f"DeepSeek API ({settings.deepseek_model})"
+        ),
+    )
+    enable_web_search = st.checkbox(
+        "Enable web research (Tavily)",
+        value=settings.enable_web_search,
+        help=(
+            "Runs at most one bounded search pass for market-sensitive ideas. "
+            "If heuristic says search is unnecessary, it is skipped."
+        ),
+    )
     max_rounds = st.slider("Debate rounds", min_value=1, max_value=5, value=settings.max_debate_rounds)
     st.divider()
     st.subheader("Memory")
@@ -72,7 +120,10 @@ with st.sidebar:
     else:
         st.caption("No previous ideas remembered yet.")
     st.divider()
-    st.caption(f"Running on: `{model_name}`")
+    active_model = settings.local_model if model_runtime == "local" else settings.deepseek_model
+    st.caption(f"Runtime: `{model_runtime}`")
+    st.caption(f"Model: `{active_model}`")
+    st.caption(f"Flow: `{execution_flow}`")
     st.caption(f"v{get_version()}")
 
 # ── Main input ──
@@ -113,16 +164,82 @@ if run_clicked and startup_idea.strip():
     st.session_state.appeal_text_used = None
     st.session_state.startup_idea_used = startup_idea
 
-    model = init_chat_model(model_name)
+    try:
+        model = build_chat_model(
+            model_choice=model_runtime,
+            settings=settings,
+            deepseek_api_key=os.getenv("DEEPSEEK_API_KEY"),
+        )
+    except ValueError as exc:
+        st.error(str(exc))
+        st.stop()
+
     memory_context = build_memory_context(
         idea_store.list_recent(st.session_state.user_id, limit=3)
     )
+    research_context: str | None = None
+    deepagent_web_search_enabled = False
+    if enable_web_search:
+        tavily_key = os.getenv("TAVILY_API_KEY")
+        if not tavily_key:
+            st.warning("Web research enabled but TAVILY_API_KEY is missing; continuing without search.")
+        else:
+            with st.status("Web research policy check...", expanded=False) as status:
+                try:
+                    search_decision = decide_web_search_usage(
+                        policy_model=model,
+                        startup_idea=startup_idea,
+                    )
+                    if search_decision.use_search:
+                        if execution_flow == "deepagents":
+                            deepagent_web_search_enabled = True
+                            status.write("Policy allowed search: DeepAgents search tool enabled.")
+                            status.update(label="✅ Web search enabled", state="complete")
+                        else:
+                            research = build_research_context(
+                                startup_idea=startup_idea,
+                                tavily_client=TavilyHttpClient(tavily_key),
+                                max_results=settings.web_search_max_results,
+                                enabled=True,
+                                decision=search_decision,
+                            )
+                            if research:
+                                research_context = format_research_context(research)
+                                status.write(
+                                    f"Added {len(research.findings)} cited sources for factual context."
+                                )
+                                status.update(label="✅ Web research added", state="complete")
+                            else:
+                                status.write("Policy allowed search, but no high-signal sources were returned.")
+                                status.update(label="ℹ️ Web research empty", state="complete")
+                    else:
+                        status.write(f"Skipped by policy: {search_decision.rationale}")
+                        status.update(label="ℹ️ Web research skipped", state="complete")
+                except Exception as exc:  # noqa: BLE001 - fail-open in UI
+                    status.update(label="⚠️ Web research failed; continuing without it", state="error")
+                    st.warning(f"Web research failed: {exc}")
 
     # ── Phase 1: Roast Panel with streaming verdicts ──
 
     with st.status("Phase 1: Judges are roasting your idea...", expanded=True) as status:
         try:
-            roast_panel = run_roast_panel_in_status(model, startup_idea, status, memory_context)
+            if execution_flow == "deepagents":
+                roast_panel = run_deepagent_roast_in_status(
+                    model=model,
+                    startup_idea=startup_idea,
+                    status=status,
+                    memory_context=memory_context,
+                    research_context=research_context,
+                    web_search_enabled=deepagent_web_search_enabled,
+                )
+            else:
+                roast_panel = run_roast_panel_in_status(
+                    model=model,
+                    startup_idea=startup_idea,
+                    status=status,
+                    memory_context=memory_context,
+                    research_context=research_context,
+                )
         except (ValidationError, Exception) as exc:
             st.error(f"Phase 1 failed: {exc}")
             st.stop()
@@ -178,8 +295,8 @@ if roast_panel is not None:
                 value=f"{v.score}/10",
             )
             st.caption(v.verdict.value)
-            st.markdown(f"*\"{v.roast}\"*")
-            st.markdown(f"**Key concern:** {v.key_concern}")
+            write_roast_quote(v.roast)
+            write_labelled_plain("Key concern:", v.key_concern)
 
     # ── Radar chart ──
 
@@ -231,7 +348,7 @@ if debate_result is not None:
         avatar = judge_avatars.get(msg["speaker"], "\U0001f916")
         with st.chat_message(msg["speaker"], avatar=avatar):
             st.markdown(f"**{msg['speaker'].upper()}**")
-            st.write(msg["content"])
+            write_plain_text(msg["content"])
 
     st.divider()
 
@@ -239,7 +356,7 @@ if debate_result is not None:
 
     st.subheader("\U0001f3af Final Synthesis")
     synthesis = debate_result.get("final_synthesis", "No synthesis produced.")
-    st.info(synthesis)
+    write_synthesis(synthesis)
 
     # ── Appeal mode ──
 
@@ -256,7 +373,15 @@ if debate_result is not None:
         if not appeal_text.strip():
             st.warning("Write an appeal first.")
         else:
-            model = init_chat_model(model_name)
+            try:
+                model = build_chat_model(
+                    model_choice=model_runtime,
+                    settings=settings,
+                    deepseek_api_key=os.getenv("DEEPSEEK_API_KEY"),
+                )
+            except ValueError as exc:
+                st.error(str(exc))
+                st.stop()
             current_record = st.session_state.current_record
             prior_records = [
                 record
@@ -313,11 +438,11 @@ if debate_result is not None:
                     delta=delta_label,
                 )
                 st.caption(v.verdict.value)
-                st.markdown(f"*\"{v.roast}\"*")
-                st.markdown(f"**Key concern:** {v.key_concern}")
+                write_roast_quote(v.roast)
+                write_labelled_plain("Key concern:", v.key_concern)
 
         if revised_synthesis:
-            st.info(revised_synthesis)
+            write_synthesis(revised_synthesis)
 
     # ── Export ──
 

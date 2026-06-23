@@ -23,6 +23,7 @@ from judges.schemas import RoastPanel
 from memory.context import build_memory_context
 from memory.models import IdeaRecord
 from memory.store import IdeaStore
+from orchestrator.deep_agent import run_roast_via_orchestrator
 
 
 def stream_pipeline(
@@ -32,6 +33,7 @@ def stream_pipeline(
     user_id: str | None = None,
     idea_store: IdeaStore | None = None,
     memory_limit: int = 3,
+    research_context: str | None = None,
 ) -> Iterator[PipelineEvent]:
     """Run roast panel then debate, yielding all intermediate events."""
     memory_context = ""
@@ -43,7 +45,12 @@ def stream_pipeline(
     yield PhaseStarted(phase="roast")
 
     roast_panel: RoastPanel | None = None
-    for event in stream_roast_panel(model, startup_idea, memory_context):
+    for event in stream_roast_panel(
+        model,
+        startup_idea,
+        memory_context,
+        research_context,
+    ):
         yield event
         if isinstance(event, RoastPanelCompleted):
             roast_panel = event.panel
@@ -85,6 +92,7 @@ def run_pipeline(
     user_id: str | None = None,
     idea_store: IdeaStore | None = None,
     memory_limit: int = 3,
+    research_context: str | None = None,
 ) -> tuple[RoastPanel, dict]:
     """Blocking convenience wrapper for CLI and tests."""
     memory_context = ""
@@ -93,7 +101,7 @@ def run_pipeline(
             idea_store.list_recent(user_id, limit=memory_limit)
         )
 
-    roast_panel = run_roast_panel(model, startup_idea, memory_context)
+    roast_panel = run_roast_panel(model, startup_idea, memory_context, research_context)
     debate_result = run_debate(model, startup_idea, roast_panel, max_debate_rounds)
     if user_id and idea_store:
         idea_store.save(
@@ -104,4 +112,22 @@ def run_pipeline(
                 debate_result=debate_result,
             )
         )
+    return roast_panel, debate_result
+
+
+def run_deepagent_pipeline(
+    model,
+    startup_idea: str,
+    max_debate_rounds: int = 3,
+    research_context: str | None = None,
+    web_search_enabled: bool = False,
+) -> tuple[RoastPanel, dict]:
+    """Experimental flow: DeepAgents for roast phase + deterministic debate."""
+    roast_panel = run_roast_via_orchestrator(
+        model=model,
+        startup_idea=startup_idea,
+        research_context=research_context,
+        web_search_enabled=web_search_enabled,
+    )
+    debate_result = run_debate(model, startup_idea, roast_panel, max_debate_rounds)
     return roast_panel, debate_result

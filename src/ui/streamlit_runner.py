@@ -13,8 +13,10 @@ from events import (
     JudgesDispatched,
     RoastPanelCompleted,
 )
-from judges.panel import stream_roast_panel
+from judges.panel import run_roast_panel, stream_roast_panel
 from judges.schemas import RoastPanel
+from orchestrator.deep_agent import run_roast_via_orchestrator
+from ui.text_display import write_plain_text
 
 VERDICT_ICONS = {"PASS": "\U0001f7e2", "FAIL": "\U0001f534", "CONDITIONAL": "\U0001f7e1"}
 
@@ -32,12 +34,13 @@ def run_roast_panel_in_status(
     startup_idea: str,
     status,
     memory_context: str | None = None,
+    research_context: str | None = None,
 ) -> RoastPanel:
     """Consume roast events and render progress inside a st.status block."""
     panel: RoastPanel | None = None
     progress_bar = None
 
-    for event in stream_roast_panel(model, startup_idea, memory_context):
+    for event in stream_roast_panel(model, startup_idea, memory_context, research_context):
         if isinstance(event, JudgesDispatched):
             status.write(f"Dispatching {event.total} judges in parallel...")
             progress_bar = status.progress(0, text=f"0/{event.total} judges responded")
@@ -62,6 +65,40 @@ def run_roast_panel_in_status(
     return panel
 
 
+def run_deepagent_roast_in_status(
+    model,
+    startup_idea: str,
+    status,
+    memory_context: str | None = None,
+    research_context: str | None = None,
+    web_search_enabled: bool = False,
+) -> RoastPanel:
+    """Run experimental DeepAgents phase-1 and render progress."""
+    status.write("Booting DeepAgents orchestrator...")
+    if research_context:
+        status.write("Injecting bounded web research context.")
+    status.write("Dispatching subagents via task()...")
+    try:
+        panel = run_roast_via_orchestrator(
+            model=model,
+            startup_idea=startup_idea,
+            research_context=research_context,
+            web_search_enabled=web_search_enabled,
+        )
+        status.write("Collected DeepAgents verdict payloads.")
+        return panel
+    except Exception as exc:
+        status.write(f"DeepAgents phase 1 failed ({exc}); falling back to deterministic phase 1.")
+        panel = run_roast_panel(
+            model=model,
+            startup_idea=startup_idea,
+            memory_context=memory_context,
+            research_context=research_context,
+        )
+        status.write("Fallback completed via deterministic panel.")
+        return panel
+
+
 def run_debate_in_container(
     model,
     startup_idea: str,
@@ -83,7 +120,7 @@ def run_debate_in_container(
             avatar = JUDGE_AVATARS.get(event.speaker, "\U0001f916")
             with container.chat_message(event.speaker, avatar=avatar):
                 st.markdown(f"**{event.speaker.upper()}**")
-                st.write(event.content)
+                write_plain_text(event.content)
 
         elif isinstance(event, DebateSpeakerThinking):
             thinking_placeholder.caption(f"⏳ {event.judge.upper()} is thinking...")

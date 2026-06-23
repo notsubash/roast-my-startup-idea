@@ -1,6 +1,6 @@
 [project]
 name = "roast-my-startup"
-version = "0.1.0"
+version = "0.2.0"
 description = "Multi-agent startup critique app"
 requires-python = ">=3.11"
 

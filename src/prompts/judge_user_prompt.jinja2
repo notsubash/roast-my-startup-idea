@@ -1,0 +1,17 @@
+Evaluate this startup idea:
+
+{{ startup_idea }}
+{% if memory_context %}
+
+Prior user memory:
+{{ memory_context }}
+
+If this is a revision of an earlier pitch, call out whether the founder addressed prior criticism.
+{% endif %}
+{% if research_context %}
+
+External web context (optional):
+{{ research_context }}
+
+Use this only when making factual, time-sensitive claims. Do not invent sources.
+{% endif %}

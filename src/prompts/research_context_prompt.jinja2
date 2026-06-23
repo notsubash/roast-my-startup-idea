@@ -1,0 +1,6 @@
+Web research (use only for factual claims; cite URL in reasoning):
+{% for finding in findings %}
+- Source: {{ finding.url }}
+  Title: {{ finding.title }}
+  {% if finding.snippet %}Finding: {{ finding.snippet }}{% endif %}
+{% endfor %}

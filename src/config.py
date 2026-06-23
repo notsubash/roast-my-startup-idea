@@ -20,12 +20,27 @@ DEBATE_PERSONAS = {
 @dataclass(frozen=True)
 class Settings:
     local_model: str
+    deepseek_model: str
+    deepseek_base_url: str
     max_debate_rounds: int
+    enable_web_search: bool
+    web_search_max_results: int
+
+
+def _read_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 @lru_cache
 def get_settings() -> Settings:
     load_dotenv(PROJECT_ROOT / ".env")
     return Settings(
         local_model=os.getenv("LOCAL_MODEL", "ollama:qwen3.5:9b"),
+        deepseek_model=os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash"),
+        deepseek_base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
         max_debate_rounds=int(os.getenv("MAX_DEBATE_ROUNDS", "3")),
+        enable_web_search=_read_bool("ENABLE_WEB_SEARCH", False),
+        web_search_max_results=int(os.getenv("WEB_SEARCH_MAX_RESULTS", "3")),
     )

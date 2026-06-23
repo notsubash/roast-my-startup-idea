@@ -1,11 +1,14 @@
 from dataclasses import dataclass
 from typing import Any
 
+from jinja2 import Environment, FileSystemLoader
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from config import JUDGE_ORDER
+from config import JUDGE_ORDER, PROMPTS_DIR
 from judges.schemas import RoastPanel, Verdict
 from judges.service import judge_system_prompt
+
+template_env = Environment(loader=FileSystemLoader(PROMPTS_DIR))
 
 
 @dataclass(frozen=True)
@@ -47,25 +50,19 @@ def invoke_judge_on_appeal(
     """Ask one judge to revise or defend their verdict after founder appeal."""
     original = _original_verdict(roast_panel, judge)
     structured_model = model.with_structured_output(Verdict)
-    prior_context = f"\n\nPrior user memory:\n{memory_context}" if memory_context else ""
+    prompt = template_env.get_template("appeal_judge_prompt.jinja2").render(
+        judge=judge,
+        startup_idea=startup_idea,
+        original_verdict_json=original.model_dump_json(),
+        original_synthesis=debate_result.get("final_synthesis") or "No synthesis was produced.",
+        appeal_text=appeal_text,
+        memory_context=memory_context,
+    )
 
     return structured_model.invoke(
         [
             SystemMessage(content=judge_system_prompt(judge)),
-            HumanMessage(
-                content=(
-                    f'You are re-evaluating the same startup idea as the "{judge}" judge. '
-                    f"The judge field must be exactly {judge}.\n\n"
-                    f"Startup idea:\n{startup_idea}\n\n"
-                    f"Original verdict:\n{original.model_dump_json()}\n\n"
-                    f"Original panel synthesis:\n{debate_result.get('final_synthesis') or 'No synthesis was produced.'}\n\n"
-                    f"Founder appeal:\n{appeal_text}\n"
-                    f"{prior_context}\n\n"
-                    "Re-evaluate only if the founder materially addressed your original key concern. "
-                    "You may keep, raise, or lower the score. Do not reward rhetoric without concrete evidence. "
-                    "Return a complete Verdict object for your judge."
-                )
-            ),
+            HumanMessage(content=prompt),
         ]
     )
 
@@ -78,20 +75,18 @@ def synthesize_appeal(
     original_synthesis: str | None,
     appeal_text: str,
 ) -> str:
+    prompt = template_env.get_template("appeal_synthesis_prompt.jinja2").render(
+        startup_idea=startup_idea,
+        original_synthesis=original_synthesis or "No original synthesis was produced.",
+        appeal_text=appeal_text,
+        original_panel=_format_panel(original_panel),
+        revised_panel=_format_panel(revised_panel),
+    )
     response = model.invoke(
         [
             {
                 "role": "user",
-                "content": (
-                    "You are the moderator for Roast My Startup appeal mode.\n\n"
-                    f"Startup idea:\n{startup_idea}\n\n"
-                    f"Original synthesis:\n{original_synthesis or 'No original synthesis was produced.'}\n\n"
-                    f"Founder appeal:\n{appeal_text}\n\n"
-                    f"Original panel:\n{_format_panel(original_panel)}\n\n"
-                    f"Revised panel:\n{_format_panel(revised_panel)}\n\n"
-                    "Write a concise appeal synthesis. Explain what changed, what did not, "
-                    "and whether the appeal materially improved the case."
-                ),
+                "content": prompt,
             }
         ]
     )
