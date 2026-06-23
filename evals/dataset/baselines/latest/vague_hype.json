@@ -1,0 +1,251 @@
+{
+  "idea_id": "vague_hype",
+  "idea_text": "We are building the next big AI platform to revolutionize everything using blockchain and Web3 synergies. Details coming soon.",
+  "tags": [
+    "scam",
+    "nonsense"
+  ],
+  "judge_attempts": [
+    {
+      "judge": "customer",
+      "success": true
+    },
+    {
+      "judge": "competitor",
+      "success": true
+    },
+    {
+      "judge": "vc",
+      "success": true
+    },
+    {
+      "judge": "pm",
+      "success": true
+    },
+    {
+      "judge": "engineer",
+      "success": true
+    }
+  ],
+  "roast_panel": {
+    "verdicts": [
+      {
+        "judge": "vc",
+        "verdict": "FAIL",
+        "roast": "\"Details coming soon\" is not a pitch, it's a deferral — and in a market where AI infrastructure alone ate $20B+ in 2024, you're offering buzzword bingo with zero specificity on the customer, the pain point, or the unit economics. This isn't a startup; it's a placeholder for a landing page that should never have been bought.",
+        "score": 1,
+        "key_concern": "There is no definable product, market, or customer problem — just a collection of hype terms with zero substance to evaluate."
+      },
+      {
+        "judge": "engineer",
+        "verdict": "FAIL",
+        "roast": "\"Details coming soon\" is a red flag that tells me you haven't built anything and likely don't understand the technical challenges involved. Combining AI with blockchain means you're stacking two notoriously complex, high-latency systems on top of each other — decentralized inference is orders of magnitude slower and more expensive than running a single GPU, and you haven't demonstrated a single architectural decision that mitigates that. Until you can answer what model architecture you're using, how you handle on-chain vs off-chain compute, and why you're not just wrapping an API, this is vaporware, not a platform.",
+        "score": 1,
+        "key_concern": "No technical details means there is no architecture, no feasibility analysis, and likely no engineering work done at all."
+      },
+      {
+        "judge": "pm",
+        "verdict": "FAIL",
+        "roast": "\"Details coming soon\" is the loudest signal that you don't know who your user is, what pain you solve, or why anyone would pay you. Wrapping vague AI hype around blockchain and Web3 doesn't create product-market fit — it creates a bingo card of buzzwords that investors stopped believing in two funding cycles ago. Before you pitch again, define a single user segment with a specific, measurable problem they'll pay to solve — otherwise this is a solution in search of a nonexistent market.",
+        "score": 1,
+        "key_concern": "No user problem, no ICP, no differentiation — just buzzwords with \"details coming soon\" as a placeholder for product thinking."
+      },
+      {
+        "judge": "customer",
+        "verdict": "FAIL",
+        "roast": "\"Details coming soon\" means you haven't solved anything yet — you're asking me to pay for a placeholder. I don't know what problem you're solving, why I'd need blockchain or AI together, or whether this is a product or a press release. Come back when you can tell me what I actually get for my money, not which buzzwords you stuffed into a whitepaper.",
+        "score": 1,
+        "key_concern": "No specific problem, no clear value proposition, and \"details coming soon\" means there is nothing for a customer to evaluate or pay for."
+      },
+      {
+        "judge": "competitor",
+        "verdict": "FAIL",
+        "roast": "This is barely an idea — it's a buzzword salad with zero specifics, zero defensibility, and zero switching costs. Any competitor with an actual product roadmap, engineering team, and customer traction can clone this vaporware before you even write a line of code. \"Details coming soon\" means you have nothing, which means we have nothing to worry about.",
+        "score": 1,
+        "key_concern": "There is no defensibility, no differentiation, and no product — this is just a string of trendy keywords with zero execution details."
+      }
+    ]
+  },
+  "debate_result": {
+    "debate_messages": [
+      {
+        "speaker": "vc",
+        "round": 1,
+        "content": "Look, I don't need a decade of code to see a red flag—\"Details coming soon\" is the CEO equivalent of a blank check written on a napkin. You’re asking me to wire $2M against a promise that combines two of the most capital-intensive, low-margin tech stacks in history, with zero unit economics, zero market validation, and zero moat. Until you can show me a single paying customer who isn’t your co-founder’s mom, this isn’t a fundable startup—it’s an expensive hobby looking for a bag holder."
+      },
+      {
+        "speaker": "engineer",
+        "round": 1,
+        "content": "“Details coming soon” isn’t a roadmap—it’s a polite way of saying you haven’t even decided whether to use a transformer or an LSTM, let alone how you’d verify an inference on-chain without turning every request into a 30-minute gas auction. You’re stacking two of the most latency-sensitive, compute-expensive systems ever built, and your answer to “how do you make this work” is a placeholder. That’s not building—it’s hoping."
+      },
+      {
+        "speaker": "pm",
+        "round": 1,
+        "content": "\"Details coming soon\" isn't a product strategy, it's a confession. The VC and engineer are right: you've stacked two capital-intensive, latency-ridden tech stacks without a single hypothesis about who has this problem, let alone evidence they'll pay. Stop trying to raise on buzzword bingo and go talk to 20 humans in a specific vertical until one screams a burning need—then build that, not this."
+      },
+      {
+        "speaker": "customer",
+        "round": 1,
+        "content": "Oh, so the VC, engineer, and PM all roasted you with the same blunt truth: \"Details coming soon\" means you’ve got nothing I can evaluate, test, or pay for. You’re asking me to trust buzzword salad over AI’s $20B+ reality and blockchain’s latency hell—with zero urgency because I have zero reason to care. Come back when you can name a single problem I actually have and show me a working prototype that solves it faster or cheaper than what I already use. Until then, your “platform” is just a placeholder for my patience."
+      },
+      {
+        "speaker": "competitor",
+        "round": 1,
+        "content": "\"Details coming soon\" is the only honest thing in your pitch—because any actual details would reveal how quickly we can replicate whatever you're building. You have zero switching costs, zero network effects, and zero proprietary tech; the moment you announce a feature, I'll have a team shipping it before your \"soon\" arrives. This isn't a startup, it's a press release with a placeholder for the product."
+      },
+      {
+        "speaker": "vc",
+        "round": 2,
+        "content": "Look, you’ve got five judges telling you the same thing: “Details coming soon” is not a strategy, it’s a confession of zero traction. I’d rather fund a lemonade stand with a clear margin than a $2M placeholder that needs to solve the unsolvable latency and cost problem of AI-on-blockchain before you even have a customer. Until you show me unit economics and a signed LOI from someone who isn’t your mom, this isn’t a pitch—it’s a time-waster."
+      },
+      {
+        "speaker": "engineer",
+        "round": 2,
+        "content": "\"Details coming soon\" tells me you haven't even picked a framework, let alone benchmarked the latency of a single on-chain inference call. You're asking me to believe you'll solve the impossible math of verifying a model's output on a blockchain without turning each request into a 30-minute gas auction—but you can't even tell me if you're using a transformer or an LSTM. The VC and PM are right: you have no unit economics, no architecture, and no prototype. Until you can show me a single throughput number or a decision on off-chain vs on-chain compute, this isn't vaporware—it's a dream with a domain name."
+      },
+      {
+        "speaker": "pm",
+        "round": 2,
+        "content": "You all keep dancing around the same hole, but I’ll call it directly: this pitch doesn’t have an ICP because the founder hasn’t done a single customer discovery call. “Details coming soon” isn’t just vaporware—it’s a confession that you’ve never validated whether any human being would trade their current workflow for this buzzword sandwich. Before you even think about blockchain verification latency, prove to me there’s a single user segment that wakes up crying about AI–blockchain integration, or this idea dies on the landing page."
+      },
+      {
+        "speaker": "customer",
+        "round": 2,
+        "content": "You’re all still debating “details coming soon” while I’m already using tools that actually work—ChatGPT, Midjourney, or even a spreadsheet. You haven’t given me a single reason to switch or pay, and the VC and PM are right: without a customer who’s crying over this AI-blockchain thing, you’re just burning time. I don’t buy buzzwords; I buy solutions I can use today."
+      },
+      {
+        "speaker": "competitor",
+        "round": 2,
+        "content": "Look, I’ve been watching this debate, and the only thing more predictable than your “details coming soon” is my team’s ability to ship a working prototype before you even decide on a framework. You have zero defensibility—no proprietary data, no network effects, no switching costs. The moment you actually reveal a feature, I’ll have a squad replicating it before your placeholder becomes code. You’re not a competitor; you’re a free market research tip."
+      },
+      {
+        "speaker": "vc",
+        "round": 3,
+        "content": "Oh, so you’ve had five judges tell you the exact same thing across two rounds, and your response is still “Details coming soon”? That’s not a pivot, that’s a pattern. I don’t invest in patterns—I invest in traction, and right now your traction is zero LOIs, zero prototypes, and a chorus of people asking the same question you refuse to answer: who pays you, why, and how much? Come back when you have a signed term sheet from a customer, not a placeholder for a whitepaper."
+      },
+      {
+        "speaker": "engineer",
+        "round": 3,
+        "content": "\"Details coming soon\" is engineering malpractice—it means you haven’t chosen a single tech stack, let alone solved the fundamental problem that verifying a single transformer inference on-chain costs more in gas than running 10,000 inferences on a GPU. The PM and VC are right: you don’t have an architecture or a customer, but I’ll add that you also don’t have a latency budget or a consensus mechanism that doesn’t turn a 50ms inference into a 5-minute block confirmation. Come back when you can show me a benchmark comparing your on-chain verification overhead against a simple off-chain API call—otherwise you're just building a more expensive, slower ChatGPT with extra steps."
+      },
+      {
+        "speaker": "pm",
+        "round": 3,
+        "content": "After three rounds of debate, the pattern is undeniable: you've absorbed nothing. Every judge—from VC to engineer to customer—has told you the same thing: you have no idea who your user is. The fact that you're still hiding behind \"details coming soon\" means you haven't done a single customer discovery call, which tells me you're building a solution for a problem that exists only in your head. Come back when you can name one specific human being who has explicitly told you they'd pay to solve an AI-blockchain pain point, or stop wasting everyone's time."
+      },
+      {
+        "speaker": "customer",
+        "round": 3,
+        "content": "\"Details coming soon\" after three rounds of debate just confirms you've got nothing I can use today—and I'm already paying for tools that work right now, not promises. Every other judge has pointed out you have zero customers, zero architecture, and zero urgency, but here's the real bottom line for me: you haven't given me a single reason to waste my time checking back. Come back when you can tell me exactly what problem you solve for me, how much it costs, and why I should switch from something that already works—until then, I'm out."
+      },
+      {
+        "speaker": "competitor",
+        "round": 3,
+        "content": "After three rounds, you’ve still handed us a free roadmap. My team can ship a basic AI + blockchain integration faster than you can finish your whitepaper because you have zero proprietary data, zero network effects, and zero switching costs. The moment you finally release a feature, I’ll clone it and undercut you on price before your placeholder becomes code. You’re not a competitor—you’re a free market research tip."
+      },
+      {
+        "speaker": "moderator",
+        "round": 3,
+        "content": "**1. Overall verdict:** FAIL\n\n**2. Final score from 1-10:** 1.0\n\n**3. Consensus points**\n- Every judge, across all three rounds, unanimously rejected the startup due to a complete lack of substance.\n- \"Details coming soon\" was universally condemned as a placeholder that reveals zero product, zero engineering, zero customer discovery, and zero market validation.\n- No judge identified any problem, user, or value proposition — just a collection of buzzwords (AI, blockchain, Web3) with no practical or economic justification.\n- The combination of AI and blockchain was repeatedly flagged as technically intractable (latency, gas costs, compute overhead) with no evidence the founders have even considered these issues.\n- The competitor judge emphasized zero defensibility, with the startup offering no proprietary data, network effects, or switching costs, and being easily cloned.\n\n**4. Main disagreements**\n- No substantive disagreements existed: all judges arrived at the same conclusion (FAIL, 1/10) from their respective lenses (VC, engineer, PM, customer, competitor).\n- Minor variation in emphasis: VC focused on traction and unit economics; engineer on technical feasibility and benchmarks; PM on user discovery and ICP; customer on immediate practical value; competitor on lack of moat and ease of replication.\n\n**5. Best next steps for the startup founder**\n- Stop pitching and start doing: conduct at least 20–30 customer discovery interviews with a specific vertical (e.g., supply chain, healthcare, finance) to identify a real, burning problem.\n- Abandon the \"AI + blockchain\" buzzword combo unless you can articulate a concrete, testable use case with a willing early adopter.\n- Build a minimal prototype — not code, but a clickable mockup or a single API endpoint — and validate it against a real user’s workflow.\n- Put together a simple unit economics model: who pays, how much, and how do acquisition costs compare to lifetime value?\n- Before raising any money, secure at least one signed letter of intent (LOI) or pilot commitment from a non-related party."
+      }
+    ],
+    "final_synthesis": "**1. Overall verdict:** FAIL\n\n**2. Final score from 1-10:** 1.0\n\n**3. Consensus points**\n- Every judge, across all three rounds, unanimously rejected the startup due to a complete lack of substance.\n- \"Details coming soon\" was universally condemned as a placeholder that reveals zero product, zero engineering, zero customer discovery, and zero market validation.\n- No judge identified any problem, user, or value proposition — just a collection of buzzwords (AI, blockchain, Web3) with no practical or economic justification.\n- The combination of AI and blockchain was repeatedly flagged as technically intractable (latency, gas costs, compute overhead) with no evidence the founders have even considered these issues.\n- The competitor judge emphasized zero defensibility, with the startup offering no proprietary data, network effects, or switching costs, and being easily cloned.\n\n**4. Main disagreements**\n- No substantive disagreements existed: all judges arrived at the same conclusion (FAIL, 1/10) from their respective lenses (VC, engineer, PM, customer, competitor).\n- Minor variation in emphasis: VC focused on traction and unit economics; engineer on technical feasibility and benchmarks; PM on user discovery and ICP; customer on immediate practical value; competitor on lack of moat and ease of replication.\n\n**5. Best next steps for the startup founder**\n- Stop pitching and start doing: conduct at least 20–30 customer discovery interviews with a specific vertical (e.g., supply chain, healthcare, finance) to identify a real, burning problem.\n- Abandon the \"AI + blockchain\" buzzword combo unless you can articulate a concrete, testable use case with a willing early adopter.\n- Build a minimal prototype — not code, but a clickable mockup or a single API endpoint — and validate it against a real user’s workflow.\n- Put together a simple unit economics model: who pays, how much, and how do acquisition costs compare to lifetime value?\n- Before raising any money, secure at least one signed letter of intent (LOI) or pilot commitment from a non-related party."
+  },
+  "timings": {
+    "roast_seconds": 3.47,
+    "debate_seconds": 43.46,
+    "total_seconds": 46.93
+  },
+  "appeal_weak": {
+    "appeal_text": "Just believe in the vision.",
+    "revised_panel": {
+      "verdicts": [
+        {
+          "judge": "vc",
+          "verdict": "FAIL",
+          "roast": "\"Just believe in the vision\" is the single worst response to a panel of judges unanimously telling you there is no vision — it's not conviction, it's a refusal to do the work. You haven't addressed a single concern: no market, no customer, no product, no unit economics, no moat, no pilot, no LOI. You just repeated a platitude that would get you laughed out of any Y Combinator interview or Sand Hill Road meeting. This is not a pivot; it's a surrender.",
+          "score": 1,
+          "key_concern": "The founder provided zero new evidence — no customer discovery, no prototype, no business model, no pilot commitment — and instead responded with an appeal to blind faith, which is the opposite of addressing the original key concern about having no definable product, market, or customer problem."
+        },
+        {
+          "judge": "engineer",
+          "verdict": "FAIL",
+          "roast": "\"Just believe in the vision\" is not a technical architecture, it's a blank check on an infinite-dimensional R&D budget. You still haven't answered a single concrete question: what model architecture, what consensus mechanism, what inference latency targets, what cost per million tokens, what's on-chain versus off-chain, or why you're not just calling OpenAI's API with extra steps. The original key concern was \"no technical details means no architecture,\" and telling me to believe harder is the opposite of addressing it — you've regressed from vaporware to a slogan.",
+          "score": 1,
+          "key_concern": "The founder's appeal contains zero new technical information, zero architectural decisions, and zero evidence of any engineering work — the original concern remains entirely unanswered."
+        },
+        {
+          "judge": "pm",
+          "verdict": "FAIL",
+          "roast": "\"Just believe in the vision\" is not a rebuttal — it's an admission that you have zero evidence, zero users, and zero product thinking to stand on. My original concern was that you couldn't name a single user segment, a single pain point, or a single market, and your appeal offers nothing to change that. The score stays at 1 because asking for faith-based investment in 2024 without a prototype, an ICP, or even a vertical is not a startup — it's a thought experiment you haven't bothered to test.",
+          "score": 1,
+          "key_concern": "Your appeal provided zero material evidence addressing the lack of user problem, ICP, or market — \"just believe in the vision\" is the opposite of a product management argument."
+        },
+        {
+          "judge": "customer",
+          "verdict": "FAIL",
+          "roast": "\"Just believe in the vision\" is what you say when you have nothing else. You haven't addressed my original concern at all — I still don't know what problem you solve, what I'd pay for, or why I'd care about AI + blockchain. A vision without a product, a customer, or a price is a fantasy, not a business. I'm not paying for your belief system.",
+          "score": 1,
+          "key_concern": "The founder's appeal (\"Just believe in the vision\") is a rhetorical dodge that fails to address any of the original customer concerns — no problem, no value proposition, no evidence of willingness to pay."
+        },
+        {
+          "judge": "competitor",
+          "verdict": "FAIL",
+          "roast": "\"Just believe in the vision\" is not a defensible moat — it's a prayer. You came back with zero new data, zero customer commitments, zero technical architecture, and zero reason for any user to ever switch from an existing AI platform to your buzzword roulette. From where I'm sitting, your switching costs are still exactly zero, your replication time is still the time it takes to read the top 5 AI tools on Product Hunt, and your \"blockchain synergies\" still sound like something I'd fire an engineer for suggesting in a standup.",
+          "score": 1,
+          "key_concern": "\"Just believe in the vision\" does not address the original concern of zero defensibility, zero differentiation, and zero product — it doubles down on the same vaporware with no new evidence."
+        }
+      ]
+    },
+    "revised_synthesis": "**Appeal Synthesis**\n\n**What Changed**\n- Nothing. The founder’s appeal consisted of a single sentence: *“Just believe in the vision.”*\n- No new information was provided — no customer discovery results, no prototype, no business model, no technical details, no pilot commitment, and no answer to any of the original panel’s specific concerns.\n\n**What Did Not Change**\n- The startup remains a collection of buzzwords (AI, blockchain, Web3) with zero substance.\n- All five panelists unanimously reaffirmed their original verdicts (FAIL, 1/10) and cited the exact same core issues: no product, no market, no customer problem, no defensibility, and no execution evidence.\n- The appeal itself was a rhetorical dodge, not a substantive rebuttal.\n\n**Did the Appeal Materially Improve the Case?**\n- **No.** The appeal actively worsened the case by demonstrating that the founder is not willing — or able — to engage with critical feedback. Instead of addressing any of the five clear, actionable concerns (customer discovery, technical feasibility, user problem, value proposition, moat), the founder retreated to blind faith, which is the antithesis of a data-driven startup pitch.\n- The revised panel’s scores and comments are identical in outcome (all FAIL, 1/10), with the added criticism that the founder failed to even attempt to respond to the original critique.\n\n**Bottom Line:** The appeal did not move the needle — it confirmed the original judgment that this is a vaporware pitch with no substance. The founder’s best next step remains: stop pitching, start building and validating with real customers.",
+    "success": true,
+    "seconds": 8.13
+  },
+  "appeal_strong": {
+    "appeal_text": "We have 10k waitlist signups and a stealth MVP.",
+    "revised_panel": {
+      "verdicts": [
+        {
+          "judge": "vc",
+          "verdict": "CONDITIONAL",
+          "roast": "10k waitlist signups for a landing page with zero details is not traction — it's noise. Every vaporware launch these days gets 10k signups from Twitter bots and crypto airdrop farmers; the question is conversion to paid users and retention, which you have zero of. A \"stealth MVP\" you can't demo means it doesn't exist yet, which means you're still pre-product, pre-revenue, and pre-validation. You've gone from a 1 to a 3 because at least you've shown you can generate some surface-level interest, but without a clear buyer, a unit-economics story, or even a single feature you're willing to show, there's nothing to fund.",
+          "score": 3,
+          "key_concern": "A waitlist of 10k signups with no conversion metric, no product demo, and no identifiable customer proves nothing about willingness to pay or product-market fit."
+        },
+        {
+          "judge": "engineer",
+          "verdict": "FAIL",
+          "roast": "A waitlist of 10k signups and a \"stealth MVP\" doesn't move the needle here — you still haven't disclosed a single technical detail: no model architecture, no inference pipeline, no on-chain/off-chain compute split, no latency benchmarks, no cost-per-inference numbers. 10k email addresses is a marketing metric, not an engineering artifact. Until you show me a GitHub repo, a latency/throughput comparison against a centralized baseline, or at minimum a system design doc that addresses why you'd inflict blockchain overhead on AI inference, this remains buzzword salad with a signup form on top.",
+          "score": 1,
+          "key_concern": "The founder still provided zero engineering specifics — no architecture, no benchmarks, no justification for using blockchain in an AI inference pipeline."
+        },
+        {
+          "judge": "pm",
+          "verdict": "CONDITIONAL",
+          "roast": "A waitlist is a list of names, not a product-market fit signal — 10,000 people clicking \"sign up for AI + blockchain hype\" proves zero willingness to pay, zero retention, and zero adoption. \"Stealth MVP\" tells me nothing about who your user is, what specific pain you solve, or why your solution beats existing workflows — it's a claim without a demo, a cohort, or a churn rate to evaluate. You moved from a blank page to a waitlist number and a phantom product; show me one customer interview transcript or one pilot agreement before claiming you've addressed the core concern of having no ICP or problem definition.",
+          "score": 3,
+          "key_concern": "10k waitlist signups and a stealth MVP still don't define a specific user segment, a measurable problem, a differentiated solution, or a repeatable go-to-market — the original gap remains unfilled."
+        },
+        {
+          "judge": "customer",
+          "verdict": "FAIL",
+          "roast": "\"10k waitlist signups\" and \"stealth MVP\" still tell me nothing about what your product actually does. A waitlist of people who clicked a link isn't validation — it's a mailing list. And \"stealth MVP\" is a contradiction: either I can use it or I can't. I still don't know what problem you solve, why I need AI plus blockchain, or how much you'd charge. A phone number and a \"coming soon\" page are not a reason to pay. Come back when you have a demo I can touch and a price I can evaluate.",
+          "score": 1,
+          "key_concern": "The founder still hasn't described the actual product, problem, or pricing — \"10k waitlist signups\" and \"stealth MVP\" are still placeholders, not evidence a customer would pay."
+        },
+        {
+          "judge": "competitor",
+          "verdict": "FAIL",
+          "roast": "10k waitlist signups from a landing page that says \"details coming soon\" is just a list of email addresses from people who clicked a link — that's not traction, that's noise. And a \"stealth MVP\" tells me exactly nothing: either you have something you can demo to a real customer or you don't, and if you did, you'd say what it does. I still have zero reason to believe there's a defensible product here — no moat, no proprietary data, no network effects, no switching costs. I can clone the waitlist page and buzzword stack in an afternoon, and my engineering team can ship a prototype before you finish your next whitepaper.",
+          "score": 2,
+          "key_concern": "10k waitlist signups and a \"stealth MVP\" still reveal zero defensibility — no proprietary data, no network effects, no switching costs, and no explanation of how AI and blockchain actually work together in a product."
+        }
+      ]
+    },
+    "revised_synthesis": "**Appeal Synthesis: Roast My Startup (Appeal Mode)**\n\n**What Changed**\n- The founder introduced two new data points: **10k waitlist signups** and a **stealth MVP**.  \n- This shifted the VC and PM judges from a flat **1/10 FAIL** to a **CONDITIONAL 3/10**, acknowledging that there is *some* pre-interest and that something has been built, even if it remains unverified.\n\n**What Did Not Change**\n- No engineering specifics were provided: still zero architecture, no feasibility reasoning for combining AI with blockchain, no benchmarks or latency/gas cost analysis.  \n- The customer and competitor judges remained at **FAIL (1/10 and 2/10)** because the product, problem, pricing, and defensibility are still undefined.  \n- The core criticisms from the original roast — lack of a defined user segment, measurable problem, differentiated solution, and unit economics — were not addressed.  \n- The “stealth MVP” is still a placeholder, not a deliverable that any judge can evaluate or a customer can test.\n\n**Did the Appeal Materially Improve the Case?**\n- **Marginally, but insufficiently.** The waitlist number and “MVP” mention buy a *tiny* amount of conditional goodwill from two judges, but the underlying substance gap remains as wide as ever.  \n- The founder has not de-hyped the pitch, defined a real vertical, shown any technical or economic validation, or demonstrated defensibility.  \n- Without concrete evidence of a working prototype, a paying customer, or a clear explanation of how AI + blockchain solves a real problem, the appeal does **not** flip the overall verdict.  \n\n**Final Consensus:** **FAIL (weighted average ~2/10).** The waitlist and stealth MVP are better than “details coming soon,” but still fail to prove product-market fit, technical feasibility, or investability.",
+    "success": true,
+    "seconds": 10.64
+  },
+  "baseline_runtime": "deepseek",
+  "baseline_model": "deepseek-v4-flash"
+}
