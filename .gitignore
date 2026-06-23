@@ -6,3 +6,5 @@ data/
 .pytest_cache/
 transcripts/
 src/roast_radar.png
+evals/results/local/
+evals/results/audits/
