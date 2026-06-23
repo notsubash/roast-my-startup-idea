@@ -1,12 +1,14 @@
+import concurrent.futures
 from dataclasses import dataclass
 from typing import Any
 
 from jinja2 import Environment, FileSystemLoader
 from langchain_core.messages import HumanMessage, SystemMessage
+from pydantic import ValidationError
 
 from config import JUDGE_ORDER, PROMPTS_DIR
 from judges.schemas import RoastPanel, Verdict
-from judges.service import judge_system_prompt
+from judges.service import JUDGE_MAX_ATTEMPTS, judge_system_prompt
 
 template_env = Environment(loader=FileSystemLoader(PROMPTS_DIR))
 
@@ -58,12 +60,48 @@ def invoke_judge_on_appeal(
         appeal_text=appeal_text,
         memory_context=memory_context,
     )
+    messages = [
+        SystemMessage(content=judge_system_prompt(judge)),
+        HumanMessage(content=prompt),
+    ]
 
-    return structured_model.invoke(
-        [
-            SystemMessage(content=judge_system_prompt(judge)),
-            HumanMessage(content=prompt),
-        ]
+    last_validation_error: ValidationError | None = None
+    for _ in range(JUDGE_MAX_ATTEMPTS):
+        result = structured_model.invoke(messages)
+
+        if result is None:
+            continue
+
+        try:
+            verdict = Verdict.model_validate(result)
+        except ValidationError as exc:
+            last_validation_error = exc
+            continue
+
+        if verdict.judge.value != judge:
+            last_validation_error = ValidationError.from_exception_data(
+                "Verdict",
+                [
+                    {
+                        "type": "value_error",
+                        "loc": ("judge",),
+                        "msg": f"Expected judge {judge}, got {verdict.judge.value}",
+                        "input": verdict.judge.value,
+                    }
+                ],
+            )
+            continue
+
+        return verdict
+
+    if last_validation_error is not None:
+        raise ValueError(
+            f"{judge} appeal judge returned an invalid structured verdict after "
+            f"{JUDGE_MAX_ATTEMPTS} attempts: {last_validation_error}"
+        ) from last_validation_error
+
+    raise ValueError(
+        f"{judge} appeal judge returned no structured verdict after {JUDGE_MAX_ATTEMPTS} attempts"
     )
 
 
@@ -105,18 +143,26 @@ def run_appeal(
     if not appeal_text:
         raise ValueError("Appeal text is required")
 
-    revised_verdicts = [
-        invoke_judge_on_appeal(
-            model=model,
-            judge=judge,
-            startup_idea=startup_idea,
-            roast_panel=roast_panel,
-            debate_result=debate_result,
-            appeal_text=appeal_text,
-            memory_context=memory_context,
-        )
-        for judge in JUDGE_ORDER
-    ]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(JUDGE_ORDER)) as pool:
+        future_to_judge = {
+            pool.submit(
+                invoke_judge_on_appeal,
+                model,
+                judge,
+                startup_idea,
+                roast_panel,
+                debate_result,
+                appeal_text,
+                memory_context,
+            ): judge
+            for judge in JUDGE_ORDER
+        }
+        results: dict[str, Verdict] = {}
+        for future in concurrent.futures.as_completed(future_to_judge):
+            judge = future_to_judge[future]
+            results[judge] = future.result()
+
+    revised_verdicts = [results[judge] for judge in JUDGE_ORDER]
     revised_panel = RoastPanel(verdicts=revised_verdicts)
     revised_synthesis = synthesize_appeal(
         model=model,
