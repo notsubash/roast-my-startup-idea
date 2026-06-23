@@ -62,6 +62,40 @@ def _original_panel() -> RoastPanel:
 
 
 class AppealServiceTest(unittest.TestCase):
+    def test_invoke_judge_on_appeal_retries_when_structured_output_is_none(self):
+        from appeal.service import invoke_judge_on_appeal
+
+        calls = {"count": 0}
+
+        class FlakyStructuredModel:
+            def invoke(self, messages):
+                calls["count"] += 1
+                if calls["count"] < 2:
+                    return None
+                return Verdict(
+                    judge="customer",
+                    verdict="CONDITIONAL",
+                    roast="The appeal adds useful context, but switching costs still dominate the decision.",
+                    score=5,
+                    key_concern="Payroll migration risk remains the main blocker.",
+                )
+
+        class FlakyModel:
+            def with_structured_output(self, schema):
+                return FlakyStructuredModel()
+
+        verdict = invoke_judge_on_appeal(
+            FlakyModel(),
+            "customer",
+            "AI payroll for home-health agencies",
+            _original_panel(),
+            {"final_synthesis": "Needs stronger proof."},
+            "We have signed LOIs from three agencies.",
+        )
+
+        self.assertEqual(verdict.judge.value, "customer")
+        self.assertEqual(calls["count"], 2)
+
     def test_run_appeal_passes_user_rebuttal_to_each_judge_and_synthesizes(self):
         model = FakeAppealModel()
         appeal_text = "We already have three hospital pilots and signed LOIs worth $180k ARR."
