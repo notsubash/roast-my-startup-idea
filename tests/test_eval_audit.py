@@ -7,6 +7,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
+from evals import BASELINES_DIR
 from evals.dataset.baseline_builder import build_smartpatch_baseline
 from evals.dataset.loader import filter_ideas, load_golden_ideas
 from evals.grader.deepseek_judge import DeepSeekGrader, build_grader_prompt, flatten_grade
@@ -248,13 +249,19 @@ class EvalAuditTest(unittest.TestCase):
         self.assertIsNone(grade.appeal)
 
     def test_audit_baseline_only_filters_to_committed_fixtures(self):
+        golden_ideas = load_golden_ideas()
+        baseline_fixture_count = sum(
+            1 for idea in golden_ideas if (BASELINES_DIR / f"{idea.id}.json").exists()
+        )
+        self.assertGreater(baseline_fixture_count, 0)
+
         payload = run_audit(
             reuse_last_local=False,
             refresh_local=False,
             baseline_only=True,
             dry_run=True,
         )
-        self.assertEqual(payload["ideas_evaluated"], 3)
+        self.assertEqual(payload["ideas_evaluated"], baseline_fixture_count)
         payload = run_audit(
             reuse_last_local=False,
             refresh_local=False,
