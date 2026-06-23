@@ -143,7 +143,6 @@ If you use a different model, set it in `.env`:
 LOCAL_MODEL=ollama:qwen3.5:9b
 DEEPSEEK_MODEL=deepseek-v4-pro
 DEEPSEEK_BASE_URL=https://api.deepseek.com
-DEEPSEEK_BACKEND=langchain
 DEEPSEEK_API_KEY=your_deepseek_api_key
 MAX_DEBATE_ROUNDS=3
 ENABLE_WEB_SEARCH=false
@@ -169,16 +168,13 @@ Then:
    - `DeepAgents (experimental phase 1)` to route phase 1 through `task()` subagents.
 3. Choose model runtime:
    - `local` (Ollama via `LOCAL_MODEL`)
-   - `deepseek` (DeepSeek API via `DEEPSEEK_API_KEY`)
-4. If using DeepSeek runtime, choose backend:
-   - `langchain` (`ChatDeepSeek` from `langchain_deepseek`)
-   - `openai` (DeepSeek's OpenAI-compatible endpoint)
-5. Optionally enable `Web research (Tavily)` for bounded factual context.
+   - `deepseek` (DeepSeek API via `DEEPSEEK_API_KEY`, using `ChatDeepSeek` from `langchain_deepseek`)
+4. Optionally enable `Web research (Tavily)` for bounded factual context.
    - Search usage is decided by a model policy prompt, not keyword matching.
-6. Click `Roast It!`.
-7. Review individual verdicts, score chart, debate transcript, and final synthesis.
-8. Use Appeal Mode to argue back with concrete evidence.
-9. Download the transcript if needed.
+5. Click `Roast It!`.
+6. Review individual verdicts, score chart, debate transcript, and final synthesis.
+7. Use Appeal Mode to argue back with concrete evidence.
+8. Download the transcript if needed.
 
 ## Memory
 

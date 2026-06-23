@@ -22,7 +22,6 @@ class DeepAgentOrchestratorTest(unittest.TestCase):
             local_model="ollama:qwen3.5:9b",
             deepseek_model="deepseek-v4-pro",
             deepseek_base_url="https://api.deepseek.com",
-            deepseek_backend="langchain",
             max_debate_rounds=3,
             enable_web_search=False,
             web_search_max_results=3,

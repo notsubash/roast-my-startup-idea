@@ -1,6 +1,9 @@
 from enum import Enum
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 
+ROAST_MAX_LENGTH = 1000
+KEY_CONCERN_MAX_LENGTH = 400
+
 class VerdictLabel(str, Enum):
     PASS = "PASS"
     FAIL = "FAIL"
@@ -19,27 +22,27 @@ class Verdict(BaseModel):
     judge: judgeLabel
     verdict: VerdictLabel
     roast: str = Field(
-        min_length=20, max_length=600,
-        description="A sharp 1-3 sentence plain-prose critique. No JSON, no bullet points, no markdown formatting — just sentences."
+        min_length=20, max_length=ROAST_MAX_LENGTH,
+        description="A sharp plain-prose critique in 1-3 paragraphs. No JSON, bullet points, or markdown formatting — just sentences."
     )
     score: int = Field(ge=1, le=10, description="A score between 1 and 10 based on the quality of the critique")
     key_concern: str = Field(
-        min_length=5, max_length=400,
+        min_length=5, max_length=KEY_CONCERN_MAX_LENGTH,
         description="The single biggest issue with this idea, stated as one clear sentence."
     )
 
     @field_validator("roast", mode="before")
     @classmethod
     def coerce_roast_length(cls, value):
-        if isinstance(value, str) and len(value) > 600:
-            return value[:597].rstrip() + "..."
+        if isinstance(value, str) and len(value) > ROAST_MAX_LENGTH:
+            return value[: ROAST_MAX_LENGTH - 3].rstrip() + "..."
         return value
 
     @field_validator("key_concern", mode="before")
     @classmethod
     def coerce_key_concern_length(cls, value):
-        if isinstance(value, str) and len(value) > 400:
-            return value[:397].rstrip() + "..."
+        if isinstance(value, str) and len(value) > KEY_CONCERN_MAX_LENGTH:
+            return value[: KEY_CONCERN_MAX_LENGTH - 3].rstrip() + "..."
         return value
 
 class RoastPanel(BaseModel):

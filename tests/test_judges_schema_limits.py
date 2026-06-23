@@ -9,7 +9,7 @@ from judges.schemas import Verdict
 
 class VerdictSchemaLimitsTest(unittest.TestCase):
     def test_verdict_truncates_overlong_roast_instead_of_failing(self):
-        long_roast = "A" * 900
+        long_roast = "A" * 1100
         verdict = Verdict(
             judge="vc",
             verdict="FAIL",
@@ -17,7 +17,7 @@ class VerdictSchemaLimitsTest(unittest.TestCase):
             score=3,
             key_concern="Demand is not proven.",
         )
-        self.assertLessEqual(len(verdict.roast), 600)
+        self.assertLessEqual(len(verdict.roast), 1000)
         self.assertTrue(verdict.roast.endswith("..."))
 
 

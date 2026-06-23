@@ -87,26 +87,19 @@ with st.sidebar:
         "Execution flow",
         options=["deterministic", "deepagents"],
         format_func=lambda value: (
-            "Deterministic (production)"
+            "Deterministic"
             if value == "deterministic"
-            else "DeepAgents (experimental phase 1)"
+            else "DeepAgents"
         ),
     )
     model_runtime = st.selectbox(
-        "Model runtime",
+        "Model",
         options=["local", "deepseek"],
         format_func=lambda value: (
             f"Local ({settings.local_model})"
             if value == "local"
             else f"DeepSeek API ({settings.deepseek_model})"
         ),
-    )
-    deepseek_backend = st.selectbox(
-        "DeepSeek backend",
-        options=["langchain", "openai"],
-        index=0 if settings.deepseek_backend not in {"openai"} else 1,
-        help="`langchain` uses ChatDeepSeek. `openai` uses DeepSeek's OpenAI-compatible endpoint.",
-        disabled=model_runtime != "deepseek",
     )
     enable_web_search = st.checkbox(
         "Enable web research (Tavily)",
@@ -176,7 +169,6 @@ if run_clicked and startup_idea.strip():
             model_choice=model_runtime,
             settings=settings,
             deepseek_api_key=os.getenv("DEEPSEEK_API_KEY"),
-            deepseek_backend=deepseek_backend,
         )
     except ValueError as exc:
         st.error(str(exc))
@@ -386,7 +378,6 @@ if debate_result is not None:
                     model_choice=model_runtime,
                     settings=settings,
                     deepseek_api_key=os.getenv("DEEPSEEK_API_KEY"),
-                    deepseek_backend=deepseek_backend,
                 )
             except ValueError as exc:
                 st.error(str(exc))

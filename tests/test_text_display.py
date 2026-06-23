@@ -6,6 +6,10 @@ from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+# Avoid loading Streamlit's server stack during unit tests.
+if "streamlit" not in sys.modules:
+    sys.modules["streamlit"] = MagicMock()
+
 from ui.text_display import write_labelled_plain, write_plain_text, write_roast_quote, write_synthesis
 
 
@@ -52,12 +56,11 @@ class TextDisplayTest(unittest.TestCase):
         self.assertIn("<strong>Key concern:</strong>", html_body)
         self.assertIn(html.escape("No path to _price_point_"), html_body)
 
-    def test_write_synthesis_uses_container_and_plain_text(self):
-        write_synthesis("Final verdict: $200 prototype")
+    def test_write_synthesis_renders_markdown_in_container(self):
+        write_synthesis("**1. Overall verdict:** FAIL")
 
         self.st.container.assert_called_once_with(border=True)
-        html_body = self.st.markdown.call_args[0][0]
-        self.assertIn(html.escape("Final verdict: $200 prototype"), html_body)
+        self.st.markdown.assert_called_once_with("**1. Overall verdict:** FAIL")
 
 
 if __name__ == "__main__":

@@ -37,6 +37,6 @@ def write_labelled_plain(label: str, text: str) -> None:
 
 
 def write_synthesis(text: str) -> None:
-    """Display synthesis in a bordered container, preserving plain formatting."""
+    """Display synthesis in a bordered container with markdown formatting."""
     with st.container(border=True):
-        write_plain_text(text)
+        st.markdown(text or "")

@@ -22,7 +22,6 @@ class Settings:
     local_model: str
     deepseek_model: str
     deepseek_base_url: str
-    deepseek_backend: str
     max_debate_rounds: int
     enable_web_search: bool
     web_search_max_results: int
@@ -41,7 +40,6 @@ def get_settings() -> Settings:
         local_model=os.getenv("LOCAL_MODEL", "ollama:qwen3.5:9b"),
         deepseek_model=os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash"),
         deepseek_base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
-        deepseek_backend=os.getenv("DEEPSEEK_BACKEND", "langchain"),
         max_debate_rounds=int(os.getenv("MAX_DEBATE_ROUNDS", "3")),
         enable_web_search=_read_bool("ENABLE_WEB_SEARCH", False),
         web_search_max_results=int(os.getenv("WEB_SEARCH_MAX_RESULTS", "3")),
