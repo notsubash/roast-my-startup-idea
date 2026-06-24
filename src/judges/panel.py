@@ -1,10 +1,10 @@
 """Phase 1: parallel judge panel with event streaming."""
 
-import concurrent.futures
 from collections.abc import Iterator
+import concurrent.futures
 
 from config import JUDGE_ORDER
-from events import JudgeVerdictCompleted, JudgesDispatched, RoastPanelCompleted
+from events import JudgesDispatched, JudgeVerdictCompleted, RoastPanelCompleted
 from judges.schemas import RoastPanel, Verdict
 from judges.service import invoke_judge
 

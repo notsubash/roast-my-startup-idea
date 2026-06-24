@@ -4,10 +4,12 @@ from typing import Annotated, TypedDict
 from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
 
+
 class DebateMessage(TypedDict):
     speaker: str
     round: int
     content: str
+
 
 class DebateState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]

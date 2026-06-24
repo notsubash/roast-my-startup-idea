@@ -9,4 +9,4 @@ def print_trace(messages):
         if tool_calls:
             print(f"tool_calls={tool_calls}")
         if content:
-            print(f"content={content}") 
+            print(f"content={content}")

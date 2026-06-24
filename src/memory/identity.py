@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from config import PROJECT_ROOT
 from memory.models import IdeaRecord
 

@@ -1,12 +1,13 @@
 import matplotlib
+
 matplotlib.use("Agg")
+
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-from pathlib import Path
 
 from judges.schemas import RoastPanel
-
 
 _VERDICT_COLORS = {
     "PASS": "#2ecc71",
@@ -41,7 +42,7 @@ def generate_radar_chart(
     ax.fill(angles_closed, scores_closed, alpha=0.20, color="#e74c3c")
     ax.plot(angles_closed, scores_closed, color="#e74c3c", linewidth=2, marker="o", markersize=8)
 
-    for angle, score, color in zip(angles, scores, colors):
+    for angle, score, color in zip(angles, scores, colors, strict=False):
         ax.plot(angle, score, "o", color=color, markersize=14, zorder=5)
         ax.annotate(
             str(score),
@@ -67,7 +68,9 @@ def generate_radar_chart(
 
     avg_score = sum(scores) / len(scores)
     ax.text(
-        0.5, -0.08, f"Average: {avg_score:.1f}/10",
+        0.5,
+        -0.08,
+        f"Average: {avg_score:.1f}/10",
         transform=ax.transAxes,
         ha="center",
         fontsize=13,

@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from functools import lru_cache
-from pathlib import Path
 import os
+from pathlib import Path
+
 from dotenv import load_dotenv
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -16,6 +17,7 @@ DEBATE_PERSONAS = {
     "customer": "An impatient target customer. Focus on willingness to pay, friction, alternatives, and urgency.",
     "competitor": "An incumbent competitor. Focus on defensibility, replication risk, switching costs, and market position.",
 }
+
 
 @dataclass(frozen=True)
 class Settings:
@@ -32,6 +34,7 @@ def _read_bool(name: str, default: bool) -> bool:
     if raw is None:
         return default
     return raw.strip().lower() in {"1", "true", "yes", "on"}
+
 
 @lru_cache
 def get_settings() -> Settings:

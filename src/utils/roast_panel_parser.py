@@ -41,7 +41,9 @@ def _parse_json_dict(content: str) -> dict | None:
 
 
 def _extract_markdown_field(content: str, label: str) -> str | None:
-    pattern = rf"(?is){re.escape(label)}\s*:\s*(.+?)(?=\n\s*(?:Verdict|Roast|Score|Key concern)\s*:|\Z)"
+    pattern = (
+        rf"(?is){re.escape(label)}\s*:\s*(.+?)(?=\n\s*(?:Verdict|Roast|Score|Key concern)\s*:|\Z)"
+    )
     match = re.search(pattern, content)
     if not match:
         return None
@@ -97,9 +99,7 @@ def _tool_call_judges(result: dict) -> dict[str, str]:
 
 def _panel_from_verdicts(verdicts_by_judge: dict[str, Verdict]) -> RoastPanel:
     ordered_verdicts = [
-        verdicts_by_judge[judge.value]
-        for judge in judgeLabel
-        if judge.value in verdicts_by_judge
+        verdicts_by_judge[judge.value] for judge in judgeLabel if judge.value in verdicts_by_judge
     ]
     return RoastPanel.model_validate({"verdicts": ordered_verdicts})
 

@@ -1,20 +1,24 @@
-from enum import Enum
-from pydantic import BaseModel, Field, ConfigDict, field_validator
+from enum import StrEnum
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 ROAST_MAX_LENGTH = 1000
 KEY_CONCERN_MAX_LENGTH = 400
 
-class VerdictLabel(str, Enum):
+
+class VerdictLabel(StrEnum):
     PASS = "PASS"
     FAIL = "FAIL"
     CONDITIONAL = "CONDITIONAL"
 
-class judgeLabel(str, Enum):
+
+class judgeLabel(StrEnum):
     VC = "vc"
     ENGINEER = "engineer"
     PM = "pm"
     CUSTOMER = "customer"
     COMPETITOR = "competitor"
+
 
 class Verdict(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -22,13 +26,17 @@ class Verdict(BaseModel):
     judge: judgeLabel
     verdict: VerdictLabel
     roast: str = Field(
-        min_length=20, max_length=ROAST_MAX_LENGTH,
-        description="A sharp plain-prose critique in 1-3 paragraphs. No JSON, bullet points, or markdown formatting — just sentences."
+        min_length=20,
+        max_length=ROAST_MAX_LENGTH,
+        description="A sharp plain-prose critique in 1-3 paragraphs. No JSON, bullet points, or markdown formatting — just sentences.",
     )
-    score: int = Field(ge=1, le=10, description="A score between 1 and 10 based on the quality of the critique")
+    score: int = Field(
+        ge=1, le=10, description="A score between 1 and 10 based on the quality of the critique"
+    )
     key_concern: str = Field(
-        min_length=5, max_length=KEY_CONCERN_MAX_LENGTH,
-        description="The single biggest issue with this idea, stated as one clear sentence."
+        min_length=5,
+        max_length=KEY_CONCERN_MAX_LENGTH,
+        description="The single biggest issue with this idea, stated as one clear sentence.",
     )
 
     @field_validator("roast", mode="before")
@@ -44,6 +52,7 @@ class Verdict(BaseModel):
         if isinstance(value, str) and len(value) > KEY_CONCERN_MAX_LENGTH:
             return value[: KEY_CONCERN_MAX_LENGTH - 3].rstrip() + "..."
         return value
+
 
 class RoastPanel(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -67,6 +76,7 @@ class RoastPanel(BaseModel):
 
         return verdicts
 
+
 class RoastDebateResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -74,9 +84,9 @@ class RoastDebateResult(BaseModel):
     final_synthesis: str = Field(
         min_length=20,
         max_length=5000,
-        description="The final moderator synthesis after the judge debate."
+        description="The final moderator synthesis after the judge debate.",
     )
-    
+
     @field_validator("verdicts")
     @classmethod
     def must_include_all_judges(cls, verdicts: list[Verdict]) -> list[Verdict]:

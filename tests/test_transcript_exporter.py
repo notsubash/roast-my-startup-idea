@@ -1,7 +1,7 @@
+from pathlib import Path
 import sys
 import tempfile
 import unittest
-from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -12,11 +12,41 @@ from utils.transcript_exporter import export_transcript
 def _panel(score: int, concern: str) -> RoastPanel:
     return RoastPanel(
         verdicts=[
-            Verdict(judge="vc", verdict="FAIL", roast="Distribution is expensive and the market does not look venture scale.", score=score, key_concern=concern),
-            Verdict(judge="engineer", verdict="CONDITIONAL", roast="The build is feasible, but reliability will be harder than the demo suggests.", score=score, key_concern=concern),
-            Verdict(judge="pm", verdict="FAIL", roast="The target user is too broad, so the product will struggle to find a repeatable wedge.", score=score, key_concern=concern),
-            Verdict(judge="customer", verdict="FAIL", roast="I would not change my workflow unless this saves obvious time immediately.", score=score, key_concern=concern),
-            Verdict(judge="competitor", verdict="FAIL", roast="This is easy for incumbents to copy once they see any traction.", score=score, key_concern=concern),
+            Verdict(
+                judge="vc",
+                verdict="FAIL",
+                roast="Distribution is expensive and the market does not look venture scale.",
+                score=score,
+                key_concern=concern,
+            ),
+            Verdict(
+                judge="engineer",
+                verdict="CONDITIONAL",
+                roast="The build is feasible, but reliability will be harder than the demo suggests.",
+                score=score,
+                key_concern=concern,
+            ),
+            Verdict(
+                judge="pm",
+                verdict="FAIL",
+                roast="The target user is too broad, so the product will struggle to find a repeatable wedge.",
+                score=score,
+                key_concern=concern,
+            ),
+            Verdict(
+                judge="customer",
+                verdict="FAIL",
+                roast="I would not change my workflow unless this saves obvious time immediately.",
+                score=score,
+                key_concern=concern,
+            ),
+            Verdict(
+                judge="competitor",
+                verdict="FAIL",
+                roast="This is easy for incumbents to copy once they see any traction.",
+                score=score,
+                key_concern=concern,
+            ),
         ]
     )
 

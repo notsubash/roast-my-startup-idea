@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -14,7 +14,7 @@ class IdeaRecord(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     user_id: str
     idea_text: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     roast_panel: RoastPanel
     debate_result: dict
     appeal_text: str | None = None

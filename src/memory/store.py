@@ -1,5 +1,5 @@
-import sqlite3
 from pathlib import Path
+import sqlite3
 
 from config import PROJECT_ROOT
 from memory.models import IdeaRecord

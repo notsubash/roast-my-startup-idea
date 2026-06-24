@@ -1,0 +1,10 @@
+# Install: pip install -r requirements-dev.txt && pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.19
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format

@@ -131,6 +131,20 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
+For development (lint hooks and tooling):
+
+```bash
+pip install -r requirements-dev.txt
+pre-commit install
+```
+
+Pre-commit runs Ruff on every commit. To lint or format manually:
+
+```bash
+ruff check src tests evals
+ruff format src tests evals
+```
+
 Pull a local model. The default in `src/config.py` is:
 
 ```bash
@@ -233,6 +247,18 @@ python -m compileall src
 
 The tests use fake models where possible so they do not require Ollama.
 
+## Evaluation
+
+See **[evals/README.md](evals/README.md)** for the full guide. Quick reference:
+
+| Tier | When | Command |
+|------|------|---------|
+| **0 — CI** | Every PR | `python -m unittest discover -s tests` |
+| **1 — Local** | Before prompt/model changes | `python -m evals.run_eval --runtime local --full` |
+| **2 — DeepSeek audit** | Monthly | `python -m evals.run_audit --no-reuse-last-local --baseline-only` |
+
+Tier 1 checks structural reliability only ($0, Ollama). Tier 2 uses **one DeepSeek LLM-as-judge call per idea** with prompts in `src/prompts/eval_grader_*.jinja2` (~$0.50–2/month on committed baselines). Scheduled on the 1st of each month via `.github/workflows/eval-audit.yml`.
+
 ## Generated Files
 
 The app may generate local runtime artifacts:
@@ -258,7 +284,9 @@ These are runtime outputs, not source code. Keep them out of commits unless you 
 3. Commit, tag `v0.2.0`, and push the tag.
 4. Create a GitHub Release from that tag with release notes.
 
-CI (`.github/workflows/ci.yml`) runs on every push and pull request to `main`: installs pinned deps, verifies the version resolves, runs unit tests, and compile-checks `src/`.
+CI (`.github/workflows/ci.yml`) runs on every push and pull request to `main`: Ruff lint and format checks, installs pinned deps, verifies the version resolves, runs unit tests on Python 3.11–3.13, and compile-checks `src/`.
+
+Scheduled eval audits (`.github/workflows/eval-audit.yml`) run monthly on the 1st and on manual dispatch, grading committed baselines with DeepSeek when `DEEPSEEK_API_KEY` is configured.
 
 ## Notes For Maintainers
 

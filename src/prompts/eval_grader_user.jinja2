@@ -1,0 +1,51 @@
+Evaluate this complete pipeline output.
+
+## Startup idea
+
+{{ idea_text }}
+
+## Golden-set expectations (reference only)
+
+- Expected panel average score range: {{ expected_panel_avg_range[0] }}–{{ expected_panel_avg_range[1] }}
+- Topics a strong critique should surface: {{ must_surface_concerns | join(", ") }}
+
+## Phase 1 — Roast panel
+
+{% for verdict in verdicts %}
+### {{ verdict.judge | upper }} — {{ verdict.verdict }} ({{ verdict.score }}/10)
+Roast: {{ verdict.roast }}
+Key concern: {{ verdict.key_concern }}
+
+{% endfor %}
+
+## Phase 2 — Debate transcript
+
+{% for message in debate_messages %}
+Round {{ message.round }} — {{ message.speaker }}: {{ message.content }}
+{% endfor %}
+
+## Moderator synthesis
+
+{{ final_synthesis }}
+
+{% if appeal_strong %}
+## Appeal (strong case — grade the appeal field from this section)
+
+Appeal text: {{ appeal_strong.appeal_text }}
+
+Revised panel:
+{% for verdict in appeal_strong.revised_verdicts %}
+- {{ verdict.judge }}: {{ verdict.verdict }}, {{ verdict.score }}/10 — {{ verdict.key_concern }}
+{% endfor %}
+{% elif appeal_weak %}
+## Appeal (weak case — for context only; set appeal to null in your response)
+
+Appeal text: {{ appeal_weak.appeal_text }}
+
+Revised panel:
+{% for verdict in appeal_weak.revised_verdicts %}
+- {{ verdict.judge }}: {{ verdict.verdict }}, {{ verdict.score }}/10 — {{ verdict.key_concern }}
+{% endfor %}
+{% endif %}
+
+Return structured grades for all rubric dimensions in one response.

@@ -18,9 +18,7 @@ def main():
 
     print("Phase 1 — Calling judges...\n")
     try:
-        roast_panel, debate_result = run_pipeline(
-            model, startup_idea, settings.max_debate_rounds
-        )
+        roast_panel, debate_result = run_pipeline(model, startup_idea, settings.max_debate_rounds)
     except (ValidationError, Exception) as e:
         print(f"Pipeline failed: {e}")
         return

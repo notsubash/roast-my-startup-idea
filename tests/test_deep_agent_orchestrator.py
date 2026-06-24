@@ -1,6 +1,6 @@
+from pathlib import Path
 import sys
 import unittest
-from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -54,11 +54,41 @@ class DeepAgentOrchestratorTest(unittest.TestCase):
 
         panel = RoastPanel(
             verdicts=[
-                Verdict(judge="vc", verdict="FAIL", roast="Weak moat and expensive go-to-market in a crowded category.", score=3, key_concern="No durable moat."),
-                Verdict(judge="engineer", verdict="CONDITIONAL", roast="Feasible design, but reliability and edge-case handling are significantly harder than pitched.", score=5, key_concern="Reliability risk."),
-                Verdict(judge="pm", verdict="FAIL", roast="Target user remains broad, making prioritization and retention strategy too fuzzy.", score=4, key_concern="Unclear ICP."),
-                Verdict(judge="customer", verdict="FAIL", roast="I would not switch from current workflows unless value is immediate and obvious.", score=3, key_concern="Weak switching incentive."),
-                Verdict(judge="competitor", verdict="FAIL", roast="Incumbents can copy this quickly as a bundled capability once traction appears.", score=2, key_concern="Easy replication."),
+                Verdict(
+                    judge="vc",
+                    verdict="FAIL",
+                    roast="Weak moat and expensive go-to-market in a crowded category.",
+                    score=3,
+                    key_concern="No durable moat.",
+                ),
+                Verdict(
+                    judge="engineer",
+                    verdict="CONDITIONAL",
+                    roast="Feasible design, but reliability and edge-case handling are significantly harder than pitched.",
+                    score=5,
+                    key_concern="Reliability risk.",
+                ),
+                Verdict(
+                    judge="pm",
+                    verdict="FAIL",
+                    roast="Target user remains broad, making prioritization and retention strategy too fuzzy.",
+                    score=4,
+                    key_concern="Unclear ICP.",
+                ),
+                Verdict(
+                    judge="customer",
+                    verdict="FAIL",
+                    roast="I would not switch from current workflows unless value is immediate and obvious.",
+                    score=3,
+                    key_concern="Weak switching incentive.",
+                ),
+                Verdict(
+                    judge="competitor",
+                    verdict="FAIL",
+                    roast="Incumbents can copy this quickly as a bundled capability once traction appears.",
+                    score=2,
+                    key_concern="Easy replication.",
+                ),
             ]
         )
         build_orchestrator_mock.side_effect = [FailingAgent(), SucceedingAgent()]
