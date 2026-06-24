@@ -52,9 +52,7 @@ def build_orchestrator(
 ):
     """Create a DeepAgents agent with five judge subagents registered."""
     if create_deep_agent is None:
-        raise ImportError(
-            "deepagents is required. Install with: pip install deepagents"
-        )
+        raise ImportError("deepagents is required. Install with: pip install deepagents")
 
     judge_subagents = []
     for judge in JUDGE_ORDER:
@@ -67,9 +65,7 @@ def build_orchestrator(
             subagent["response_format"] = Verdict
         judge_subagents.append(subagent)
 
-    orchestrator_prompt = template_env.get_template(
-        "startup_orchestrator_prompt.jinja2"
-    ).render()
+    orchestrator_prompt = template_env.get_template("startup_orchestrator_prompt.jinja2").render()
     settings = get_settings()
     tools = []
     tavily_tool = _optional_tavily_tool(
@@ -109,9 +105,11 @@ def run_roast_via_orchestrator(
     )
 
     try:
-        result = agent.invoke({
-            "messages": [{"role": "user", "content": user_content}],
-        })
+        result = agent.invoke(
+            {
+                "messages": [{"role": "user", "content": user_content}],
+            }
+        )
     except Exception as exc:
         if not _is_response_format_unavailable_error(exc):
             raise
@@ -120,9 +118,11 @@ def run_roast_via_orchestrator(
             web_search_enabled=web_search_enabled,
             subagent_response_format=False,
         )
-        result = fallback_agent.invoke({
-            "messages": [{"role": "user", "content": user_content}],
-        })
+        result = fallback_agent.invoke(
+            {
+                "messages": [{"role": "user", "content": user_content}],
+            }
+        )
 
     return extract_roast_panel(result)
 

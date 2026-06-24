@@ -1,7 +1,7 @@
 import json
+from pathlib import Path
 import sys
 import unittest
-from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -28,9 +28,9 @@ def _dimension(score: int, rationale: str = "Solid output with minor issues.") -
 
 
 def _sample_grade() -> IdeaAuditGrade:
-    dim = lambda score: DimensionScore(
-        score=score, rationale="Specific and consistent with outputs."
-    )
+    def dim(score: int) -> DimensionScore:
+        return DimensionScore(score=score, rationale="Specific and consistent with outputs.")
+
     return IdeaAuditGrade(
         roast_panel=RoastPanelGrade(
             vc_persona=dim(4),

@@ -38,9 +38,7 @@ def stream_pipeline(
     """Run roast panel then debate, yielding all intermediate events."""
     memory_context = ""
     if user_id and idea_store:
-        memory_context = build_memory_context(
-            idea_store.list_recent(user_id, limit=memory_limit)
-        )
+        memory_context = build_memory_context(idea_store.list_recent(user_id, limit=memory_limit))
 
     yield PhaseStarted(phase="roast")
 
@@ -97,9 +95,7 @@ def run_pipeline(
     """Blocking convenience wrapper for CLI and tests."""
     memory_context = ""
     if user_id and idea_store:
-        memory_context = build_memory_context(
-            idea_store.list_recent(user_id, limit=memory_limit)
-        )
+        memory_context = build_memory_context(idea_store.list_recent(user_id, limit=memory_limit))
 
     roast_panel = run_roast_panel(model, startup_idea, memory_context, research_context)
     debate_result = run_debate(model, startup_idea, roast_panel, max_debate_rounds)

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import argparse
 import os
+from pathlib import Path
 import sys
 import time
-from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SRC_ROOT = PROJECT_ROOT / "src"
@@ -54,7 +54,9 @@ def run_local_eval(
     max_debate_rounds: int | None = None,
 ) -> dict:
     settings = get_settings()
-    debate_rounds = max_debate_rounds if max_debate_rounds is not None else settings.max_debate_rounds
+    debate_rounds = (
+        max_debate_rounds if max_debate_rounds is not None else settings.max_debate_rounds
+    )
     if runtime not in EVAL_RUNTIMES:
         raise ValueError(f"Unsupported runtime: {runtime}. Choose from {EVAL_RUNTIMES}.")
 
@@ -131,9 +133,7 @@ def run_local_eval(
         BASELINES_DIR.mkdir(parents=True, exist_ok=True)
         for row in idea_rows:
             baseline_path = BASELINES_DIR / f"{row['idea_id']}.json"
-            baseline_payload = {
-                key: value for key, value in row.items() if key != "metrics"
-            }
+            baseline_payload = {key: value for key, value in row.items() if key != "metrics"}
             baseline_payload["baseline_runtime"] = runtime
             baseline_payload["baseline_model"] = model_name
             write_json_report(baseline_path, baseline_payload)

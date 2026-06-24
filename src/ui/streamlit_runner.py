@@ -9,8 +9,8 @@ from events import (
     DebateRoundStarted,
     DebateSpeakerThinking,
     DebateSynthesisPublished,
-    JudgeVerdictCompleted,
     JudgesDispatched,
+    JudgeVerdictCompleted,
     RoastPanelCompleted,
 )
 from judges.panel import run_roast_panel, stream_roast_panel

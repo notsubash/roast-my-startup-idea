@@ -1,6 +1,6 @@
+from pathlib import Path
 import sys
 import unittest
-from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -42,16 +42,18 @@ class JudgeServiceTest(unittest.TestCase):
         self.assertEqual(model.structured_model.calls, 3)
 
     def test_invoke_judge_retries_missing_structured_verdict(self):
-        model = FakeModel([
-            None,
-            {
-                "judge": "pm",
-                "verdict": "FAIL",
-                "roast": "The target buyer and workflow are too fuzzy for a reliable product strategy.",
-                "score": 4,
-                "key_concern": "The municipal buyer path is not clear enough.",
-            },
-        ])
+        model = FakeModel(
+            [
+                None,
+                {
+                    "judge": "pm",
+                    "verdict": "FAIL",
+                    "roast": "The target buyer and workflow are too fuzzy for a reliable product strategy.",
+                    "score": 4,
+                    "key_concern": "The municipal buyer path is not clear enough.",
+                },
+            ]
+        )
 
         verdict = invoke_judge(
             model=model,

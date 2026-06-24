@@ -50,9 +50,7 @@ def score_reliability(
     debate_structure_ok = len(speaker_messages) == expected_speaker_count
     has_moderator = any(m.get("speaker") == "moderator" for m in messages)
 
-    consistency = score_verdict_score_consistency(
-        (roast_panel or {}).get("verdicts", [])
-    )
+    consistency = score_verdict_score_consistency((roast_panel or {}).get("verdicts", []))
 
     return {
         "judge_parse_success_rate": parse_rate,

@@ -131,6 +131,20 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
+For development (lint hooks and tooling):
+
+```bash
+pip install -r requirements-dev.txt
+pre-commit install
+```
+
+Pre-commit runs Ruff on every commit. To lint or format manually:
+
+```bash
+ruff check src tests evals
+ruff format src tests evals
+```
+
 Pull a local model. The default in `src/config.py` is:
 
 ```bash
@@ -270,7 +284,7 @@ These are runtime outputs, not source code. Keep them out of commits unless you 
 3. Commit, tag `v0.2.0`, and push the tag.
 4. Create a GitHub Release from that tag with release notes.
 
-CI (`.github/workflows/ci.yml`) runs on every push and pull request to `main`: installs pinned deps, verifies the version resolves, runs unit tests, and compile-checks `src/`.
+CI (`.github/workflows/ci.yml`) runs on every push and pull request to `main`: Ruff lint and format checks, installs pinned deps, verifies the version resolves, runs unit tests on Python 3.11–3.13, and compile-checks `src/`.
 
 Scheduled eval audits (`.github/workflows/eval-audit.yml`) run monthly on the 1st and on manual dispatch, grading committed baselines with DeepSeek when `DEEPSEEK_API_KEY` is configured.
 

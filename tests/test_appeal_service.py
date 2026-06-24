@@ -1,6 +1,6 @@
+from pathlib import Path
 import sys
 import unittest
-from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -17,7 +17,10 @@ class FakeStructuredModel:
         self.prompts.append(prompt)
         judge = "vc"
         for candidate in ["vc", "engineer", "pm", "customer", "competitor"]:
-            if f'"{candidate}"' in prompt or f"judge field must be exactly {candidate}" in prompt.lower():
+            if (
+                f'"{candidate}"' in prompt
+                or f"judge field must be exactly {candidate}" in prompt.lower()
+            ):
                 judge = candidate
                 break
 
@@ -52,11 +55,41 @@ class FakeAppealModel:
 def _original_panel() -> RoastPanel:
     return RoastPanel(
         verdicts=[
-            Verdict(judge="vc", verdict="FAIL", roast="The market feels too small for venture scale.", score=3, key_concern="The market is not clearly venture scale."),
-            Verdict(judge="engineer", verdict="FAIL", roast="The prototype is easy; reliable production behavior is the hard part.", score=4, key_concern="Reliability is unproven."),
-            Verdict(judge="pm", verdict="FAIL", roast="The ICP is not narrow enough to guide product decisions.", score=3, key_concern="The ICP is too broad."),
-            Verdict(judge="customer", verdict="FAIL", roast="I would not pay unless the savings are obvious in week one.", score=3, key_concern="Willingness to pay is unclear."),
-            Verdict(judge="competitor", verdict="FAIL", roast="We could add this as a feature if it gets traction.", score=2, key_concern="Incumbents can copy it quickly."),
+            Verdict(
+                judge="vc",
+                verdict="FAIL",
+                roast="The market feels too small for venture scale.",
+                score=3,
+                key_concern="The market is not clearly venture scale.",
+            ),
+            Verdict(
+                judge="engineer",
+                verdict="FAIL",
+                roast="The prototype is easy; reliable production behavior is the hard part.",
+                score=4,
+                key_concern="Reliability is unproven.",
+            ),
+            Verdict(
+                judge="pm",
+                verdict="FAIL",
+                roast="The ICP is not narrow enough to guide product decisions.",
+                score=3,
+                key_concern="The ICP is too broad.",
+            ),
+            Verdict(
+                judge="customer",
+                verdict="FAIL",
+                roast="I would not pay unless the savings are obvious in week one.",
+                score=3,
+                key_concern="Willingness to pay is unclear.",
+            ),
+            Verdict(
+                judge="competitor",
+                verdict="FAIL",
+                roast="We could add this as a feature if it gets traction.",
+                score=2,
+                key_concern="Incumbents can copy it quickly.",
+            ),
         ]
     )
 

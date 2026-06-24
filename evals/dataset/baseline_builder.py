@@ -139,7 +139,9 @@ def build_smartpatch_baseline() -> dict[str, Any]:
         "idea_id": idea.id,
         "idea_text": idea.idea_text,
         "tags": idea.tags,
-        "judge_attempts": [{"judge": judge, "success": True} for judge in [v["judge"] for v in verdicts]],
+        "judge_attempts": [
+            {"judge": judge, "success": True} for judge in [v["judge"] for v in verdicts]
+        ],
         "roast_panel": roast_panel,
         "debate_result": {
             "debate_messages": _debate_messages(SMARTPATCH_DEBATE, rounds=2),
@@ -158,14 +160,20 @@ def build_smartpatch_baseline() -> dict[str, Any]:
                     _verdict(
                         v["judge"],
                         "CONDITIONAL" if v["judge"] in {"vc", "engineer", "pm"} else v["verdict"],
-                        min(10, v["score"] + (2 if v["judge"] in {"vc", "engineer", "pm", "customer"} else 1)),
-                        v["roast"] + " The new validation data partially addresses calibration risk.",
+                        min(
+                            10,
+                            v["score"]
+                            + (2 if v["judge"] in {"vc", "engineer", "pm", "customer"} else 1),
+                        ),
+                        v["roast"]
+                        + " The new validation data partially addresses calibration risk.",
                         v["key_concern"],
                     )
                     for v in verdicts
                 ]
             },
-            "revised_synthesis": synthesis + " Signed LOIs and validation studies improve the case but execution risk remains.",
+            "revised_synthesis": synthesis
+            + " Signed LOIs and validation studies improve the case but execution risk remains.",
             "seconds": 1.2,
         },
         "timings": {"roast_seconds": 12.0, "debate_seconds": 24.0, "total_seconds": 40.0},

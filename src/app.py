@@ -1,14 +1,19 @@
 import base64
 import os
-import sys
 from pathlib import Path
+import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import streamlit as st
 from pydantic import ValidationError
+import streamlit as st
 
 from appeal.service import run_appeal
+from config import get_settings
+from memory.context import build_memory_context
+from memory.identity import get_local_user_id
+from memory.models import IdeaRecord
+from memory.store import IdeaStore
 from modeling import build_chat_model
 from research.service import (
     TavilyHttpClient,
@@ -27,11 +32,6 @@ from ui.text_display import (
     write_roast_quote,
     write_synthesis,
 )
-from config import get_settings
-from memory.context import build_memory_context
-from memory.identity import get_local_user_id
-from memory.models import IdeaRecord
-from memory.store import IdeaStore
 from utils.scoring_chart import generate_radar_chart
 from utils.transcript_exporter import export_transcript
 from version import get_version
@@ -42,7 +42,8 @@ st.set_page_config(page_title="Roast My Startup", page_icon="\U0001f525", layout
 
 # ── Custom CSS ──
 
-st.markdown("""
+st.markdown(
+    """
 <style>
     .stMetricValue { font-size: 2rem !important; }
     .verdict-pass { color: #2ecc71; font-weight: bold; }
@@ -66,7 +67,9 @@ st.markdown("""
         color: inherit;
     }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 # ── Header ──
 
@@ -86,11 +89,7 @@ with st.sidebar:
     execution_flow = st.selectbox(
         "Execution flow",
         options=["deterministic", "deepagents"],
-        format_func=lambda value: (
-            "Deterministic"
-            if value == "deterministic"
-            else "DeepAgents"
-        ),
+        format_func=lambda value: "Deterministic" if value == "deterministic" else "DeepAgents",
     )
     model_runtime = st.selectbox(
         "Model",
@@ -109,13 +108,17 @@ with st.sidebar:
             "If heuristic says search is unnecessary, it is skipped."
         ),
     )
-    max_rounds = st.slider("Debate rounds", min_value=1, max_value=5, value=settings.max_debate_rounds)
+    max_rounds = st.slider(
+        "Debate rounds", min_value=1, max_value=5, value=settings.max_debate_rounds
+    )
     st.divider()
     st.subheader("Memory")
     recent_records = idea_store.list_recent(st.session_state.user_id, limit=5)
     if recent_records:
         for record in recent_records:
-            avg = sum(v.score for v in record.roast_panel.verdicts) / len(record.roast_panel.verdicts)
+            avg = sum(v.score for v in record.roast_panel.verdicts) / len(
+                record.roast_panel.verdicts
+            )
             st.caption(f"{record.created_at.date()} · {avg:.1f}/10 · {record.idea_text[:60]}")
     else:
         st.caption("No previous ideas remembered yet.")
@@ -174,15 +177,15 @@ if run_clicked and startup_idea.strip():
         st.error(str(exc))
         st.stop()
 
-    memory_context = build_memory_context(
-        idea_store.list_recent(st.session_state.user_id, limit=3)
-    )
+    memory_context = build_memory_context(idea_store.list_recent(st.session_state.user_id, limit=3))
     research_context: str | None = None
     deepagent_web_search_enabled = False
     if enable_web_search:
         tavily_key = os.getenv("TAVILY_API_KEY")
         if not tavily_key:
-            st.warning("Web research enabled but TAVILY_API_KEY is missing; continuing without search.")
+            st.warning(
+                "Web research enabled but TAVILY_API_KEY is missing; continuing without search."
+            )
         else:
             with st.status("Web research policy check...", expanded=False) as status:
                 try:
@@ -210,13 +213,17 @@ if run_clicked and startup_idea.strip():
                                 )
                                 status.update(label="✅ Web research added", state="complete")
                             else:
-                                status.write("Policy allowed search, but no high-signal sources were returned.")
+                                status.write(
+                                    "Policy allowed search, but no high-signal sources were returned."
+                                )
                                 status.update(label="ℹ️ Web research empty", state="complete")
                     else:
                         status.write(f"Skipped by policy: {search_decision.rationale}")
                         status.update(label="ℹ️ Web research skipped", state="complete")
                 except Exception as exc:  # noqa: BLE001 - fail-open in UI
-                    status.update(label="⚠️ Web research failed; continuing without it", state="error")
+                    status.update(
+                        label="⚠️ Web research failed; continuing without it", state="error"
+                    )
                     st.warning(f"Web research failed: {exc}")
 
     # ── Phase 1: Roast Panel with streaming verdicts ──
@@ -361,7 +368,9 @@ if debate_result is not None:
     # ── Appeal mode ──
 
     st.subheader("Appeal Mode")
-    st.caption("Argue back with concrete evidence. Judges will re-evaluate without rerunning the full debate.")
+    st.caption(
+        "Argue back with concrete evidence. Judges will re-evaluate without rerunning the full debate."
+    )
     appeal_text = st.text_area(
         "Your appeal:",
         height=100,
@@ -399,7 +408,9 @@ if debate_result is not None:
                         appeal_text=appeal_text,
                         memory_context=build_memory_context(prior_records),
                     )
-                    status.update(label="\u2705 Appeal complete — revised panel ready!", state="complete")
+                    status.update(
+                        label="\u2705 Appeal complete — revised panel ready!", state="complete"
+                    )
             except (ValidationError, Exception) as exc:
                 st.error(f"Appeal failed: {exc}")
                 st.stop()
@@ -426,7 +437,8 @@ if debate_result is not None:
         revised_cols = st.columns(5)
         for i, v in enumerate(revised_panel.verdicts):
             original = next(
-                original_v for original_v in roast_panel.verdicts
+                original_v
+                for original_v in roast_panel.verdicts
                 if original_v.judge.value == v.judge.value
             )
             delta = v.score - original.score

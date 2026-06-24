@@ -1,7 +1,7 @@
 import html
+from pathlib import Path
 import sys
 import unittest
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -10,7 +10,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 if "streamlit" not in sys.modules:
     sys.modules["streamlit"] = MagicMock()
 
-from ui.text_display import write_labelled_plain, write_plain_text, write_roast_quote, write_synthesis
+from ui.text_display import (
+    write_labelled_plain,
+    write_plain_text,
+    write_roast_quote,
+    write_synthesis,
+)
 
 
 class _BorderContainer:

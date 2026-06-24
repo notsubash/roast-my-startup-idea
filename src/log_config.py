@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
 from pathlib import Path
+import sys
 
 DEFAULT_FORMAT = "%(asctime)s %(levelname)-8s [%(name)s] %(message)s"
 DEFAULT_DATE_FORMAT = "%H:%M:%S"

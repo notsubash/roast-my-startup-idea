@@ -4,6 +4,7 @@ venv/
 .cursor/
 data/
 .pytest_cache/
+.ruff_cache/
 transcripts/
 src/roast_radar.png
 evals/results/local/

@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import json
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 
 def utc_timestamp() -> str:
-    return datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    return datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
 
 
 def write_json_report(path: Path, payload: dict[str, Any]) -> None:
@@ -105,13 +105,11 @@ def compare_audit_reports(
         current_dims = idea.get("grader", {}).get("dimensions", {})
         prior_dims = prior.get("grader", {}).get("dimensions", {})
         for name, score in current_dims.items():
-            if not isinstance(score, (int, float)):
+            if not isinstance(score, int | float):
                 continue
             old = prior_dims.get(name)
-            if isinstance(old, (int, float)) and old - score >= regression_threshold:
-                regressions.append(
-                    f"{idea_id}.{name} dropped {old:.2f} -> {score:.2f}"
-                )
+            if isinstance(old, int | float) and old - score >= regression_threshold:
+                regressions.append(f"{idea_id}.{name} dropped {old:.2f} -> {score:.2f}")
         for gate, passed in idea.get("grader", {}).get("gates", {}).items():
             if passed is False and prior.get("grader", {}).get("gates", {}).get(gate) is True:
                 regressions.append(f"{idea_id}.{gate} gate newly failing")

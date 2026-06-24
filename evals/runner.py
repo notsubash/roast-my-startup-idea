@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 import sys
 import time
-from pathlib import Path
 from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -18,8 +18,8 @@ from events import (
     DebateMessagePublished,
     DebateRoundStarted,
     DebateSynthesisPublished,
-    JudgeVerdictCompleted,
     JudgesDispatched,
+    JudgeVerdictCompleted,
     PhaseStarted,
     PipelineCompleted,
 )
@@ -141,7 +141,9 @@ def run_idea_eval(
                 )
             except ValueError as exc:
                 appeal_seconds = time.perf_counter() - appeal_start
-                logger.error("[%s] appeal_%s failed after %.1fs: %s", idea.id, case_name, appeal_seconds, exc)
+                logger.error(
+                    "[%s] appeal_%s failed after %.1fs: %s", idea.id, case_name, appeal_seconds, exc
+                )
                 result[f"appeal_{case_name}"] = {
                     "appeal_text": appeal_text,
                     "error": str(exc),

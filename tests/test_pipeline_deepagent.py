@@ -1,6 +1,6 @@
+from pathlib import Path
 import sys
 import unittest
-from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -12,11 +12,41 @@ from pipeline import run_deepagent_pipeline
 def _panel() -> RoastPanel:
     return RoastPanel(
         verdicts=[
-            Verdict(judge="vc", verdict="FAIL", roast="Weak moat and costly distribution in a crowded market.", score=3, key_concern="No durable moat."),
-            Verdict(judge="engineer", verdict="CONDITIONAL", roast="Feasible architecture, but reliability and integrations are more complex than presented.", score=5, key_concern="Reliability risk."),
-            Verdict(judge="pm", verdict="FAIL", roast="The target persona is broad and the wedge is not concrete enough to drive retention.", score=4, key_concern="Unclear ICP."),
-            Verdict(judge="customer", verdict="FAIL", roast="I would not switch unless this replaces my current workflow with near-zero friction.", score=3, key_concern="Weak switching incentive."),
-            Verdict(judge="competitor", verdict="FAIL", roast="Incumbents can copy this quickly as a bundled feature once demand appears.", score=2, key_concern="Easy replication."),
+            Verdict(
+                judge="vc",
+                verdict="FAIL",
+                roast="Weak moat and costly distribution in a crowded market.",
+                score=3,
+                key_concern="No durable moat.",
+            ),
+            Verdict(
+                judge="engineer",
+                verdict="CONDITIONAL",
+                roast="Feasible architecture, but reliability and integrations are more complex than presented.",
+                score=5,
+                key_concern="Reliability risk.",
+            ),
+            Verdict(
+                judge="pm",
+                verdict="FAIL",
+                roast="The target persona is broad and the wedge is not concrete enough to drive retention.",
+                score=4,
+                key_concern="Unclear ICP.",
+            ),
+            Verdict(
+                judge="customer",
+                verdict="FAIL",
+                roast="I would not switch unless this replaces my current workflow with near-zero friction.",
+                score=3,
+                key_concern="Weak switching incentive.",
+            ),
+            Verdict(
+                judge="competitor",
+                verdict="FAIL",
+                roast="Incumbents can copy this quickly as a bundled feature once demand appears.",
+                score=2,
+                key_concern="Easy replication.",
+            ),
         ]
     )
 

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import json
 import re
 from urllib import request
-from urllib.error import URLError, HTTPError
+from urllib.error import HTTPError, URLError
 
 from jinja2 import Environment, FileSystemLoader
 from pydantic import BaseModel, Field
@@ -28,9 +28,7 @@ class ResearchContext:
 
 
 class WebSearchDecision(BaseModel):
-    use_search: bool = Field(
-        description="Whether web search is required for factual validation."
-    )
+    use_search: bool = Field(description="Whether web search is required for factual validation.")
     rationale: str = Field(
         description="Short reason for decision; mention factual risk if searching."
     )
@@ -138,9 +136,13 @@ def _parse_json_object(content: str) -> dict | None:
 
 
 def _build_search_query(startup_idea: str) -> str:
-    return template_env.get_template("research_query_prompt.jinja2").render(
-        startup_idea=startup_idea,
-    ).strip()
+    return (
+        template_env.get_template("research_query_prompt.jinja2")
+        .render(
+            startup_idea=startup_idea,
+        )
+        .strip()
+    )
 
 
 def _normalize_findings(raw_results: list[dict]) -> list[ResearchFinding]:
@@ -204,10 +206,14 @@ def format_research_context(context: ResearchContext) -> str:
         }
         for finding in context.findings
     ]
-    return template_env.get_template("research_context_prompt.jinja2").render(
-        query=context.query,
-        findings=prepared_findings,
-    ).strip()
+    return (
+        template_env.get_template("research_context_prompt.jinja2")
+        .render(
+            query=context.query,
+            findings=prepared_findings,
+        )
+        .strip()
+    )
 
 
 def make_deepagent_search_tool(tavily_client, max_results: int):

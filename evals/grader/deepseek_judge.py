@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 import re
 import sys
-from pathlib import Path
 from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -59,7 +59,9 @@ def _estimate_tokens(text: str) -> int:
     return max(1, len(text) // 4)
 
 
-def _compact_debate_messages(messages: list[dict[str, Any]], limit: int = 16) -> list[dict[str, Any]]:
+def _compact_debate_messages(
+    messages: list[dict[str, Any]], limit: int = 16
+) -> list[dict[str, Any]]:
     if len(messages) <= limit:
         return messages
     return messages[-limit:]
@@ -77,14 +79,10 @@ def build_grader_prompt(
 
     context = {
         "idea_text": idea_result.get("idea_text", ""),
-        "expected_panel_avg_range": (
-            golden.expected_panel_avg_range if golden else (1, 10)
-        ),
+        "expected_panel_avg_range": (golden.expected_panel_avg_range if golden else (1, 10)),
         "must_surface_concerns": golden.must_surface_concerns if golden else [],
         "verdicts": roast_panel.get("verdicts", []),
-        "debate_messages": _compact_debate_messages(
-            debate_result.get("debate_messages", [])
-        ),
+        "debate_messages": _compact_debate_messages(debate_result.get("debate_messages", [])),
         "final_synthesis": debate_result.get("final_synthesis") or "",
         "appeal_weak": {
             "appeal_text": appeal_weak.get("appeal_text", ""),
@@ -159,7 +157,7 @@ class DeepSeekGrader:
         structured = self.model.with_structured_output(IdeaAuditGrade)
 
         last_validation_error: ValidationError | None = None
-        for attempt in range(GRADER_MAX_ATTEMPTS):
+        for _attempt in range(GRADER_MAX_ATTEMPTS):
             self.estimated_input_tokens += _estimate_tokens(system_prompt + user_prompt)
             result = structured.invoke(messages)
             self.calls_made += 1
@@ -195,9 +193,7 @@ class DeepSeekGrader:
         try:
             return self._parse_grade(_extract_json_object(_response_text(response)), idea_id)
         except (ValueError, json.JSONDecodeError) as exc:
-            raise ValueError(
-                f"Grader JSON fallback failed for {idea_id}: {exc}"
-            ) from exc
+            raise ValueError(f"Grader JSON fallback failed for {idea_id}: {exc}") from exc
 
     def estimate_idea_tokens(
         self,

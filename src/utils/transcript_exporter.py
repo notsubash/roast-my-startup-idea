@@ -1,5 +1,5 @@
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 from judges.schemas import RoastPanel
 
@@ -57,7 +57,9 @@ def export_transcript(
         lines.extend(["---", "", "## Final Synthesis", "", synthesis, ""])
 
     if appeal_text and revised_panel is not None:
-        lines.extend(["---", "", "## Phase 3: Appeal", "", "### Founder Appeal", "", appeal_text, ""])
+        lines.extend(
+            ["---", "", "## Phase 3: Appeal", "", "### Founder Appeal", "", appeal_text, ""]
+        )
         lines.extend(["### Revised Verdicts", ""])
         for v in revised_panel.verdicts:
             original = next(

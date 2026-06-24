@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
+import sys
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from evals import BASELINES_DIR, BASELINE_SOURCES
+from evals import BASELINE_SOURCES, BASELINES_DIR
 from evals.dataset.baseline_builder import BASELINE_BUILDERS
 
 
@@ -45,9 +45,7 @@ def _write_llm_baselines(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Write evals/dataset/baselines/latest/ fixtures"
-    )
+    parser = argparse.ArgumentParser(description="Write evals/dataset/baselines/latest/ fixtures")
     parser.add_argument(
         "--runtime",
         default="synthetic",
