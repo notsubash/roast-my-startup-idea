@@ -1,12 +1,47 @@
 # Roast My Startup
 
-Roast My Startup is a local-first multi-agent critique app. A user submits a startup idea, five AI judges evaluate it from different lenses, then the judges debate each other before a moderator produces a final synthesis.
+> **Five AI judges. One verdict. Zero sugarcoating.**
 
-The app is built for learning and experimentation with LangGraph, LangChain, local Ollama models, and the DeepAgents SDK. The production path is intentionally deterministic because local tool-calling models can be inconsistent when asked to orchestrate multi-agent work on their own.
-
-## Screenshots
+Submit a startup idea and get torn apart, constructively, by a VC, engineer, product manager, customer, and competitor. Each judge scores independently, they debate across multiple rounds, and a moderator delivers the final call. Disagree? **Appeal with evidence** and make them reconsider.
 
 ![Roast Panel main page](images/Roast%20Panel%20Main%20Page.png)
+
+| | |
+| :--- | :--- |
+| **Roast panel** | Five parallel verdicts: score, pass/fail, roast, key concern |
+| **Debate** | Multi-round LangGraph argument with every judge on the record |
+| **Synthesis** | Moderator ties it together into a final verdict |
+| **Appeal** | Founder rebuttal → revised scores and updated synthesis |
+| **Memory** | Past ideas inform future roasts (compact summaries, not full transcripts) |
+
+## Quick start
+
+**Requirements:** Python 3.11+ · [Ollama](https://ollama.com/) (local) or DeepSeek API (cloud)
+
+```bash
+git clone https://github.com/notsubash/roast-my-startup-idea.git
+cd roast-my-startup-idea
+pip install -r requirements.txt
+ollama pull qwen3.5:9b          # default model; override in .env
+cp .env.example .env            # optional: DeepSeek, Tavily, LangSmith
+streamlit run src/app.py
+```
+
+Open the app, paste your pitch, choose the model(local or foundation model), and hit **Roast It!**
+
+## What it does
+
+| Phase | What happens |
+| --- | --- |
+| **Roast panel** | Five judges (VC, Engineer, PM, Customer, Competitor) evaluate in parallel |
+| **Debate** | LangGraph runs configurable multi-round debate with fixed turn order |
+| **Synthesis** | Moderator produces a final summary |
+| **Appeal** *(optional)* | Founder rebuttal → judges revise scores → updated synthesis |
+| **Memory** | Prior ideas summarized into future judge prompts (SQLite, session-scoped) |
+
+Each judge returns structured output: score, pass/fail/conditional label, roast, and key concern. The UI renders a radar chart, debate transcript, and Markdown export.
+
+## Screenshots
 
 | Individual verdicts | Judge scores radar |
 | --- | --- |
@@ -20,138 +55,33 @@ The app is built for learning and experimentation with LangGraph, LangChain, loc
 | --- | --- | --- |
 | ![Final synthesis](images/Final%20Synthesis.png) | ![Appeal mode](images/Appeal%20Mode.png) | ![After appeal synthesis](images/After%20Appeal%20Synthesis.png) |
 
-
-## What It Does
-
-- Runs five independent judge evaluations in parallel:
-  - VC
-  - Engineer
-  - Product Manager
-  - Customer
-  - Competitor
-- Produces structured verdicts with score, pass/fail/conditional label, roast, and key concern.
-- Runs a LangGraph debate where every judge speaks in a fixed order for configurable rounds.
-- Produces a final moderator synthesis.
-- Remembers prior ideas for the current user and injects compact memory into future judge prompts.
-- Supports Appeal Mode, where the founder can argue back and the judges re-evaluate their scores.
-- Exports transcripts to Markdown.
-- Renders a radar chart for judge scores.
-
 ## Architecture
 
-The current app has two distinct paths:
-
-1. Production path: deterministic pipeline
-2. Experimental path: DeepAgents orchestrator
-
-The deterministic path is the one used by the Streamlit app:
+Built with **LangGraph**, **LangChain**, **Ollama**, and the **DeepAgents SDK**. Two execution paths exist; only one is production-ready.
 
 ```text
 User idea
-  -> Phase 1: parallel structured judge calls
-  -> Phase 2: LangGraph debate graph
-  -> Moderator synthesis
-  -> Optional Appeal Mode
-  -> Persist idea memory
+  → Phase 1: parallel structured judge calls (roast panel)
+  → Phase 2: LangGraph debate graph
+  → Moderator synthesis
+  → Optional appeal re-evaluation
+  → Persist compact idea memory
 ```
 
-This is the practical choice for local models. The app needs all five judges to speak, predictable debate rounds, and validated structured output. Those guarantees are easier to enforce with direct model calls plus LangGraph than with an LLM-planned DeepAgents orchestrator.
+**Deterministic pipeline** (`src/pipeline.py`): Direct model calls plus LangGraph guarantee all five judges speak, debate rounds advance predictably, and Pydantic validates every boundary.
 
-DeepAgents still exists in `src/orchestrator/deep_agent.py` as an experimental path for learning subagent dispatch through `task()`. It is useful when trying stronger tool-calling models, but it is not the default user-facing path.
+**DeepAgents orchestrator** (`src/orchestrator/deep_agent.py`): Agent harness that dispatches subagents via `task()` with stronger tool-calling models. Not the default user path.
 
-## Key Design Choices
+### Design principles
 
-### Deterministic orchestration over agent autonomy
+- **Orchestration over autonomy:** the debate is a workflow, not a free-form agent task. LangGraph owns state and routing.
+- **Structured output at boundaries:** verdict schemas in `src/judges/schemas.py` are the contract between phases, charts, memory, and exports.
+- **Compact memory:** SQLite stores full records, but prompts receive only short summaries (scores, concerns, synthesis). Full transcripts are never injected into judge prompts; local models drift under long context.
+- **Appeal as a third phase:** re-evaluates judges against founder evidence. Does not rerun the multi-round debate.
 
-The debate is a product workflow, not an open-ended agent task. LangGraph owns the state machine and turn routing, so the app can guarantee that each judge speaks in each round.
+## Configuration
 
-### Structured output at the boundary
-
-Judge results are validated with Pydantic models in `src/judges/schemas.py`. This keeps downstream debate, charts, memory, and exports working with predictable data.
-
-### Memory is compact, not transcript-heavy
-
-Memory is stored durably in SQLite, but prompts only receive a short summary of prior ideas, score trends, concerns, and synthesis. Full debate transcripts are intentionally not injected into every judge prompt because local models have limited context and can drift when overloaded.
-
-### Appeal Mode is a third phase
-
-Appeal Mode does not rerun the whole debate by default. It sends the founder's rebuttal to each judge, asks them to revise or defend their original verdict, then synthesizes what changed.
-
-## Repository Layout
-
-```text
-src/
-  app.py                         Streamlit app entry point
-  pipeline.py                    Frontend-agnostic production pipeline
-  config.py                      Model and app settings
-
-  judges/
-    schemas.py                   Pydantic verdict models
-    service.py                   Single judge structured evaluation
-    panel.py                     Parallel five-judge panel
-
-  debate/
-    graph.py                     LangGraph debate definition
-    nodes.py                     Speaker and moderator nodes
-    router.py                    Turn routing and round advancement
-    state.py                     Debate state schema
-
-  memory/
-    models.py                    Persisted idea record model
-    store.py                     SQLite-backed idea store
-    context.py                   Compact prompt context builder
-
-  appeal/
-    service.py                   Appeal re-evaluation and synthesis
-
-  orchestrator/
-    deep_agent.py                Experimental DeepAgents orchestrator
-
-  ui/
-    streamlit_runner.py          Streamlit adapters for event streams
-
-  utils/
-    roast_panel_parser.py        DeepAgents result parser fallback
-    scoring_chart.py             Radar chart generation
-    transcript_exporter.py       Markdown transcript export
-
-tests/
-  test_*.py                      Unit tests using unittest
-```
-
-## Requirements
-
-- Python 3.11+
-- Ollama installed and running
-- A local chat model available through Ollama
-
-Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-For development (lint hooks and tooling):
-
-```bash
-pip install -r requirements-dev.txt
-pre-commit install
-```
-
-Pre-commit runs Ruff on every commit. To lint or format manually:
-
-```bash
-ruff check src tests evals
-ruff format src tests evals
-```
-
-Pull a local model. The default in `src/config.py` is:
-
-```bash
-ollama pull qwen3.5:9b
-```
-
-If you use a different model, set it in `.env`:
+Copy `.env.example` to `.env`. Key variables:
 
 ```bash
 LOCAL_MODEL=ollama:qwen3.5:9b
@@ -164,104 +94,107 @@ WEB_SEARCH_MAX_RESULTS=3
 TAVILY_API_KEY=your_tavily_api_key
 ```
 
-Use a model with decent structured-output and instruction-following behavior. Local models vary a lot here. If judge outputs fail validation, try a stronger tool-calling/instruct model.
+| Runtime | When to use |
+| --- | --- |
+| `local` | Default. Ollama via `LOCAL_MODEL`. |
+| `deepseek` | Cloud API via `DEEPSEEK_API_KEY` and `langchain_deepseek`. |
 
-## Run The App
+Pick a model with solid instruction-following and structured output. If verdict validation fails, try a stronger instruct or tool-calling model.
 
-Start the Streamlit app:
+**Web research:** optional Tavily search, gated by a model policy prompt (not keyword matching).
+
+## LangSmith observability
+
+Tracing is opt-in. Set credentials in `.env`:
 
 ```bash
-streamlit run src/app.py
+LANGSMITH_TRACING=true
+LANGSMITH_API_KEY=your_langsmith_api_key
+LANGSMITH_PROJECT=roast-my-startup
 ```
 
-Then:
+Legacy `LANGCHAIN_TRACING_V2`, `LANGCHAIN_API_KEY`, and `LANGCHAIN_PROJECT` are also supported.
+
+Traces cover roast panel calls, LangGraph debate, appeal flows, and experimental DeepAgents runs. Metadata includes execution flow, app version, and a privacy-safe `idea_fingerprint` (SHA-256 hash + 80-char preview). Full startup text is never sent.
+
+Filter by tags such as `phase:roast`, `phase:debate`, `phase:appeal`, or `flow:deterministic`.
+
+![LangSmith tracing dashboard](images/Observability.png)
+
+## Using the app
 
 1. Enter a startup idea.
-2. Choose execution flow:
-   - `Deterministic (production)` for stable local-first orchestration.
-   - `DeepAgents (experimental phase 1)` to route phase 1 through `task()` subagents.
-3. Choose model runtime:
-   - `local` (Ollama via `LOCAL_MODEL`)
-   - `deepseek` (DeepSeek API via `DEEPSEEK_API_KEY`, using `ChatDeepSeek` from `langchain_deepseek`)
-4. Optionally enable `Web research (Tavily)` for bounded factual context.
-   - Search usage is decided by a model policy prompt, not keyword matching.
-5. Click `Roast It!`.
-6. Review individual verdicts, score chart, debate transcript, and final synthesis.
-7. Use Appeal Mode to argue back with concrete evidence.
-8. Download the transcript if needed.
+2. Choose execution flow: **Deterministic (production)** or **DeepAgents (experimental)**.
+3. Choose model runtime: **local** or **deepseek**.
+4. Optionally enable **Web research (Tavily)**.
+5. Review verdicts, radar chart, debate transcript, and synthesis.
+6. Use **Appeal Mode** with concrete evidence (LOIs, pilots, buyer persona, not persuasion alone).
+7. Download the Markdown transcript if needed.
 
-## Memory
+### Memory
 
-The app stores idea memory in:
+Stored at `data/ideas.db`, scoped to the Streamlit session user id. Context builder (`src/memory/context.py`) injects prior idea text, average score, top concerns, previous synthesis, and appeal outcome. Full transcripts are never injected.
 
-```text
-data/ideas.db
-```
+### Appeal mode
 
-Memory is scoped to the Streamlit session user id. A new browser/session gets a new local user id unless you change the identity logic in `src/app.py`.
+Founder appeal is sent to all five judges with the original idea, their prior verdict, moderator synthesis, optional memory context, and appeal text. Each judge returns a fresh validated `Verdict`; the UI shows score deltas.
 
-The memory prompt context is built in `src/memory/context.py`. It deliberately summarizes:
-
-- prior idea text
-- average score
-- top judge concerns
-- previous synthesis
-- prior appeal outcome, if present
-
-It does not inject full transcripts.
-
-## Appeal Mode
-
-Appeal Mode lives in `src/appeal/service.py`.
-
-The founder's appeal is sent to all five judges with:
-
-- original startup idea
-- original verdict for that judge
-- original moderator synthesis
-- optional compact memory context
-- appeal text
-
-Each judge returns a fresh validated `Verdict`. The UI shows revised scores and score deltas against the original panel.
-
-Good appeals should include evidence, not just persuasion. For example:
+## Repository layout
 
 ```text
-We already have three signed LOIs worth $180k ARR and two hospital pilots.
-The buyer is the compliance VP, not clinicians, and budget comes from existing audit spend.
+src/
+  app.py                         Streamlit entry point
+  pipeline.py                    Frontend-agnostic production pipeline
+  config.py                      Model and app settings
+  judges/                        Schemas, single-judge service, parallel panel
+  debate/                        LangGraph graph, nodes, router, state
+  memory/                        SQLite store, compact prompt context
+  appeal/                        Re-evaluation and synthesis
+  orchestrator/deep_agent.py     Experimental DeepAgents path
+  observability/langsmith.py     LangSmith bootstrap and run config
+  ui/streamlit_runner.py         Streamlit event-stream adapters
+  utils/                         Parser fallback, radar chart, transcript export
+tests/                           Unit tests (unittest, fake models, no Ollama required)
+evals/                           Regression evals and monthly audit (see evals/README.md)
 ```
 
-## Testing
-
-Run the full test suite:
+## Development
 
 ```bash
+pip install -r requirements-dev.txt
+pre-commit install                # Ruff on every commit
+
 python -m unittest discover -s tests
-```
-
-Compile-check source files:
-
-```bash
 python -m compileall src
+ruff check src tests evals
+ruff format src tests evals
 ```
 
-The tests use fake models where possible so they do not require Ollama.
+**CI** (`.github/workflows/ci.yml`) runs on push/PR to `main`: Ruff lint and format, pinned deps, version resolution check, unit tests on Python 3.11-3.13, compile check.
 
-## Evaluation
-
-See **[evals/README.md](evals/README.md)** for the full guide. Quick reference:
+**Evals:** see [evals/README.md](evals/README.md).
 
 | Tier | When | Command |
-|------|------|---------|
-| **0 — CI** | Every PR | `python -m unittest discover -s tests` |
-| **1 — Local** | Before prompt/model changes | `python -m evals.run_eval --runtime local --full` |
-| **2 — DeepSeek audit** | Monthly | `python -m evals.run_audit --no-reuse-last-local --baseline-only` |
+| --- | --- | --- |
+| 0 (CI) | Every PR | `python -m unittest discover -s tests` |
+| 1 (Local) | Before prompt/model changes | `python -m evals.run_eval --runtime local --full` |
+| 2 (DeepSeek audit) | Monthly (1st) or manual | `python -m evals.run_audit --no-reuse-last-local --baseline-only` |
 
-Tier 1 checks structural reliability only ($0, Ollama). Tier 2 uses **one DeepSeek LLM-as-judge call per idea** with prompts in `src/prompts/eval_grader_*.jinja2` (~$0.50–2/month on committed baselines). Scheduled on the 1st of each month via `.github/workflows/eval-audit.yml`.
+Tier 1 checks structural reliability ($0, Ollama). Tier 2 uses one DeepSeek LLM-as-judge call per idea (~$0.50-2/month on committed baselines).
 
-## Generated Files
+Version lives in `pyproject.toml` (`[project].version`); runtime reads it via `src/version.py`.
 
-The app may generate local runtime artifacts:
+## Scope and limitations
+
+Honest boundaries, not bugs. Current design:
+
+- Memory identity is session-local, not account-based.
+- Appeal re-evaluates judges; it does not run a second multi-round debate.
+- SQLite storage is local-only.
+- Streamlit is the only UI; no CLI for the full memory/appeal flow.
+- DeepAgents is experimental, not the production orchestrator.
+
+## Generated artifacts
 
 ```text
 data/ideas.db
@@ -269,38 +202,4 @@ transcripts/*.md
 roast_radar.png
 ```
 
-These are runtime outputs, not source code. Keep them out of commits unless you intentionally want sample artifacts.
-
-## Versioning And CI
-
-**App version** lives in `pyproject.toml` under `[project].version`. Runtime code reads it via `src/version.py` — do not duplicate the string elsewhere.
-
-**Dependencies** are pinned in `requirements.txt` for reproducible installs and CI. When upgrading a library, bump the pin, run tests, and commit both files if needed.
-
-**Releases** use [Semantic Versioning](https://semver.org/):
-
-1. Bump `version` in `pyproject.toml` (e.g. `0.1.0` → `0.2.0`).
-2. Run tests locally.
-3. Commit, tag `v0.2.0`, and push the tag.
-4. Create a GitHub Release from that tag with release notes.
-
-CI (`.github/workflows/ci.yml`) runs on every push and pull request to `main`: Ruff lint and format checks, installs pinned deps, verifies the version resolves, runs unit tests on Python 3.11–3.13, and compile-checks `src/`.
-
-Scheduled eval audits (`.github/workflows/eval-audit.yml`) run monthly on the 1st and on manual dispatch, grading committed baselines with DeepSeek when `DEEPSEEK_API_KEY` is configured.
-
-## Notes For Maintainers
-
-- Keep the production path deterministic unless there is a strong reason not to.
-- Treat `src/orchestrator/deep_agent.py` as experimental until local model tool-calling is reliable enough to dispatch all judge subagents consistently.
-- Prefer adding small frontend-agnostic services first, then adapting them into Streamlit.
-- Keep prompts short and specific. Local models degrade quickly when given long transcripts plus complex instructions.
-- Preserve the Pydantic schemas as the contract between phases.
-- When adding new features, add tests around the service layer before wiring UI.
-
-## Current Limitations
-
-- Memory identity is session-local, not account-based.
-- Appeal Mode re-evaluates judges but does not run a second multi-round debate.
-- SQLite storage is local-only.
-- Streamlit is the primary UI; there is no separate CLI entry point for the full memory/appeal flow yet.
-- DeepAgents support is present for experimentation but not trusted as the production orchestrator.
+Runtime outputs. Keep out of commits unless you intentionally want samples.
