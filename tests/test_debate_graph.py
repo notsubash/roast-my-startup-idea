@@ -3,9 +3,9 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
 from debate.graph import build_debate_graph
 from debate.router import JUDGE_ORDER
+import tests  # noqa: F401
 
 
 class FakeResponse:
@@ -17,7 +17,7 @@ class FakeModel:
     def __init__(self):
         self.calls = 0
 
-    def invoke(self, messages):
+    def invoke(self, messages, **_kwargs):
         self.calls += 1
         return FakeResponse(f"Fake Response {self.calls}")
 

@@ -5,6 +5,8 @@ import unittest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
+import tests  # noqa: F401
+
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from evals import BASELINES_DIR
@@ -76,7 +78,7 @@ class EvalAuditTest(unittest.TestCase):
         calls = {"count": 0}
 
         class FakeStructured:
-            def invoke(self, messages):
+            def invoke(self, messages, **_kwargs):
                 calls["count"] += 1
                 return None if calls["count"] == 1 else valid
 
@@ -84,7 +86,7 @@ class EvalAuditTest(unittest.TestCase):
             def with_structured_output(self, schema):
                 return FakeStructured()
 
-            def invoke(self, messages):
+            def invoke(self, messages, **_kwargs):
                 raise AssertionError("JSON fallback should not run when structured succeeds")
 
         grader = DeepSeekGrader(model=FakeModel())
@@ -97,7 +99,7 @@ class EvalAuditTest(unittest.TestCase):
         valid_json = _sample_grade().model_dump(mode="json")
 
         class FakeStructured:
-            def invoke(self, messages):
+            def invoke(self, messages, **_kwargs):
                 return None
 
         class FakeModel:
@@ -107,7 +109,7 @@ class EvalAuditTest(unittest.TestCase):
             def with_structured_output(self, schema):
                 return FakeStructured()
 
-            def invoke(self, messages):
+            def invoke(self, messages, **_kwargs):
                 self.fallback_called = True
 
                 class Response:
@@ -230,14 +232,14 @@ class EvalAuditTest(unittest.TestCase):
         }
 
         class FakeStructured:
-            def invoke(self, messages):
+            def invoke(self, messages, **_kwargs):
                 return None
 
         class FakeModel:
             def with_structured_output(self, schema):
                 return FakeStructured()
 
-            def invoke(self, messages):
+            def invoke(self, messages, **_kwargs):
                 class Response:
                     content = json.dumps(flat_payload)
 

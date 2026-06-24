@@ -3,8 +3,8 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
 from judges.service import invoke_judge
+import tests  # noqa: F401
 
 
 class FakeStructuredModel:
@@ -12,7 +12,7 @@ class FakeStructuredModel:
         self.responses = list(responses)
         self.calls = 0
 
-    def invoke(self, messages):
+    def invoke(self, messages, **_kwargs):
         self.calls += 1
         return self.responses.pop(0)
 

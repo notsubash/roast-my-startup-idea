@@ -6,12 +6,12 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
 from judges.schemas import RoastPanel, Verdict
 from memory.context import build_memory_context
 from memory.identity import get_local_user_id
 from memory.models import IdeaRecord
 from memory.store import IdeaStore
+import tests  # noqa: F401
 
 
 def _panel(score: int, concern: str) -> RoastPanel:

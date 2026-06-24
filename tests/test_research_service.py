@@ -3,13 +3,13 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
 from research.service import (
     WebSearchDecision,
     build_research_context,
     decide_web_search_usage,
     format_research_context,
 )
+import tests  # noqa: F401
 
 
 class FakeTavilyClient:
@@ -37,13 +37,13 @@ class FakePolicyStructuredModel:
         self.decision = decision
         self.calls = []
 
-    def invoke(self, messages):
+    def invoke(self, messages, **_kwargs):
         self.calls.append(messages)
         return self.decision
 
 
 class FakePolicyStructuredModelFailure:
-    def invoke(self, messages):
+    def invoke(self, messages, **_kwargs):
         raise RuntimeError("Thinking mode does not support this tool_choice")
 
 
@@ -61,7 +61,7 @@ class FakePolicyModelWithFallback:
     def with_structured_output(self, schema):
         return FakePolicyStructuredModelFailure()
 
-    def invoke(self, prompt):
+    def invoke(self, prompt, **_kwargs):
         class Response:
             content = (
                 '{"use_search": true, '

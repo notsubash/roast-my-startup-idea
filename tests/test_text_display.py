@@ -5,6 +5,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+import tests  # noqa: F401
 
 # Avoid loading Streamlit's server stack during unit tests.
 if "streamlit" not in sys.modules:

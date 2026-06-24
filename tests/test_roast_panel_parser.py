@@ -3,7 +3,7 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
+import tests  # noqa: F401
 from utils.roast_panel_parser import extract_roast_panel
 
 

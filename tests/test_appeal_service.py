@@ -3,16 +3,16 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
 from appeal.service import run_appeal
 from judges.schemas import RoastPanel, Verdict
+import tests  # noqa: F401
 
 
 class FakeStructuredModel:
     def __init__(self):
         self.prompts: list[str] = []
 
-    def invoke(self, messages):
+    def invoke(self, messages, **_kwargs):
         prompt = "\n".join(message.content for message in messages)
         self.prompts.append(prompt)
         judge = "vc"
@@ -42,7 +42,7 @@ class FakeAppealModel:
         self.schema = schema
         return self.structured_model
 
-    def invoke(self, messages):
+    def invoke(self, messages, **_kwargs):
         prompt = "\n".join(message["content"] for message in messages)
         self.synthesis_prompts.append(prompt)
 
@@ -101,7 +101,7 @@ class AppealServiceTest(unittest.TestCase):
         calls = {"count": 0}
 
         class FlakyStructuredModel:
-            def invoke(self, messages):
+            def invoke(self, messages, **_kwargs):
                 calls["count"] += 1
                 if calls["count"] < 2:
                     return None

@@ -4,9 +4,9 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
 from judges.schemas import RoastPanel, Verdict
 from pipeline import run_deepagent_pipeline
+import tests  # noqa: F401
 
 
 def _panel() -> RoastPanel:

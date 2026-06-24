@@ -3,8 +3,8 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
 from judges.schemas import Verdict
+import tests  # noqa: F401
 
 
 class VerdictSchemaLimitsTest(unittest.TestCase):

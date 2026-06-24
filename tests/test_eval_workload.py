@@ -4,8 +4,8 @@ import unittest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
-
 from evals.workload import estimate_llm_calls
+import tests  # noqa: F401
 
 
 class EvalWorkloadTest(unittest.TestCase):

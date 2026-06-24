@@ -4,10 +4,10 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
 from config import Settings
 from judges.schemas import RoastPanel, Verdict
 from orchestrator.deep_agent import build_orchestrator, run_roast_via_orchestrator
+import tests  # noqa: F401
 
 
 class DeepAgentOrchestratorTest(unittest.TestCase):
@@ -43,13 +43,13 @@ class DeepAgentOrchestratorTest(unittest.TestCase):
         extract_roast_panel_mock,
     ):
         class FailingAgent:
-            def invoke(self, payload):
+            def invoke(self, payload, **_kwargs):
                 raise RuntimeError(
                     "Error code: 400 - {'error': {'message': 'This response_format type is unavailable now'}}"
                 )
 
         class SucceedingAgent:
-            def invoke(self, payload):
+            def invoke(self, payload, **_kwargs):
                 return {"messages": []}
 
         panel = RoastPanel(

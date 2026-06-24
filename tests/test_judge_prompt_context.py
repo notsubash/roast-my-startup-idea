@@ -3,8 +3,8 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
 from judges.service import build_judge_user_prompt
+import tests  # noqa: F401
 
 
 class JudgePromptContextTest(unittest.TestCase):
