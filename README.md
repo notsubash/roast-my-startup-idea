@@ -29,6 +29,29 @@ streamlit run src/app.py
 
 Open the app, paste your pitch, choose the model(local or foundation model), and hit **Roast It!**
 
+### Streaming API (custom frontend)
+
+Run the FastAPI backend separately from Streamlit:
+
+```bash
+uvicorn api.app:app --app-dir src --reload --port 8000
+```
+
+Endpoints:
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/health` | Liveness check |
+| `POST` | `/api/runs` | Create a run, returns `run_id` immediately |
+| `GET` | `/api/runs/{run_id}` | Poll run status |
+| `GET` | `/api/runs/{run_id}/events` | SSE stream of roast/debate events |
+
+Create a run, then open an `EventSource` (or equivalent) on `/api/runs/{run_id}/events`. The stream emits ordered envelopes ending in `run_completed` or `run_failed`. Each run accepts one SSE connection; a second attempt returns `409`.
+
+Set `ROAST_CORS_ORIGINS` in `.env` for your frontend origin (comma-separated). Default: `http://localhost:3000,http://127.0.0.1:3000`.
+
+Run uvicorn with a single worker until run storage is shared across processes.
+
 ## What it does
 
 | Phase | What happens |
@@ -45,7 +68,7 @@ Each judge returns structured output: score, pass/fail/conditional label, roast,
 
 | Individual verdicts | Judge scores radar |
 | --- | --- |
-| ![Judge verdicts](images/Judge%20Verdicts.png) | ![Judge scores radar](src/roast_radar.png) |
+| ![Judge verdicts](images/Judge%20Verdicts.png) | ![Judge scores radar](images/roast_radar.png) |
 
 | Debate round 1 | Debate round 2 | Debate round 3 |
 | --- | --- | --- |
@@ -92,6 +115,7 @@ MAX_DEBATE_ROUNDS=3
 ENABLE_WEB_SEARCH=false
 WEB_SEARCH_MAX_RESULTS=3
 TAVILY_API_KEY=your_tavily_api_key
+ROAST_CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 ```
 
 | Runtime | When to use |
@@ -144,6 +168,7 @@ Founder appeal is sent to all five judges with the original idea, their prior ve
 ```text
 src/
   app.py                         Streamlit entry point
+  api/                           FastAPI streaming API for custom frontend
   pipeline.py                    Frontend-agnostic production pipeline
   config.py                      Model and app settings
   judges/                        Schemas, single-judge service, parallel panel
@@ -191,7 +216,7 @@ Honest boundaries, not bugs. Current design:
 - Memory identity is session-local, not account-based.
 - Appeal re-evaluates judges; it does not run a second multi-round debate.
 - SQLite storage is local-only.
-- Streamlit is the only UI; no CLI for the full memory/appeal flow.
+- Streamlit is the reference UI; the streaming API covers roast/debate only (no memory or appeal yet).
 - DeepAgents is experimental, not the production orchestrator.
 
 ## Generated artifacts
