@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from api.schemas import CreateRunRequest
 from config import Settings, get_settings
+from idea_context import build_startup_idea_context as _build_startup_idea_context
 from modeling import build_chat_model
 from research.service import (
     TavilyHttpClient,
@@ -99,20 +100,13 @@ def build_idea_preview(idea: str, *, max_length: int = 120) -> str:
 
 
 def build_startup_idea_context(request: CreateRunRequest) -> str:
-    sections = [request.idea.strip()]
-    if request.target_customer:
-        sections.append(f"Target customer: {request.target_customer.strip()}")
-    if request.pricing:
-        sections.append(f"Pricing: {request.pricing.strip()}")
-    if request.traction:
-        sections.append(f"Traction: {request.traction.strip()}")
-    if request.competitors:
-        competitors = ", ".join(
-            competitor.strip() for competitor in request.competitors if competitor.strip()
-        )
-        if competitors:
-            sections.append(f"Competitors: {competitors}")
-    return "\n\n".join(sections)
+    return _build_startup_idea_context(
+        request.idea,
+        target_customer=request.target_customer,
+        pricing=request.pricing,
+        traction=request.traction,
+        competitors=request.competitors or None,
+    )
 
 
 def build_model_for_run(request: CreateRunRequest, settings: Settings):

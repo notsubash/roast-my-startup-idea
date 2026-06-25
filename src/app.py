@@ -10,6 +10,7 @@ import streamlit as st
 
 from appeal.service import run_appeal
 from config import get_settings
+from idea_context import build_startup_idea_context
 from memory.context import build_memory_context
 from memory.identity import get_local_user_id
 from memory.models import IdeaRecord
@@ -133,11 +134,32 @@ with st.sidebar:
 
 # ── Main input ──
 
-startup_idea = st.text_area(
+idea_text = st.text_area(
     "Describe your startup idea:",
     height=120,
     placeholder="e.g., An AI-powered journal that tracks your decisions and measures whether your reasoning was correct months later.",
 )
+
+with st.expander("Optional details (helps judges roast more precisely)"):
+    col_left, col_right = st.columns(2)
+    with col_left:
+        target_customer = st.text_input(
+            "Target customer",
+            placeholder="e.g., Solo SaaS founders doing $10k–$100k MRR",
+        )
+        pricing = st.text_input(
+            "Pricing",
+            placeholder="e.g., $29/mo per seat, freemium with $99/yr pro tier",
+        )
+    with col_right:
+        traction = st.text_input(
+            "Traction",
+            placeholder="e.g., 120 paying users, $4.2k MRR, 18% MoM growth",
+        )
+        competitors_raw = st.text_input(
+            "Competitors",
+            placeholder="e.g., Notion, Roam Research (comma-separated)",
+        )
 
 run_clicked = st.button("\U0001f525 Roast It!", type="primary", use_container_width=True)
 
@@ -160,7 +182,15 @@ if "appeal_text_used" not in st.session_state:
 
 # ── Run the pipeline ──
 
-if run_clicked and startup_idea.strip():
+if run_clicked and idea_text.strip():
+    competitors = [part.strip() for part in competitors_raw.split(",") if part.strip()]
+    startup_idea = build_startup_idea_context(
+        idea_text,
+        target_customer=target_customer or None,
+        pricing=pricing or None,
+        traction=traction or None,
+        competitors=competitors or None,
+    )
     st.session_state.roast_panel = None
     st.session_state.debate_result = None
     st.session_state.current_record = None

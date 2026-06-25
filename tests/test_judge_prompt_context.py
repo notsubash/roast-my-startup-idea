@@ -24,6 +24,14 @@ class JudgePromptContextTest(unittest.TestCase):
         self.assertIn("Web research", prompt)
         self.assertIn("https://example.com/compliance-market", prompt)
 
+    def test_build_judge_user_prompt_flags_structured_claims(self):
+        prompt = build_judge_user_prompt(
+            startup_idea=(
+                "AI journal for founders\n\nTarget customer: Solo founders\n\nPricing: $29/mo"
+            ),
+        )
+        self.assertIn("founder claims to verify skeptically", prompt)
+
 
 if __name__ == "__main__":
     unittest.main()
