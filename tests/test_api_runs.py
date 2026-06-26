@@ -72,23 +72,36 @@ def _parse_sse_events(body: str) -> list[dict]:
     return events
 
 
+async def _fetch_sse_events_async(
+    app,
+    run_id: str,
+    *,
+    headers: dict[str, str] | None = None,
+) -> tuple[int, dict[str, str], list[dict]]:
+    from httpx import ASGITransport, AsyncClient
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        async with client.stream(
+            "GET",
+            f"/api/runs/{run_id}/events",
+            headers=headers or {},
+        ) as response:
+            status_code = response.status_code
+            response_headers = dict(response.headers)
+            body = "".join([chunk async for chunk in response.aiter_text()])
+    return status_code, response_headers, _parse_sse_events(body)
+
+
 def _fetch_sse_events(
     client: TestClient,
     run_id: str,
     *,
     headers: dict[str, str] | None = None,
 ) -> tuple[int, dict[str, str], list[dict]]:
-    # ponytail: TestClient.get().text can return a partial SSE body on slower CI
-    # hosts before the run finishes; stream until the server closes the connection.
-    with client.stream(
-        "GET",
-        f"/api/runs/{run_id}/events",
-        headers=headers or {},
-    ) as response:
-        status_code = response.status_code
-        response_headers = dict(response.headers)
-        body = "".join(response.iter_text())
-    return status_code, response_headers, _parse_sse_events(body)
+    # ponytail: sync TestClient.stream() does not reliably interleave the run's
+    # background task on Py 3.13 CI; AsyncClient keeps the event loop pumping.
+    return asyncio.run(_fetch_sse_events_async(client.app, run_id, headers=headers))
 
 
 class ApiRunsTest(unittest.TestCase):

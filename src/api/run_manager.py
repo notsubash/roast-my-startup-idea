@@ -155,6 +155,11 @@ class RunManager:
                     yield envelope
                     cursor = envelope.sequence + 1
                 if state.done:
+                    # ponytail: fast-fail can append the terminal event after the query
+                    # above; drain once more so run_failed is not dropped on CI.
+                    for envelope in self._store.list_events_after(run_id, cursor - 1):
+                        yield envelope
+                        cursor = envelope.sequence + 1
                     return
                 await wakeup.wait()
                 wakeup.clear()
