@@ -1,15 +1,16 @@
 """Run lifecycle routes."""
 
+import asyncio
 import json
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from api.deps import build_idea_preview, get_app_settings
 from api.run_manager import RunManager, get_run_manager
-from api.schemas import CreateRunRequest, RunCreatedResponse, RunStatusResponse
+from api.schemas import ApiEventEnvelope, CreateRunRequest, RunCreatedResponse, RunStatusResponse
 from config import Settings
 
 logger = logging.getLogger(__name__)
@@ -22,9 +23,27 @@ SSE_HEADERS = {
     "X-Accel-Buffering": "no",
 }
 
+SSE_HEARTBEAT_FRAME = ": keep-alive\n\n"
 
-def _format_sse(envelope) -> str:
-    return f"data: {json.dumps(envelope.model_dump(mode='json'))}\n\n"
+
+def _parse_last_event_id(request: Request) -> int:
+    raw = request.headers.get("Last-Event-ID")
+    if not raw:
+        return -1
+    try:
+        value = int(raw.strip())
+    except ValueError:
+        logger.debug("Invalid Last-Event-ID %r, replaying from start", raw)
+        return -1
+    if value < 0:
+        logger.debug("Negative Last-Event-ID %r, replaying from start", raw)
+        return -1
+    return value
+
+
+def _format_sse(envelope: ApiEventEnvelope) -> str:
+    payload = json.dumps(envelope.model_dump(mode="json"))
+    return f"id: {envelope.sequence}\ndata: {payload}\n\n"
 
 
 @router.post("/runs", response_model=RunCreatedResponse)
@@ -55,6 +74,7 @@ def get_run_status(
 @router.get("/runs/{run_id}/events")
 async def stream_run_events(
     run_id: str,
+    request: Request,
     manager: Annotated[RunManager, Depends(get_run_manager)],
     settings: Annotated[Settings, Depends(get_app_settings)],
 ):
@@ -64,10 +84,21 @@ async def stream_run_events(
     # Subscriber model: the engine runs once into a buffer; every connection
     # (including reconnects and extra tabs) just replays + tails that buffer.
     manager.ensure_started(run_id, settings)
+    after_sequence = _parse_last_event_id(request)
 
     async def generate():
-        async for envelope in manager.subscribe(run_id):
-            yield _format_sse(envelope)
+        stream = manager.subscribe(run_id, after_sequence=after_sequence)
+        iterator = stream.__aiter__()
+        while True:
+            try:
+                envelope = await asyncio.wait_for(
+                    iterator.__anext__(), timeout=settings.sse_heartbeat_seconds
+                )
+                yield _format_sse(envelope)
+            except TimeoutError:
+                yield SSE_HEARTBEAT_FRAME
+            except StopAsyncIteration:
+                return
 
     return StreamingResponse(
         generate(),

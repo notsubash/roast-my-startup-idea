@@ -29,6 +29,7 @@ class Settings:
     max_debate_rounds: int
     enable_web_search: bool
     web_search_max_results: int
+    sse_heartbeat_seconds: float
 
 
 def _read_bool(name: str, default: bool) -> bool:
@@ -49,4 +50,5 @@ def get_settings() -> Settings:
         max_debate_rounds=int(os.getenv("MAX_DEBATE_ROUNDS", "3")),
         enable_web_search=_read_bool("ENABLE_WEB_SEARCH", False),
         web_search_max_results=int(os.getenv("WEB_SEARCH_MAX_RESULTS", "3")),
+        sse_heartbeat_seconds=float(os.getenv("SSE_HEARTBEAT_SECONDS", "15")),
     )

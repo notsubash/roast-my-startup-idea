@@ -86,15 +86,15 @@ class RunManager:
         wakeup = asyncio.Event()
         state.add_subscriber(wakeup)
         try:
-            cursor = after_sequence + 1
+            cursor = max(0, after_sequence + 1)
             while True:
                 while cursor < len(state.events):
                     yield state.events[cursor]
                     cursor += 1
                 if state.done:
                     return
-                wakeup.clear()
                 await wakeup.wait()
+                wakeup.clear()
         finally:
             state.remove_subscriber(wakeup)
 

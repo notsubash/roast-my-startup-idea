@@ -25,6 +25,7 @@ class DeepAgentOrchestratorTest(unittest.TestCase):
             max_debate_rounds=3,
             enable_web_search=False,
             web_search_max_results=3,
+            sse_heartbeat_seconds=15.0,
         )
         create_deep_agent_mock.return_value = object()
 

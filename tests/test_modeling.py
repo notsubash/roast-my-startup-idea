@@ -18,6 +18,7 @@ class ModelingTest(unittest.TestCase):
             max_debate_rounds=3,
             enable_web_search=False,
             web_search_max_results=3,
+            sse_heartbeat_seconds=15.0,
         )
 
     @patch("modeling.init_chat_model")
