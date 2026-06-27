@@ -18,6 +18,8 @@ from api.schemas import CreateRunRequest
 from config import get_settings
 from events import (
     DebateCompleted,
+    DebateMessagePublished,
+    DebateTokenDelta,
     JudgesDispatched,
     JudgeVerdictCompleted,
     PhaseStarted,
@@ -272,6 +274,56 @@ class ApiRunsTest(unittest.TestCase):
         self.assertIsNotNone(record)
         assert record is not None
         self.assertEqual(record.status, "completed")
+
+    @patch("api.run_manager.build_research_context_for_run", return_value=None)
+    @patch("api.run_manager.build_model_for_run")
+    @patch("api.run_manager.stream_pipeline")
+    def test_stream_emits_debate_token_deltas_before_messages(
+        self,
+        stream_pipeline_mock,
+        build_model_mock,
+        _research_mock,
+    ):
+        build_model_mock.return_value = object()
+        stream_pipeline_mock.return_value = iter(
+            [
+                PhaseStarted(phase="roast"),
+                RoastPanelCompleted(panel=_panel()),
+                PhaseStarted(phase="debate"),
+                DebateTokenDelta(speaker="vc", round=1, delta="The "),
+                DebateTokenDelta(speaker="vc", round=1, delta="moat."),
+                DebateMessagePublished(speaker="vc", round=1, content="The moat."),
+                DebateCompleted(debate_messages=[], final_synthesis="summary"),
+                PipelineCompleted(
+                    roast_panel=_panel(),
+                    debate_result={"debate_messages": [], "final_synthesis": "summary"},
+                ),
+            ]
+        )
+
+        create_response = self.client.post("/api/runs", json={"idea": IDEA})
+        run_id = create_response.json()["run_id"]
+
+        _status_code, _headers, events = _fetch_sse_events(
+            self.client, run_id, manager=self.manager
+        )
+        event_types = [event["type"] for event in events]
+        first_token_idx = event_types.index("debate_token_delta")
+        message_idx = event_types.index("debate_message_published")
+        self.assertLess(first_token_idx, message_idx)
+
+        token_events = [event for event in events if event["type"] == "debate_token_delta"]
+        self.assertEqual(len(token_events), 2)
+        self.assertEqual(token_events[0]["payload"]["delta"], "The ")
+        self.assertEqual(
+            token_events[1]["payload"],
+            {"speaker": "vc", "round": 1, "delta": "moat."},
+        )
+
+        message_event = next(
+            event for event in events if event["type"] == "debate_message_published"
+        )
+        self.assertEqual(message_event["payload"]["content"], "The moat.")
 
     @patch("api.run_manager.build_research_context_for_run", return_value=None)
     @patch("api.run_manager.build_model_for_run")

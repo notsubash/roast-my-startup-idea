@@ -13,6 +13,7 @@ from events import (
     DebateRoundStarted,
     DebateSpeakerThinking,
     DebateSynthesisPublished,
+    DebateTokenDelta,
 )
 from judges.schemas import RoastPanel
 from observability import build_run_config, idea_fingerprint, optional_config_kwargs, traceable
@@ -40,6 +41,7 @@ def stream_debate(
 ) -> Iterator[
     DebateRoundStarted
     | DebateSpeakerThinking
+    | DebateTokenDelta
     | DebateMessagePublished
     | DebateSynthesisPublished
     | DebateCompleted
@@ -61,11 +63,28 @@ def stream_debate(
     all_debate_messages: list[dict] = []
     final_synthesis: str | None = None
 
-    for state_update in debate_graph.stream(
+    for stream_item in debate_graph.stream(
         initial_state,
-        stream_mode="updates",
+        stream_mode=["custom", "updates"],
         **optional_config_kwargs(resolved_config),
     ):
+        mode, payload = stream_item
+
+        if mode == "custom":
+            if payload.get("type") != "debate_token":
+                continue
+            token_round = payload["round"]
+            if token_round != current_round_displayed:
+                current_round_displayed = token_round
+                yield DebateRoundStarted(round=current_round_displayed)
+            yield DebateTokenDelta(
+                speaker=payload["speaker"],
+                round=token_round,
+                delta=payload["delta"],
+            )
+            continue
+
+        state_update = payload
         for node_name, node_output in state_update.items():
             if node_name in ("__start__", "advance_round"):
                 continue

@@ -3,6 +3,7 @@ from typing import Any
 
 from jinja2 import Environment, FileSystemLoader
 from langchain_core.messages import AIMessage
+from langgraph.config import get_stream_writer
 
 from config import DEBATE_PERSONAS, JUDGE_ORDER, PROMPTS_DIR
 
@@ -14,6 +15,63 @@ def _response_text(response: Any) -> str:
     if isinstance(content, str):
         return content.strip()
     return str(content).strip()
+
+
+def _chunk_delta(chunk: Any) -> str:
+    content = getattr(chunk, "content", chunk)
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for block in content:
+            if isinstance(block, str):
+                parts.append(block)
+            elif isinstance(block, dict) and block.get("type") == "text":
+                parts.append(str(block.get("text", "")))
+        return "".join(parts)
+    return str(content) if content else ""
+
+
+def _stream_model_text(
+    model: Any,
+    messages: list[dict],
+    *,
+    speaker: str | None = None,
+    round_num: int | None = None,
+) -> str:
+    """Stream LLM output; emit debate_token custom events when inside a graph node."""
+    stream = getattr(model, "stream", None)
+    if stream is None:
+        text = _response_text(model.invoke(messages))
+        writer = get_stream_writer()
+        if writer and speaker is not None and text:
+            writer(
+                {
+                    "type": "debate_token",
+                    "speaker": speaker,
+                    "round": round_num,
+                    "delta": text,
+                }
+            )
+        return text
+
+    writer = get_stream_writer()
+    parts: list[str] = []
+    for chunk in stream(messages):
+        delta = _chunk_delta(chunk)
+        if not delta:
+            continue
+        parts.append(delta)
+        if writer and speaker is not None:
+            writer(
+                {
+                    "type": "debate_token",
+                    "speaker": speaker,
+                    "round": round_num,
+                    "delta": delta,
+                }
+            )
+    return "".join(parts).strip()
 
 
 def _own_verdict(state: dict, judge: str) -> dict | None:
@@ -35,7 +93,10 @@ def _recent_transcript(state: dict, limit: int = 8) -> str:
 
 def make_speaker_node(judge: str, model: Any):
     def speaker_node(state: dict) -> dict:
-        response = model.invoke(
+        # ponytail: LangGraph get_stream_writer + stream_mode="custom" in service.py
+        # streams tokens mid-node; graph still owns routing.
+        content = _stream_model_text(
+            model,
             [
                 {
                     "role": "user",
@@ -49,10 +110,10 @@ def make_speaker_node(judge: str, model: Any):
                         recent_transcript=_recent_transcript(state),
                     ),
                 }
-            ]
+            ],
+            speaker=judge,
+            round_num=state["round"],
         )
-
-        content = _response_text(response)
 
         return {
             "debate_messages": [{"speaker": judge, "round": state["round"], "content": content}],

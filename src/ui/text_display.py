@@ -7,13 +7,15 @@ import streamlit as st
 _PLAIN_STYLE = "margin:0; white-space:pre-wrap;"
 
 
+def plain_text_html(text: str) -> str:
+    """Escaped plain-text paragraph HTML for Streamlit markdown placeholders."""
+    safe = html.escape(text or "")
+    return f'<p class="llm-plain-text" style="{_PLAIN_STYLE}">{safe}</p>'
+
+
 def write_plain_text(text: str) -> None:
     """Display model output as normal prose (no markdown interpretation)."""
-    safe = html.escape(text or "")
-    st.markdown(
-        f'<p class="llm-plain-text" style="{_PLAIN_STYLE}">{safe}</p>',
-        unsafe_allow_html=True,
-    )
+    st.markdown(plain_text_html(text), unsafe_allow_html=True)
 
 
 def write_roast_quote(text: str) -> None:
