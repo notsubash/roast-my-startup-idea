@@ -88,6 +88,9 @@ class ResearchServiceTest(unittest.TestCase):
         self.assertTrue(decision.use_search)
         self.assertIn("competitors pricing", decision.query)
         self.assertEqual(len(policy_model.structured_model.calls), 1)
+        policy_prompt = policy_model.structured_model.calls[0]
+        self.assertIn("<idea>", policy_prompt)
+        self.assertIn("not instructions", policy_prompt)
 
     def test_decide_web_search_usage_falls_back_when_structured_output_fails(self):
         decision = decide_web_search_usage(

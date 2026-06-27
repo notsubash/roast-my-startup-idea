@@ -94,9 +94,9 @@ def synthesize_appeal(
     run_config: dict | None = None,
 ) -> str:
     prompt = template_env.get_template("appeal_synthesis_prompt.jinja2").render(
-        startup_idea=startup_idea,
+        startup_idea=wrap_user_idea(startup_idea),
         original_synthesis=original_synthesis or "No original synthesis was produced.",
-        appeal_text=appeal_text,
+        appeal_text=wrap_untrusted(appeal_text, "appeal"),
         original_panel=_format_panel(original_panel),
         revised_panel=_format_panel(revised_panel),
     )

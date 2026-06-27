@@ -6,6 +6,7 @@ from langchain_core.messages import AIMessage
 from langgraph.config import get_stream_writer
 
 from config import DEBATE_PERSONAS, JUDGE_ORDER, PROMPTS_DIR
+from idea_context import wrap_user_idea
 
 template_env = Environment(loader=FileSystemLoader(PROMPTS_DIR))
 
@@ -104,7 +105,7 @@ def make_speaker_node(judge: str, model: Any):
                         judge=judge,
                         state=state,
                         persona=DEBATE_PERSONAS[judge],
-                        startup_idea=state["startup_idea"],
+                        startup_idea=wrap_user_idea(state["startup_idea"]),
                         own_verdict=json.dumps(_own_verdict(state, judge), indent=2),
                         other_verdicts=json.dumps(state["verdicts"], indent=2),
                         recent_transcript=_recent_transcript(state),
@@ -146,7 +147,7 @@ def make_moderator_node(model: Any):
                     "role": "user",
                     "content": template_env.get_template("moderator_node_prompt.jinja2").render(
                         state=state,
-                        startup_idea=state["startup_idea"],
+                        startup_idea=wrap_user_idea(state["startup_idea"]),
                         original_verdicts=_format_verdicts_readable(state["verdicts"]),
                         transcript=transcript,
                     ),

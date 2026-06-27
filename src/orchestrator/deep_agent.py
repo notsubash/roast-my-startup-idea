@@ -27,6 +27,7 @@ except ImportError:
     create_deep_agent = None
 
 from config import JUDGE_ORDER, PROMPTS_DIR, get_settings
+from idea_context import wrap_untrusted, wrap_user_idea
 from judges.schemas import RoastPanel, Verdict
 from judges.service import judge_system_prompt
 from observability import build_run_config, idea_fingerprint, optional_config_kwargs, traceable
@@ -98,8 +99,8 @@ def run_roast_via_orchestrator(
     extract_roast_panel() which parses ToolMessage payloads.
     """
     user_content = template_env.get_template("deepagent_user_prompt.jinja2").render(
-        startup_idea=startup_idea,
-        research_context=research_context,
+        startup_idea=wrap_user_idea(startup_idea),
+        research_context=wrap_untrusted(research_context, "research") if research_context else None,
     )
     agent = build_orchestrator(
         model,

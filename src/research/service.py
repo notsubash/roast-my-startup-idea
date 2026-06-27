@@ -10,6 +10,7 @@ from jinja2 import Environment, FileSystemLoader
 from pydantic import BaseModel, Field
 
 from config import PROMPTS_DIR
+from idea_context import wrap_user_idea
 
 template_env = Environment(loader=FileSystemLoader(PROMPTS_DIR))
 
@@ -72,8 +73,9 @@ class TavilyHttpClient:
 
 def decide_web_search_usage(policy_model, startup_idea: str) -> WebSearchDecision:
     """Prompt-based policy gate for sparing web search usage."""
+    wrapped_idea = wrap_user_idea(startup_idea)
     decision_prompt = template_env.get_template("web_search_policy_prompt.jinja2").render(
-        startup_idea=startup_idea,
+        startup_idea=wrapped_idea,
     )
     try:
         structured_model = policy_model.with_structured_output(WebSearchDecision)
@@ -104,7 +106,7 @@ def decide_web_search_usage(policy_model, startup_idea: str) -> WebSearchDecisio
 
     if decision.use_search and not (decision.query or "").strip():
         fallback_query = template_env.get_template("research_query_prompt.jinja2").render(
-            startup_idea=startup_idea,
+            startup_idea=wrapped_idea,
         )
         return WebSearchDecision(
             use_search=True,
@@ -139,7 +141,7 @@ def _build_search_query(startup_idea: str) -> str:
     return (
         template_env.get_template("research_query_prompt.jinja2")
         .render(
-            startup_idea=startup_idea,
+            startup_idea=wrap_user_idea(startup_idea),
         )
         .strip()
     )
