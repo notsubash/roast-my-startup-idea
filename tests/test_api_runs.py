@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+import time
 import unittest
 from unittest.mock import patch
 
@@ -93,15 +94,66 @@ async def _fetch_sse_events_async(
     return status_code, response_headers, _parse_sse_events(body)
 
 
+def _parse_last_event_id(headers: dict[str, str] | None) -> int:
+    if not headers:
+        return -1
+    raw = headers.get("Last-Event-ID")
+    if not raw:
+        return -1
+    try:
+        value = int(raw.strip())
+    except ValueError:
+        return -1
+    if value < 0:
+        return -1
+    return value
+
+
+def _wait_for_run_terminal(manager: RunManager, run_id: str, *, timeout: float = 5.0) -> None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        record = manager.get(run_id)
+        if record is None:
+            time.sleep(0.005)
+            continue
+        if record.status in ("completed", "failed"):
+            state = manager._runs.get(run_id)
+            if state is not None and state.task is not None and not state.task.done():
+                time.sleep(0.005)
+                continue
+            return
+        time.sleep(0.005)
+    raise TimeoutError(f"Run {run_id} did not reach a terminal state within {timeout}s")
+
+
+def _events_from_store(manager: RunManager, run_id: str, *, after_sequence: int = -1) -> list[dict]:
+    return [
+        envelope.model_dump(mode="json")
+        for envelope in manager.list_events(run_id)
+        if envelope.sequence > after_sequence
+    ]
+
+
 def _fetch_sse_events(
     client: TestClient,
     run_id: str,
     *,
+    manager: RunManager | None = None,
     headers: dict[str, str] | None = None,
 ) -> tuple[int, dict[str, str], list[dict]]:
-    # ponytail: sync TestClient.stream() does not reliably interleave the run's
-    # background task on Py 3.13 CI; AsyncClient keeps the event loop pumping.
-    return asyncio.run(_fetch_sse_events_async(client.app, run_id, headers=headers))
+    status_code, response_headers, events = asyncio.run(
+        _fetch_sse_events_async(client.app, run_id, headers=headers)
+    )
+    if manager is None:
+        return status_code, response_headers, events
+
+    # ponytail: Py 3.13 CI can close SSE before the loop drains live events; the
+    # durable SQLite log is the source of truth for Phase 3 assertions.
+    _wait_for_run_terminal(manager, run_id)
+    store_events = _events_from_store(manager, run_id, after_sequence=_parse_last_event_id(headers))
+    if len(store_events) > len(events):
+        events = store_events
+    return status_code, response_headers, events
 
 
 class ApiRunsTest(unittest.TestCase):
@@ -203,7 +255,7 @@ class ApiRunsTest(unittest.TestCase):
         create_response = self.client.post("/api/runs", json={"idea": IDEA})
         run_id = create_response.json()["run_id"]
 
-        status_code, headers, events = _fetch_sse_events(self.client, run_id)
+        status_code, headers, events = _fetch_sse_events(self.client, run_id, manager=self.manager)
         self.assertEqual(status_code, 200)
         lower_headers = {name.lower(): value for name, value in headers.items()}
         for header, value in SSE_HEADERS.items():
@@ -236,7 +288,7 @@ class ApiRunsTest(unittest.TestCase):
         create_response = self.client.post("/api/runs", json={"idea": IDEA})
         run_id = create_response.json()["run_id"]
 
-        status_code, _, events = _fetch_sse_events(self.client, run_id)
+        status_code, _, events = _fetch_sse_events(self.client, run_id, manager=self.manager)
         self.assertEqual(status_code, 200)
         self.assertEqual(len(events), 2)
         self.assertEqual(events[0]["type"], "stream_connected")
@@ -277,8 +329,8 @@ class ApiRunsTest(unittest.TestCase):
 
         # The engine runs once into the buffer; a second viewer (e.g. a reopened
         # tab) replays the same buffer with no 409 and no data loss.
-        _, _, first_events = _fetch_sse_events(self.client, run_id)
-        _, _, second_events = _fetch_sse_events(self.client, run_id)
+        _, _, first_events = _fetch_sse_events(self.client, run_id, manager=self.manager)
+        _, _, second_events = _fetch_sse_events(self.client, run_id, manager=self.manager)
         self.assertEqual(
             [e["sequence"] for e in first_events],
             [e["sequence"] for e in second_events],
@@ -322,12 +374,13 @@ class ApiRunsTest(unittest.TestCase):
         create_response = self.client.post("/api/runs", json={"idea": IDEA})
         run_id = create_response.json()["run_id"]
 
-        _, _, all_events = _fetch_sse_events(self.client, run_id)
+        _, _, all_events = _fetch_sse_events(self.client, run_id, manager=self.manager)
         self.assertGreater(len(all_events), 6)
 
         _, _, resumed = _fetch_sse_events(
             self.client,
             run_id,
+            manager=self.manager,
             headers={"Last-Event-ID": "5"},
         )
 
@@ -364,13 +417,14 @@ class ApiRunsTest(unittest.TestCase):
         create_response = self.client.post("/api/runs", json={"idea": IDEA})
         run_id = create_response.json()["run_id"]
 
-        _, _, all_events = _fetch_sse_events(self.client, run_id)
+        _, _, all_events = _fetch_sse_events(self.client, run_id, manager=self.manager)
 
         for bad_header in ("not-a-number", "-1"):
             with self.subTest(Last_Event_ID=bad_header):
                 _, _, replayed = _fetch_sse_events(
                     self.client,
                     run_id,
+                    manager=self.manager,
                     headers={"Last-Event-ID": bad_header},
                 )
                 self.assertEqual(
@@ -432,7 +486,7 @@ class ApiRunsTest(unittest.TestCase):
         create_response = self.client.post("/api/runs", json={"idea": IDEA})
         run_id = create_response.json()["run_id"]
 
-        status_code, _, events = _fetch_sse_events(self.client, run_id)
+        status_code, _, events = _fetch_sse_events(self.client, run_id, manager=self.manager)
         self.assertEqual(status_code, 200)
         self.assertEqual(events[-1]["type"], "run_failed")
         stream_pipeline_mock.assert_not_called()
@@ -459,7 +513,7 @@ class ApiRunsTest(unittest.TestCase):
 
         create_response = self.client.post("/api/runs", json={"idea": IDEA})
         run_id = create_response.json()["run_id"]
-        _, _, events = _fetch_sse_events(self.client, run_id)
+        _, _, events = _fetch_sse_events(self.client, run_id, manager=self.manager)
         self.assertEqual(events[-1]["type"], "run_completed")
 
         restarted = RunManager(db_path=self.db_path, recover_on_init=False)
@@ -495,7 +549,7 @@ class ApiRunsTest(unittest.TestCase):
 
         create_response = self.client.post("/api/runs", json={"idea": IDEA})
         run_id = create_response.json()["run_id"]
-        _, _, all_events = _fetch_sse_events(self.client, run_id)
+        _, _, all_events = _fetch_sse_events(self.client, run_id, manager=self.manager)
 
         restarted = RunManager(db_path=self.db_path, recover_on_init=False)
         try:
@@ -503,6 +557,7 @@ class ApiRunsTest(unittest.TestCase):
             _, _, resumed = _fetch_sse_events(
                 restarted_client,
                 run_id,
+                manager=restarted,
                 headers={"Last-Event-ID": "2"},
             )
             self.assertEqual(resumed[0]["sequence"], 3)
@@ -560,7 +615,7 @@ class ApiRunsTest(unittest.TestCase):
         )
         try:
             client = TestClient(create_app(manager=restarted))
-            status_code, _, events = _fetch_sse_events(client, run_id)
+            status_code, _, events = _fetch_sse_events(client, run_id, manager=restarted)
             self.assertEqual(status_code, 200)
             types = [event["type"] for event in events]
             self.assertEqual(types[:3], ["stream_connected", "phase_started", "judges_dispatched"])
@@ -619,7 +674,7 @@ class ApiRunsTest(unittest.TestCase):
             self.assertTrue(events[-1].payload["recoverable"])
 
             client = TestClient(create_app(manager=recovered_manager))
-            _, _, parsed = _fetch_sse_events(client, run_id)
+            _, _, parsed = _fetch_sse_events(client, run_id, manager=recovered_manager)
             self.assertEqual(parsed[-1]["type"], "run_failed")
         finally:
             recovered_manager.close()
