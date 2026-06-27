@@ -8,6 +8,24 @@ from judges.schemas import RoastPanel, Verdict
 import tests  # noqa: F401
 
 
+class FakeStructuredVerdictModel:
+    def __init__(self, responses):
+        self.responses = list(responses)
+        self.calls = 0
+
+    def invoke(self, messages, **_kwargs):
+        self.calls += 1
+        return self.responses.pop(0)
+
+
+class FakeGuardrailModel:
+    def __init__(self, responses):
+        self.structured_model = FakeStructuredVerdictModel(responses)
+
+    def with_structured_output(self, schema):
+        return self.structured_model
+
+
 class FakeStructuredModel:
     def __init__(self):
         self.prompts: list[str] = []
@@ -150,8 +168,45 @@ class AppealServiceTest(unittest.TestCase):
         self.assertIn("panel still needs harder evidence", result.revised_synthesis)
         self.assertEqual(len(model.structured_model.prompts), 5)
         self.assertTrue(all(appeal_text in prompt for prompt in model.structured_model.prompts))
+        self.assertTrue(all("<appeal>" in prompt for prompt in model.structured_model.prompts))
+        self.assertTrue(all("<idea>" in prompt for prompt in model.structured_model.prompts))
         self.assertIn("Prior pitch scored", model.structured_model.prompts[0])
+        self.assertIn("<memory>", model.structured_model.prompts[0])
         self.assertIn("signed LOIs", model.synthesis_prompts[0])
+
+    def test_invoke_judge_on_appeal_retries_on_guardrail_failure(self):
+        from appeal.service import invoke_judge_on_appeal
+
+        model = FakeGuardrailModel(
+            [
+                {
+                    "judge": "customer",
+                    "verdict": "PASS",
+                    "roast": "The appeal adds useful context, but switching costs still dominate the decision.",
+                    "score": 2,
+                    "key_concern": "Payroll migration risk remains the main blocker.",
+                },
+                {
+                    "judge": "customer",
+                    "verdict": "CONDITIONAL",
+                    "roast": "The appeal adds useful context, but switching costs still dominate the decision.",
+                    "score": 5,
+                    "key_concern": "Payroll migration risk remains the main blocker.",
+                },
+            ]
+        )
+
+        verdict = invoke_judge_on_appeal(
+            model,
+            "customer",
+            "AI payroll for home-health agencies",
+            _original_panel(),
+            {"final_synthesis": "Needs stronger proof."},
+            "We have signed LOIs from three agencies.",
+        )
+
+        self.assertEqual(verdict.verdict.value, "CONDITIONAL")
+        self.assertEqual(model.structured_model.calls, 2)
 
 
 if __name__ == "__main__":

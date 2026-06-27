@@ -23,7 +23,9 @@ class IdeaContextTest(unittest.TestCase):
 
     def test_build_startup_idea_context_omits_empty_fields(self):
         context = build_startup_idea_context("Just the idea.")
-        self.assertEqual(context, "Just the idea.")
+        self.assertIn("Just the idea.", context)
+        self.assertTrue(context.startswith("<idea>"))
+        self.assertTrue(context.endswith("</idea>"))
 
 
 if __name__ == "__main__":

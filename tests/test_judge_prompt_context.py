@@ -31,6 +31,7 @@ class JudgePromptContextTest(unittest.TestCase):
             ),
         )
         self.assertIn("founder claims to verify skeptically", prompt)
+        self.assertIn("<idea>", prompt)
 
 
 if __name__ == "__main__":

@@ -47,7 +47,7 @@ class JudgeServiceTest(unittest.TestCase):
                 None,
                 {
                     "judge": "pm",
-                    "verdict": "FAIL",
+                    "verdict": "CONDITIONAL",
                     "roast": "The target buyer and workflow are too fuzzy for a reliable product strategy.",
                     "score": 4,
                     "key_concern": "The municipal buyer path is not clear enough.",

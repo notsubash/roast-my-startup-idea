@@ -4,11 +4,11 @@ from typing import Any
 
 from jinja2 import Environment, FileSystemLoader
 from langchain_core.messages import HumanMessage, SystemMessage
-from pydantic import ValidationError
 
 from config import JUDGE_ORDER, PROMPTS_DIR
+from idea_context import wrap_untrusted, wrap_user_idea
 from judges.schemas import RoastPanel, Verdict
-from judges.service import JUDGE_MAX_ATTEMPTS, judge_system_prompt
+from judges.service import invoke_structured_verdict, judge_system_prompt
 from observability import build_run_config, idea_fingerprint, optional_config_kwargs, traceable
 
 template_env = Environment(loader=FileSystemLoader(PROMPTS_DIR))
@@ -56,11 +56,11 @@ def invoke_judge_on_appeal(
     structured_model = model.with_structured_output(Verdict)
     prompt = template_env.get_template("appeal_judge_prompt.jinja2").render(
         judge=judge,
-        startup_idea=startup_idea,
+        startup_idea=wrap_user_idea(startup_idea),
         original_verdict_json=original.model_dump_json(),
         original_synthesis=debate_result.get("final_synthesis") or "No synthesis was produced.",
-        appeal_text=appeal_text,
-        memory_context=memory_context,
+        appeal_text=wrap_untrusted(appeal_text, "appeal"),
+        memory_context=wrap_untrusted(memory_context, "memory") if memory_context else None,
     )
     messages = [
         SystemMessage(content=judge_system_prompt(judge)),
@@ -75,43 +75,12 @@ def invoke_judge_on_appeal(
         },
     )
 
-    last_validation_error: ValidationError | None = None
-    for _ in range(JUDGE_MAX_ATTEMPTS):
-        result = structured_model.invoke(messages, **optional_config_kwargs(resolved_config))
-
-        if result is None:
-            continue
-
-        try:
-            verdict = Verdict.model_validate(result)
-        except ValidationError as exc:
-            last_validation_error = exc
-            continue
-
-        if verdict.judge.value != judge:
-            last_validation_error = ValidationError.from_exception_data(
-                "Verdict",
-                [
-                    {
-                        "type": "value_error",
-                        "loc": ("judge",),
-                        "msg": f"Expected judge {judge}, got {verdict.judge.value}",
-                        "input": verdict.judge.value,
-                    }
-                ],
-            )
-            continue
-
-        return verdict
-
-    if last_validation_error is not None:
-        raise ValueError(
-            f"{judge} appeal judge returned an invalid structured verdict after "
-            f"{JUDGE_MAX_ATTEMPTS} attempts: {last_validation_error}"
-        ) from last_validation_error
-
-    raise ValueError(
-        f"{judge} appeal judge returned no structured verdict after {JUDGE_MAX_ATTEMPTS} attempts"
+    return invoke_structured_verdict(
+        structured_model,
+        messages,
+        judge,
+        run_config=resolved_config,
+        label="appeal judge",
     )
 
 
