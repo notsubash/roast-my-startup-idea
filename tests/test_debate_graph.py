@@ -17,9 +17,15 @@ class FakeModel:
     def __init__(self):
         self.calls = 0
 
-    def invoke(self, messages, **_kwargs):
+    def _next_content(self) -> str:
         self.calls += 1
-        return FakeResponse(f"Fake Response {self.calls}")
+        return f"Fake Response {self.calls}"
+
+    def stream(self, messages, **_kwargs):
+        yield FakeResponse(self._next_content())
+
+    def invoke(self, messages, **_kwargs):
+        return FakeResponse(self._next_content())
 
 
 class TestDebateGraph(unittest.TestCase):

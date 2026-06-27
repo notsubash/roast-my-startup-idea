@@ -21,6 +21,7 @@ from events import (
     DebateRoundStarted,
     DebateSpeakerThinking,
     DebateSynthesisPublished,
+    DebateTokenDelta,
     JudgesDispatched,
     JudgeVerdictCompleted,
     PhaseStarted,
@@ -167,6 +168,19 @@ class ApiEventSerializationTest(unittest.TestCase):
     def test_debate_speaker_thinking_payload_shape(self):
         payload = pipeline_event_payload(DebateSpeakerThinking(judge="pm", round=1))
         self.assertEqual(payload, {"judge": "pm", "round": 1})
+
+    def test_debate_token_delta_payload_shape(self):
+        payload = pipeline_event_payload(DebateTokenDelta(speaker="vc", round=1, delta="The "))
+        self.assertEqual(
+            payload,
+            {"speaker": "vc", "round": 1, "delta": "The "},
+        )
+
+    def test_debate_token_delta_event_type(self):
+        self.assertEqual(
+            pipeline_event_type(DebateTokenDelta(speaker="vc", round=1, delta="Hi")),
+            "debate_token_delta",
+        )
 
     def test_debate_synthesis_published_payload_shape(self):
         payload = pipeline_event_payload(DebateSynthesisPublished(content="Final summary."))

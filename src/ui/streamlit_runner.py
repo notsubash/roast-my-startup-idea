@@ -9,6 +9,7 @@ from events import (
     DebateRoundStarted,
     DebateSpeakerThinking,
     DebateSynthesisPublished,
+    DebateTokenDelta,
     JudgesDispatched,
     JudgeVerdictCompleted,
     RoastPanelCompleted,
@@ -16,7 +17,7 @@ from events import (
 from judges.panel import run_roast_panel, stream_roast_panel
 from judges.schemas import RoastPanel
 from orchestrator.deep_agent import run_roast_via_orchestrator
-from ui.text_display import write_plain_text
+from ui.text_display import plain_text_html, write_plain_text
 
 VERDICT_ICONS = {"PASS": "\U0001f7e2", "FAIL": "\U0001f534", "CONDITIONAL": "\U0001f7e1"}
 
@@ -109,18 +110,41 @@ def run_debate_in_container(
     """Consume debate events and render messages inside a Streamlit container."""
     thinking_placeholder = container.empty()
     result: dict = {}
+    streaming: dict | None = None
 
     for event in stream_debate(model, startup_idea, roast_panel, max_rounds):
         if isinstance(event, DebateRoundStarted):
             thinking_placeholder.empty()
             container.markdown(f"#### Round {event.round}")
 
+        elif isinstance(event, DebateTokenDelta):
+            thinking_placeholder.empty()
+            key = (event.speaker, event.round)
+            if streaming is None or streaming["key"] != key:
+                avatar = JUDGE_AVATARS.get(event.speaker, "\U0001f916")
+                with container.chat_message(event.speaker, avatar=avatar):
+                    st.markdown(f"**{event.speaker.upper()}**")
+                    streaming = {"key": key, "text": "", "placeholder": st.empty()}
+            streaming["text"] += event.delta
+            streaming["placeholder"].markdown(
+                plain_text_html(streaming["text"]),
+                unsafe_allow_html=True,
+            )
+
         elif isinstance(event, DebateMessagePublished):
             thinking_placeholder.empty()
-            avatar = JUDGE_AVATARS.get(event.speaker, "\U0001f916")
-            with container.chat_message(event.speaker, avatar=avatar):
-                st.markdown(f"**{event.speaker.upper()}**")
-                write_plain_text(event.content)
+            key = (event.speaker, event.round)
+            if streaming is not None and streaming["key"] == key:
+                streaming["placeholder"].markdown(
+                    plain_text_html(event.content),
+                    unsafe_allow_html=True,
+                )
+                streaming = None
+            else:
+                avatar = JUDGE_AVATARS.get(event.speaker, "\U0001f916")
+                with container.chat_message(event.speaker, avatar=avatar):
+                    st.markdown(f"**{event.speaker.upper()}**")
+                    write_plain_text(event.content)
 
         elif isinstance(event, DebateSpeakerThinking):
             thinking_placeholder.caption(f"⏳ {event.judge.upper()} is thinking...")

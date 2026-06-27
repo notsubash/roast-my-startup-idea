@@ -10,6 +10,7 @@ from events import (
     DebateRoundStarted,
     DebateSpeakerThinking,
     DebateSynthesisPublished,
+    DebateTokenDelta,
     JudgesDispatched,
     JudgeVerdictCompleted,
     PhaseStarted,
@@ -52,6 +53,12 @@ def pipeline_event_payload(event: PipelineEvent) -> dict[str, Any]:
         return {"round": event.round}
     if isinstance(event, DebateSpeakerThinking):
         return {"judge": event.judge, "round": event.round}
+    if isinstance(event, DebateTokenDelta):
+        return {
+            "speaker": event.speaker,
+            "round": event.round,
+            "delta": event.delta,
+        }
     if isinstance(event, DebateMessagePublished):
         return {
             "speaker": event.speaker,

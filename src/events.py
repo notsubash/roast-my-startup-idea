@@ -45,6 +45,13 @@ class DebateSpeakerThinking:
 
 
 @dataclass(frozen=True)
+class DebateTokenDelta:
+    speaker: str
+    round: int
+    delta: str
+
+
+@dataclass(frozen=True)
 class DebateMessagePublished:
     speaker: str
     round: int
@@ -75,6 +82,7 @@ PipelineEvent = (
     | RoastPanelCompleted
     | DebateRoundStarted
     | DebateSpeakerThinking
+    | DebateTokenDelta
     | DebateMessagePublished
     | DebateSynthesisPublished
     | DebateCompleted
