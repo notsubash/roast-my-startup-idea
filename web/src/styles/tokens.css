@@ -1,0 +1,51 @@
+:root {
+  /* Paper & ink */
+  --paper: #faf7f0;
+  --paper-2: #f2ede3;
+  --card: #ffffff;
+  --ink: #14110f;
+  --ink-muted: #5b544c;
+  --ink-subtle: #8a8178;
+  --rule: #14110f;
+  --rule-soft: #dad2c5;
+
+  /* Accent */
+  --heat: #ff3b1d;
+  --heat-ink: #c42e16;
+
+  /* Verdict semantics */
+  --pass: #1f8a4c;
+  --fail: #c2161a;
+  --conditional: #b8770a;
+
+  /* Judge accents */
+  --judge-vc: #b8770a;
+  --judge-engineer: #2563eb;
+  --judge-pm: #7c3aed;
+  --judge-customer: #1f8a4c;
+  --judge-competitor: #c2161a;
+  --judge-moderator: #14110f;
+
+  /* Radii */
+  --radius-0: 0px;
+  --radius: 6px;
+
+  /* Elevation */
+  --shadow-hard: 4px 4px 0 var(--ink);
+  --shadow-soft: 0 2px 8px rgb(20 17 15 / 0.08);
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur-in: 150ms;
+  --dur-out: 200ms;
+
+  /* Type scale (§2.2) */
+  --text-12: 0.75rem;
+  --text-14: 0.875rem;
+  --text-16: 1rem;
+  --text-20: 1.25rem;
+  --text-28: 1.75rem;
+  --text-44: 2.75rem;
+  --text-56: 3.5rem;
+  --text-72: 4.5rem;
+}

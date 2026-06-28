@@ -1,0 +1,81 @@
+@import "tailwindcss";
+@import "../styles/tokens.css";
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+  --color-rule: var(--rule);
+  --color-rule-soft: var(--rule-soft);
+  --color-heat: var(--heat);
+  --color-heat-ink: var(--heat-ink);
+  --color-pass: var(--pass);
+  --color-fail: var(--fail);
+  --color-conditional: var(--conditional);
+  --color-judge-vc: var(--judge-vc);
+  --color-judge-engineer: var(--judge-engineer);
+  --color-judge-pm: var(--judge-pm);
+  --color-judge-customer: var(--judge-customer);
+  --color-judge-competitor: var(--judge-competitor);
+  --color-judge-moderator: var(--judge-moderator);
+  --font-serif: var(--font-display), ui-serif, Georgia, serif;
+  --font-sans: var(--font-ui), system-ui, sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, monospace;
+  --text-title: var(--text-28);
+  --text-display-md: var(--text-44);
+  --text-display-lg: var(--text-56);
+  --text-display-xl: var(--text-72);
+  --shadow-hard: 4px 4px 0 var(--ink);
+  --shadow-soft: 0 2px 8px rgb(20 17 15 / 0.08);
+  --radius-editorial: var(--radius-0);
+  --radius-ui: var(--radius);
+  --radius-ui-token: var(--radius);
+}
+
+@utility rounded-ui {
+  border-radius: var(--radius);
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui), system-ui, sans-serif;
+}
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--heat);
+  outline-offset: 2px;
+}
+
+@keyframes stamp-slam {
+  0% {
+    transform: rotate(-3deg) scale(1.04);
+    box-shadow: none;
+  }
+  100% {
+    transform: rotate(-3deg) scale(1);
+    box-shadow: var(--shadow-hard);
+  }
+}
+
+.animate-stamp-slam {
+  animation: stamp-slam 120ms var(--ease) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
