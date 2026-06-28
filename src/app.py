@@ -10,11 +10,12 @@ import streamlit as st
 
 from appeal.service import run_appeal
 from config import get_settings
-from idea_context import build_startup_idea_context
+from idea_context import build_startup_idea_context, idea_display_summary
 from memory.context import build_memory_context
+from memory.factory import build_idea_store
 from memory.identity import get_local_user_id
 from memory.models import IdeaRecord
-from memory.store import IdeaStore
+from memory.retrieval import records_for_memory
 from modeling import build_chat_model
 from research.service import (
     TavilyHttpClient,
@@ -79,7 +80,7 @@ st.markdown(
 st.title("Roast My Startup")
 st.caption("Submit your startup idea. Five AI judges will roast it, then debate each other.")
 
-idea_store = IdeaStore()
+idea_store = build_idea_store()
 
 if "user_id" not in st.session_state:
     st.session_state.user_id = get_local_user_id(idea_store)
@@ -122,7 +123,10 @@ with st.sidebar:
             avg = sum(v.score for v in record.roast_panel.verdicts) / len(
                 record.roast_panel.verdicts
             )
-            st.caption(f"{record.created_at.date()} · {avg:.1f}/10 · {record.idea_text[:60]}")
+            st.markdown(
+                f"**{record.created_at.date()}** · {avg:.1f}/10  \n"
+                f"{idea_display_summary(record.idea_text, max_chars=100)}"
+            )
     else:
         st.caption("No previous ideas remembered yet.")
     st.divider()
@@ -209,7 +213,9 @@ if run_clicked and idea_text.strip():
         st.error(str(exc))
         st.stop()
 
-    memory_context = build_memory_context(idea_store.list_recent(st.session_state.user_id, limit=3))
+    memory_context = build_memory_context(
+        records_for_memory(idea_store, st.session_state.user_id, startup_idea, limit=3)
+    )
     research_context: str | None = None
     deepagent_web_search_enabled = False
     if enable_web_search:
@@ -424,9 +430,15 @@ if debate_result is not None:
                 st.error(str(exc))
                 st.stop()
             current_record = st.session_state.current_record
+            startup_idea_used = st.session_state.startup_idea_used or ""
             prior_records = [
                 record
-                for record in idea_store.list_recent(st.session_state.user_id, limit=4)
+                for record in records_for_memory(
+                    idea_store,
+                    st.session_state.user_id,
+                    startup_idea_used,
+                    limit=4,
+                )
                 if current_record is None or record.id != current_record.id
             ][:3]
             try:

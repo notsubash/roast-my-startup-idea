@@ -22,6 +22,7 @@ from judges.panel import run_roast_panel, stream_roast_panel
 from judges.schemas import RoastPanel
 from memory.context import build_memory_context
 from memory.models import IdeaRecord
+from memory.retrieval import records_for_memory
 from memory.store import IdeaStore
 from observability import build_run_config, idea_fingerprint, traceable
 from orchestrator.deep_agent import run_roast_via_orchestrator
@@ -73,7 +74,9 @@ def stream_pipeline(
     """Run roast panel then debate, yielding all intermediate events."""
     memory_context = ""
     if user_id and idea_store:
-        memory_context = build_memory_context(idea_store.list_recent(user_id, limit=memory_limit))
+        memory_context = build_memory_context(
+            records_for_memory(idea_store, user_id, startup_idea, limit=memory_limit)
+        )
 
     resolved_config = run_config or _pipeline_run_config(
         "roast-pipeline",
@@ -149,7 +152,9 @@ def run_pipeline(
     )
     memory_context = ""
     if user_id and idea_store:
-        memory_context = build_memory_context(idea_store.list_recent(user_id, limit=memory_limit))
+        memory_context = build_memory_context(
+            records_for_memory(idea_store, user_id, startup_idea, limit=memory_limit)
+        )
 
     roast_panel = run_roast_panel(
         model,

@@ -9,10 +9,10 @@ Submit a startup idea and get torn apart, constructively, by a VC, engineer, pro
 | | |
 | :--- | :--- |
 | **Roast panel** | Five parallel verdicts: score, pass/fail, roast, key concern |
-| **Debate** | Multi-round LangGraph argument with every judge on the record |
+| **Debate** | Multi-round LangGraph argument with token streaming and every judge on the record |
 | **Synthesis** | Moderator ties it together into a final verdict |
 | **Appeal** | Founder rebuttal → revised scores and updated synthesis |
-| **Memory** | Past ideas inform future roasts (compact summaries, not full transcripts) |
+| **Memory** | Past ideas inform future roasts (compact summaries; optional semantic retrieval) |
 
 ## Quick start
 
@@ -22,12 +22,13 @@ Submit a startup idea and get torn apart, constructively, by a VC, engineer, pro
 git clone https://github.com/notsubash/roast-my-startup-idea.git
 cd roast-my-startup-idea
 pip install -r requirements.txt
-ollama pull qwen3.5:9b          # default model; override in .env
-cp .env.example .env            # optional: DeepSeek, Tavily, LangSmith
+ollama pull qwen3.5:9b          # default chat model; override in .env
+ollama pull nomic-embed-text    # only if ENABLE_SEMANTIC_MEMORY=true
+cp .env.example .env            # optional: DeepSeek, Tavily, LangSmith, semantic memory
 streamlit run src/app.py
 ```
 
-Open the app, paste your pitch, choose the model(local or foundation model), and hit **Roast It!**
+Open the app, paste your pitch (optional details help judges), choose the model (local or foundation model), and hit **Roast It!**
 
 ### Streaming API (custom frontend)
 
@@ -46,21 +47,23 @@ Endpoints:
 | `GET` | `/api/runs/{run_id}` | Poll run status |
 | `GET` | `/api/runs/{run_id}/events` | SSE stream of roast/debate events |
 
-Create a run, then open an `EventSource` (or equivalent) on `/api/runs/{run_id}/events`. The stream emits ordered envelopes ending in `run_completed` or `run_failed`. Each run accepts one SSE connection; a second attempt returns `409`.
+Create a run, then open an `EventSource` (or equivalent) on `/api/runs/{run_id}/events`. The stream emits ordered envelopes ending in `run_completed` or `run_failed`.
+
+The run engine is decoupled from the HTTP connection: `RunManager` drives the pipeline once into a durable SQLite event log (`data/runs.db`). Multiple tabs can watch the same run; disconnect and reconnect with the SSE `Last-Event-ID` header to resume without gaps. Heartbeat comment frames keep idle connections alive (`SSE_HEARTBEAT_SECONDS`, default 15s).
 
 Set `ROAST_CORS_ORIGINS` in `.env` for your frontend origin (comma-separated). Default: `http://localhost:3000,http://127.0.0.1:3000`.
 
-Run uvicorn with a single worker until run storage is shared across processes.
+Run uvicorn with a single worker per machine; background tasks and in-process subscribers are not coordinated across workers yet.
 
 ## What it does
 
 | Phase | What happens |
 | --- | --- |
 | **Roast panel** | Five judges (VC, Engineer, PM, Customer, Competitor) evaluate in parallel |
-| **Debate** | LangGraph runs configurable multi-round debate with fixed turn order |
+| **Debate** | LangGraph runs configurable multi-round debate with fixed turn order and live token streaming |
 | **Synthesis** | Moderator produces a final summary |
 | **Appeal** *(optional)* | Founder rebuttal → judges revise scores → updated synthesis |
-| **Memory** | Prior ideas summarized into future judge prompts (SQLite, session-scoped) |
+| **Memory** | Prior ideas summarized into future judge prompts (SQLite, session-scoped; optional semantic retrieval) |
 
 Each judge returns structured output: score, pass/fail/conditional label, roast, and key concern. The UI renders a radar chart, debate transcript, and Markdown export.
 
@@ -91,15 +94,18 @@ User idea
   → Persist compact idea memory
 ```
 
-**Deterministic pipeline** (`src/pipeline.py`): Direct model calls plus LangGraph guarantee all five judges speak, debate rounds advance predictably, and Pydantic validates every boundary.
+**Deterministic pipeline** (`src/pipeline.py`): Direct model calls plus LangGraph guarantee all five judges speak, debate rounds advance predictably, and Pydantic validates every boundary. Debate streams token deltas (`DebateTokenDelta`) for live UI updates.
+
+**Run engine** (`src/api/run_manager.py`): Background task per run, durable event log in SQLite, subscriber-based SSE with reconnect support.
 
 **DeepAgents orchestrator** (`src/orchestrator/deep_agent.py`): Agent harness that dispatches subagents via `task()` with stronger tool-calling models. Not the default user path.
 
 ### Design principles
 
 - **Orchestration over autonomy:** the debate is a workflow, not a free-form agent task. LangGraph owns state and routing.
-- **Structured output at boundaries:** verdict schemas in `src/judges/schemas.py` are the contract between phases, charts, memory, and exports.
-- **Compact memory:** SQLite stores full records, but prompts receive only short summaries (scores, concerns, synthesis). Full transcripts are never injected into judge prompts; local models drift under long context.
+- **Structured output at boundaries:** verdict schemas in `src/judges/schemas.py` are the contract between phases, charts, memory, and exports. Post-validation guardrails in `src/judges/guardrails.py` reject score/verdict mismatches and degenerate panels.
+- **Untrusted user input:** startup idea, memory, research, and appeal text are wrapped in tagged blocks with delimiter escaping (`src/idea_context.py`); prompts treat that content as data, not instructions.
+- **Compact memory:** SQLite stores full records, but prompts receive only short summaries (scores, concerns, synthesis). Full transcripts are never injected into judge prompts; local models drift under long context. Optional semantic retrieval (`sqlite-vector`) surfaces similar past ideas instead of only the most recent.
 - **Appeal as a third phase:** re-evaluates judges against founder evidence. Does not rerun the multi-round debate.
 
 ## Configuration
@@ -116,6 +122,12 @@ ENABLE_WEB_SEARCH=false
 WEB_SEARCH_MAX_RESULTS=3
 TAVILY_API_KEY=your_tavily_api_key
 ROAST_CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+SSE_HEARTBEAT_SECONDS=15
+STALE_RUN_MINUTES=30
+RUNS_DB_PATH=data/runs.db
+ENABLE_SEMANTIC_MEMORY=false
+EMBEDDING_MODEL=ollama:nomic-embed-text
+EMBEDDING_DIMENSION=768
 ```
 
 | Runtime | When to use |
@@ -126,6 +138,8 @@ ROAST_CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 Pick a model with solid instruction-following and structured output. If verdict validation fails, try a stronger instruct or tool-calling model.
 
 **Web research:** optional Tavily search, gated by a model policy prompt (not keyword matching).
+
+**Semantic memory:** set `ENABLE_SEMANTIC_MEMORY=true` and pull the embedding model (`ollama pull nomic-embed-text` by default). When enabled, similar past ideas are retrieved via `sqlite-vector`; otherwise memory falls back to recency.
 
 ## LangSmith observability
 
@@ -147,7 +161,7 @@ Filter by tags such as `phase:roast`, `phase:debate`, `phase:appeal`, or `flow:d
 
 ## Using the app
 
-1. Enter a startup idea.
+1. Enter a startup idea (optionally expand **Optional details** for target customer, pricing, traction, and competitors).
 2. Choose execution flow: **Deterministic (production)** or **DeepAgents (experimental)**.
 3. Choose model runtime: **local** or **deepseek**.
 4. Optionally enable **Web research (Tavily)**.
@@ -157,7 +171,7 @@ Filter by tags such as `phase:roast`, `phase:debate`, `phase:appeal`, or `flow:d
 
 ### Memory
 
-Stored at `data/ideas.db`, scoped to the Streamlit session user id. Context builder (`src/memory/context.py`) injects prior idea text, average score, top concerns, previous synthesis, and appeal outcome. Full transcripts are never injected.
+Stored at `data/ideas.db`, scoped to the Streamlit session user id. Retrieval (`src/memory/retrieval.py`) prefers semantically similar past ideas when `ENABLE_SEMANTIC_MEMORY=true`; otherwise it uses the most recent entries. Context builder (`src/memory/context.py`) injects compact summaries (idea text, average score, top concerns, previous synthesis, appeal outcome). Full transcripts are never injected.
 
 ### Appeal mode
 
@@ -168,12 +182,14 @@ Founder appeal is sent to all five judges with the original idea, their prior ve
 ```text
 src/
   app.py                         Streamlit entry point
-  api/                           FastAPI streaming API for custom frontend
+  api/                           FastAPI streaming API (RunManager, durable SSE log)
   pipeline.py                    Frontend-agnostic production pipeline
   config.py                      Model and app settings
-  judges/                        Schemas, single-judge service, parallel panel
+  events.py                      Frontend-agnostic pipeline event types
+  idea_context.py                Untrusted user-input wrapping for prompts
+  judges/                        Schemas, guardrails, single-judge service, parallel panel
   debate/                        LangGraph graph, nodes, router, state
-  memory/                        SQLite store, compact prompt context
+  memory/                        SQLite store, semantic retrieval, compact prompt context
   appeal/                        Re-evaluation and synthesis
   orchestrator/deep_agent.py     Experimental DeepAgents path
   observability/langsmith.py     LangSmith bootstrap and run config
@@ -213,16 +229,18 @@ Version lives in `pyproject.toml` (`[project].version`); runtime reads it via `s
 
 Honest boundaries, not bugs. Current design:
 
-- Memory identity is session-local, not account-based.
+- Memory identity is session-local, not account-based. Semantic retrieval is optional and local-only.
 - Appeal re-evaluates judges; it does not run a second multi-round debate.
-- SQLite storage is local-only.
+- SQLite storage is local-only (`data/ideas.db` for memory, `data/runs.db` for API runs).
 - Streamlit is the reference UI; the streaming API covers roast/debate only (no memory or appeal yet).
+- API runs need a single uvicorn worker per machine; multi-worker coordination is not implemented.
 - DeepAgents is experimental, not the production orchestrator.
 
 ## Generated artifacts
 
 ```text
 data/ideas.db
+data/runs.db
 transcripts/*.md
 roast_radar.png
 ```

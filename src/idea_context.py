@@ -26,6 +26,30 @@ def wrap_user_idea(content: str) -> str:
     return wrap_untrusted(content, IDEA_TAG)
 
 
+def unwrap_user_idea(content: str) -> str:
+    """Strip idea wrapper tags and restore escaped delimiters."""
+    open_tag = f"<{IDEA_TAG}>"
+    close_tag = f"</{IDEA_TAG}>"
+    stripped = content.strip()
+    if stripped.startswith(open_tag) and stripped.endswith(close_tag):
+        inner = stripped[len(open_tag) : -len(close_tag)].strip()
+        escaped_open = open_tag.replace("<", "&lt;").replace(">", "&gt;")
+        escaped_close = close_tag.replace("<", "&lt;").replace(">", "&gt;")
+        return inner.replace(escaped_close, close_tag).replace(escaped_open, open_tag)
+    return stripped
+
+
+def idea_display_summary(content: str, *, max_chars: int = 120) -> str:
+    """First paragraph of an idea, single-line, for compact UI."""
+    text = unwrap_user_idea(content)
+    first_para = text.split("\n\n")[0].strip()
+    single_line = " ".join(first_para.split())
+    if len(single_line) <= max_chars:
+        return single_line
+    cut = single_line[: max_chars - 3].rsplit(" ", 1)[0]
+    return f"{cut}..."
+
+
 def build_startup_idea_context(
     idea: str,
     *,

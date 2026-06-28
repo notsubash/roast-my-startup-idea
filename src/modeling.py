@@ -1,8 +1,15 @@
 """Model factory for local Ollama and DeepSeek API runtimes."""
 
+from collections.abc import Callable
+
 from langchain.chat_models import init_chat_model
 
 from config import Settings
+
+try:
+    from langchain_ollama import OllamaEmbeddings
+except ImportError:
+    OllamaEmbeddings = None
 
 try:
     from langchain_deepseek import ChatDeepSeek
@@ -38,3 +45,21 @@ def build_chat_model(
         )
 
     raise ValueError(f"Unsupported model choice: {model_choice}")
+
+
+def build_embedding_fn(settings: Settings) -> Callable[[str], list[float]] | None:
+    """Return an embedder for semantic memory, or None when disabled/unavailable."""
+    if not settings.enable_semantic_memory:
+        return None
+
+    model_ref = settings.embedding_model.strip()
+    if model_ref.startswith("ollama:"):
+        if OllamaEmbeddings is None:
+            raise ValueError(
+                "langchain-ollama is required for Ollama embeddings. "
+                "Install it with: pip install langchain-ollama"
+            )
+        embeddings = OllamaEmbeddings(model=model_ref.removeprefix("ollama:"))
+        return embeddings.embed_query
+
+    raise ValueError(f"Unsupported embedding model: {settings.embedding_model}")

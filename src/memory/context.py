@@ -1,3 +1,4 @@
+from idea_context import unwrap_user_idea
 from memory.models import IdeaRecord
 
 
@@ -32,7 +33,7 @@ def build_memory_context(records: list[IdeaRecord], *, max_chars: int = 1800) ->
 
         lines.extend(
             [
-                f"{idx}. {record.created_at.date()} | avg {average:.1f}/10 | {_truncate(record.idea_text, 220)}",
+                f"{idx}. {record.created_at.date()} | avg {average:.1f}/10 | {_truncate(unwrap_user_idea(record.idea_text), 220)}",
                 f"   Key concerns: {_truncate(concerns, 420)}",
                 f"   Prior synthesis: {_truncate(synthesis, 300)}",
             ]
