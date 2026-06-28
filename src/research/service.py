@@ -198,6 +198,21 @@ def build_research_context(
     return ResearchContext(query=query, findings=findings[:max_results])
 
 
+def research_context_payload(context: ResearchContext) -> dict:
+    """Frontend-safe research payload for SSE / REST."""
+    return {
+        "query": context.query,
+        "findings": [
+            {
+                "title": finding.title,
+                "url": finding.url,
+                "snippet": finding.content[:260].strip(),
+            }
+            for finding in context.findings
+        ],
+    }
+
+
 def format_research_context(context: ResearchContext) -> str:
     """Render compact cited research block for prompts."""
     prepared_findings = [

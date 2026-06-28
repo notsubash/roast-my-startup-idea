@@ -285,6 +285,16 @@ class ApiDepsTest(unittest.TestCase):
         self.assertLessEqual(len(preview), 50)
         self.assertTrue(preview.endswith("..."))
 
+    def test_build_idea_preview_unwraps_stored_idea_tags(self):
+        from idea_context import wrap_user_idea
+
+        wrapped = wrap_user_idea(
+            "An AI copilot that helps hospital compliance teams summarize regulatory updates."
+        )
+        preview = build_idea_preview(wrapped)
+        self.assertNotIn("<idea>", preview)
+        self.assertIn("hospital compliance", preview)
+
 
 if __name__ == "__main__":
     unittest.main()

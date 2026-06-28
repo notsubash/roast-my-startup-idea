@@ -22,6 +22,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/runs/{run_id}/similar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Similar Runs */
+        get: operations["list_similar_runs_api_runs__run_id__similar_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/runs/{run_id}": {
         parameters: {
             query?: never;
@@ -236,6 +253,24 @@ export interface components {
              */
             created_at: string;
         };
+        /** SimilarRunItem */
+        SimilarRunItem: {
+            /** Run Id */
+            run_id: string;
+            /** Idea Preview */
+            idea_preview: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            verdict_summary?: components["schemas"]["VerdictSummary"] | null;
+        };
+        /** SimilarRunsResponse */
+        SimilarRunsResponse: {
+            /** Runs */
+            runs: components["schemas"]["SimilarRunItem"][];
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -321,6 +356,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RunCreatedResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_similar_runs_api_runs__run_id__similar_get: {
+        parameters: {
+            query?: {
+                limit?: number | null;
+            };
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimilarRunsResponse"];
                 };
             };
             /** @description Validation Error */

@@ -3,6 +3,7 @@ from pathlib import Path
 import sqlite3
 import sys
 import tempfile
+import threading
 import unittest
 from unittest.mock import patch
 
@@ -398,6 +399,32 @@ class MemoryTest(unittest.TestCase):
             self.assertFalse(store.semantic_search_enabled)
         finally:
             store.close()
+
+    def test_store_works_from_worker_thread(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = IdeaStore(Path(tmpdir) / "ideas.db")
+            record = IdeaRecord(
+                user_id="user-1",
+                idea_text="AI calendar for founders",
+                roast_panel=_panel(3, "No urgent buyer."),
+                debate_result={"final_synthesis": "Too vague to fund."},
+            )
+            store.save(record)
+            errors: list[Exception] = []
+
+            def read_from_thread() -> None:
+                try:
+                    rows = store.list_recent("user-1", limit=1)
+                    if not rows:
+                        raise AssertionError("expected one record")
+                except Exception as exc:
+                    errors.append(exc)
+
+            thread = threading.Thread(target=read_from_thread)
+            thread.start()
+            thread.join()
+            store.close()
+            self.assertEqual(errors, [])
 
 
 if __name__ == "__main__":

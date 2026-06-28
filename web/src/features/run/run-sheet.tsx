@@ -17,11 +17,13 @@ import { Skeleton } from "@/ui/skeleton";
 
 import { DebateTranscript } from "./debate-transcript";
 import { AppealSection } from "../appeal/appeal-section";
+import { RelatedRoasts } from "./related-roasts";
 import { JudgeColumn, JudgeColumnSkeleton } from "./judge-column";
 import { PhaseRail } from "./phase-rail";
 import { RunControls } from "./run-controls";
 import { RunMetricsBar } from "./run-metrics-bar";
 import { ScoreLollipopStrip } from "./score-lollipop-strip";
+import { SourcesPanel } from "./sources-panel";
 import { ScoreRadar } from "./score-radar";
 import { SynthesisBlock } from "./synthesis-block";
 import { VerdictTallyBar } from "./verdict-tally";
@@ -131,30 +133,37 @@ function RunSheetContent({
   return (
     <>
       <header className="col-span-12 lg:col-span-10 lg:col-start-2">
-        <p className="font-sans text-sm font-semibold uppercase tracking-widest text-heat-ink">
-          Verdict sheet
-        </p>
-        <h1 className="mt-2 font-serif text-title font-semibold text-ink md:text-display-md">
-          {headlineForStatus(status, stream.phase)}
-        </h1>
-        <p className="mt-4 max-w-prose font-sans text-ink-muted">
-          <span className="font-semibold text-ink">Idea:</span> {ideaPreview}
-        </p>
-        <p className="mt-2 font-mono text-xs text-ink-subtle">Run {runId}</p>
-        <div className="mt-6">
-          <RunControls
-            runId={runId}
-            status={status}
-            onCancelSettled={refetchStatus}
-            exportInput={{
-              idea: resolveExportIdea(runId, ideaPreview, idea),
-              runId,
-              judges: stream.judges,
-              debateTurns: stream.debateTurns,
-              synthesis: stream.synthesis,
-              metrics: stream.metrics,
-            }}
-          />
+        <div className="lg:grid lg:grid-cols-10 lg:gap-8">
+          <div className="lg:col-span-7">
+            <p className="font-sans text-sm font-semibold uppercase tracking-widest text-heat-ink">
+              Verdict sheet
+            </p>
+            <h1 className="mt-2 font-serif text-title font-semibold text-ink md:text-display-md">
+              {headlineForStatus(status, stream.phase)}
+            </h1>
+            <p className="mt-4 max-w-prose font-sans text-ink-muted">
+              <span className="font-semibold text-ink">Idea:</span> {ideaPreview}
+            </p>
+            <p className="mt-2 font-mono text-xs text-ink-subtle">Run {runId}</p>
+            <div className="mt-6">
+              <RunControls
+                runId={runId}
+                status={status}
+                onCancelSettled={refetchStatus}
+                exportInput={{
+                  idea: resolveExportIdea(runId, ideaPreview, idea),
+                  runId,
+                  judges: stream.judges,
+                  debateTurns: stream.debateTurns,
+                  synthesis: stream.synthesis,
+                  metrics: stream.metrics,
+                }}
+              />
+            </div>
+          </div>
+          <div className="mt-8 lg:col-span-3 lg:mt-0">
+            <RelatedRoasts runId={runId} />
+          </div>
         </div>
       </header>
 
@@ -168,6 +177,12 @@ function RunSheetContent({
         <div className="mt-8">
           <PhaseRail phase={stream.phase} />
         </div>
+
+        {stream.researchFindings && (
+          <div className="mt-8">
+            <SourcesPanel research={stream.researchFindings} />
+          </div>
+        )}
 
         <section className="mt-10" aria-labelledby="roast-panel-heading">
           <h2

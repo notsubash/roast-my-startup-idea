@@ -138,6 +138,26 @@ test("moderator debate turn is supported", () => {
   assert.equal(state.debateTurns[0].content, "Verdict: no path to PMF.");
 });
 
+test("research_findings stores query and sources", () => {
+  const events = [
+    env(0, "stream_connected", { status: "connected" }),
+    env(1, "research_findings", {
+      query: "AI startup market size 2026",
+      findings: [
+        {
+          title: "Market report",
+          url: "https://example.com/report",
+          snippet: "The AI tools market grew 40% year over year.",
+        },
+      ],
+    }),
+  ];
+  const state = reduceEnvelopes(events);
+  assert.equal(state.researchFindings?.query, "AI startup market size 2026");
+  assert.equal(state.researchFindings?.findings.length, 1);
+  assert.equal(state.researchFindings?.findings[0].url, "https://example.com/report");
+});
+
 test("appeal_completed restores appeal state from replay", () => {
   const revised = { ...VERDICT, score: 6, verdict: "CONDITIONAL" };
   const events = [

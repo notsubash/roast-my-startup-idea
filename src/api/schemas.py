@@ -99,3 +99,20 @@ class RunListResponse(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class ResearchFinding(BaseModel):
+    title: str
+    url: str
+    snippet: str
+
+
+class SimilarRunItem(BaseModel):
+    run_id: str
+    idea_preview: str
+    created_at: datetime
+    verdict_summary: VerdictSummary | None = None
+
+
+class SimilarRunsResponse(BaseModel):
+    runs: list[SimilarRunItem]

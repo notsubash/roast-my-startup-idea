@@ -1002,6 +1002,155 @@ class ApiRunsTest(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 422)
 
+    @patch("api.run_manager.build_research_context_for_run")
+    @patch("api.run_manager.build_model_for_run")
+    @patch("api.run_manager.stream_pipeline")
+    def test_research_findings_emitted_before_roast(
+        self,
+        stream_pipeline_mock,
+        build_model_mock,
+        research_mock,
+    ):
+        from research.service import ResearchContext, ResearchFinding
+
+        build_model_mock.return_value = object()
+        research_mock.return_value = ResearchContext(
+            query="AI journal market competitors",
+            findings=[
+                ResearchFinding(
+                    title="Competitor roundup",
+                    url="https://example.com/competitors",
+                    content="Several journaling apps target founders.",
+                )
+            ],
+        )
+        stream_pipeline_mock.return_value = iter(
+            [
+                PhaseStarted(phase="roast"),
+                PipelineCompleted(
+                    roast_panel=_panel(),
+                    debate_result={"debate_messages": [], "final_synthesis": "Done."},
+                ),
+            ]
+        )
+
+        create_response = self.client.post(
+            "/api/runs",
+            json={"idea": IDEA, "enable_web_search": True},
+        )
+        run_id = create_response.json()["run_id"]
+        _fetch_sse_events(self.client, run_id, manager=self.manager)
+
+        events = _events_from_store(self.manager, run_id)
+        types = [event["type"] for event in events]
+        self.assertIn("research_findings", types)
+        findings_event = next(event for event in events if event["type"] == "research_findings")
+        self.assertEqual(findings_event["payload"]["query"], "AI journal market competitors")
+        self.assertEqual(len(findings_event["payload"]["findings"]), 1)
+        self.assertEqual(
+            findings_event["payload"]["findings"][0]["url"],
+            "https://example.com/competitors",
+        )
+        self.assertLess(types.index("research_findings"), types.index("phase_started"))
+
+    def test_similar_runs_returns_other_saved_ideas(self):
+        from memory.identity import LOCAL_USER
+        from memory.models import IdeaRecord
+
+        with patch("api.run_manager.get_idea_store") as store_mock:
+            store = store_mock.return_value
+            store.semantic_search_enabled = False
+            older = IdeaRecord(
+                id="older-run-id",
+                user_id=LOCAL_USER,
+                idea_text="A marketplace for vintage synthesizers with escrow payments.",
+                roast_panel=_panel(),
+                debate_result={"debate_messages": [], "final_synthesis": "Old synthesis."},
+            )
+            store.list_recent.side_effect = lambda _user_id, limit=3: [older]
+
+            create_response = self.client.post("/api/runs", json={"idea": IDEA})
+            run_id = create_response.json()["run_id"]
+
+            response = self.client.get(f"/api/runs/{run_id}/similar")
+            self.assertEqual(response.status_code, 200)
+            payload = response.json()
+            self.assertEqual(len(payload["runs"]), 1)
+            self.assertEqual(payload["runs"][0]["run_id"], "older-run-id")
+            self.assertIn("synthesizers", payload["runs"][0]["idea_preview"])
+            store.list_recent.assert_called()
+            _args, kwargs = store.list_recent.call_args
+            self.assertEqual(_args[0], LOCAL_USER)
+
+    def test_similar_runs_excludes_current_run(self):
+        from memory.identity import LOCAL_USER
+        from memory.models import IdeaRecord
+
+        with patch("api.run_manager.get_idea_store") as store_mock:
+            store = store_mock.return_value
+            store.semantic_search_enabled = False
+
+            create_response = self.client.post("/api/runs", json={"idea": IDEA})
+            run_id = create_response.json()["run_id"]
+
+            current = IdeaRecord(
+                id=run_id,
+                user_id=LOCAL_USER,
+                idea_text=IDEA,
+                roast_panel=_panel(),
+                debate_result={"debate_messages": [], "final_synthesis": "Current synthesis."},
+            )
+            older = IdeaRecord(
+                id="older-run-id",
+                user_id=LOCAL_USER,
+                idea_text="A marketplace for vintage synthesizers with escrow payments.",
+                roast_panel=_panel(),
+                debate_result={"debate_messages": [], "final_synthesis": "Old synthesis."},
+            )
+            store.list_recent.side_effect = lambda _user_id, limit=3: [current, older]
+
+            response = self.client.get(f"/api/runs/{run_id}/similar")
+            self.assertEqual(response.status_code, 200)
+            run_ids = [row["run_id"] for row in response.json()["runs"]]
+            self.assertNotIn(run_id, run_ids)
+            self.assertIn("older-run-id", run_ids)
+
+    @patch("api.run_manager.build_research_context_for_run", return_value=None)
+    @patch("api.run_manager.build_model_for_run")
+    @patch("api.run_manager.stream_pipeline")
+    def test_drive_wires_idea_store_persistence(
+        self,
+        stream_pipeline_mock,
+        build_model_mock,
+        _research_mock,
+    ):
+        from memory.identity import LOCAL_USER
+
+        build_model_mock.return_value = object()
+        captured: dict = {}
+
+        def capture_and_yield(*args, **kwargs):
+            captured.update(kwargs)
+            yield PhaseStarted(phase="roast")
+            yield PipelineCompleted(
+                roast_panel=_panel(),
+                debate_result={"debate_messages": [], "final_synthesis": "Done."},
+            )
+
+        stream_pipeline_mock.side_effect = capture_and_yield
+
+        create_response = self.client.post("/api/runs", json={"idea": IDEA})
+        run_id = create_response.json()["run_id"]
+        _fetch_sse_events(self.client, run_id, manager=self.manager)
+
+        self.assertEqual(captured.get("idea_id"), run_id)
+        self.assertEqual(captured.get("user_id"), LOCAL_USER)
+        self.assertIsNotNone(captured.get("idea_store"))
+
+    def test_similar_runs_unknown_run_returns_404(self):
+        response = self.client.get("/api/runs/missing-run/similar")
+        self.assertEqual(response.status_code, 404)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -78,6 +78,17 @@ export interface AppealResult {
   revisedSynthesis: string;
 }
 
+export interface ResearchFinding {
+  title: string;
+  url: string;
+  snippet: string;
+}
+
+export interface ResearchFindings {
+  query: string;
+  findings: ResearchFinding[];
+}
+
 export interface RunState {
   lastSequence: number;
   connected: boolean;
@@ -94,6 +105,7 @@ export interface RunState {
   error: RunError | null;
   cancelMessage: string | null;
   appeal: AppealResult | null;
+  researchFindings: ResearchFindings | null;
 }
 
 export interface ApiEventEnvelope {
@@ -131,5 +143,6 @@ export function initialRunState(
     error: null,
     cancelMessage: null,
     appeal: null,
+    researchFindings: null,
   };
 }

@@ -19,6 +19,7 @@ from events import (
     RoastPanelCompleted,
     RunMetrics,
 )
+from research.service import ResearchContext, research_context_payload
 
 
 def _camel_to_snake(name: str) -> str:
@@ -130,6 +131,22 @@ def run_cancelled_envelope(
         run_id=run_id,
         sequence=sequence,
         payload={"message": message},
+        created_at=created_at or datetime.now(UTC),
+    )
+
+
+def research_findings_envelope(
+    *,
+    run_id: str,
+    sequence: int,
+    context: ResearchContext,
+    created_at: datetime | None = None,
+) -> ApiEventEnvelope:
+    return ApiEventEnvelope(
+        type="research_findings",
+        run_id=run_id,
+        sequence=sequence,
+        payload=research_context_payload(context),
         created_at=created_at or datetime.now(UTC),
     )
 

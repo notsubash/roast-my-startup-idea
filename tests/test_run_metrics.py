@@ -183,6 +183,45 @@ class PipelineRunMetricsTest(unittest.TestCase):
         self.assertEqual(metrics_event.model_runtime, "deepseek")
         self.assertGreater(metrics_event.estimated_cost_usd, 0.0)
 
+    def test_stream_pipeline_save_uses_idea_id(self):
+        from pathlib import Path
+        import tempfile
+
+        from memory.identity import LOCAL_USER
+        from memory.store import IdeaStore
+
+        panel = RoastPanel(verdicts=[_verdict(judge) for judge in JUDGE_ORDER])
+
+        def fake_stream_roast_panel(_model, _idea, *_args, **_kwargs):
+            from events import RoastPanelCompleted
+
+            yield RoastPanelCompleted(panel=panel)
+
+        def fake_stream_debate(_model, _idea, _panel, *_args, **_kwargs):
+            from events import DebateCompleted
+
+            yield DebateCompleted(debate_messages=[], final_synthesis="summary")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with IdeaStore(Path(tmpdir) / "ideas.db") as store:
+                with (
+                    patch("pipeline.stream_roast_panel", side_effect=fake_stream_roast_panel),
+                    patch("pipeline.stream_debate", side_effect=fake_stream_debate),
+                ):
+                    list(
+                        stream_pipeline(
+                            object(),
+                            "An AI journal for startup founders with daily reflection prompts.",
+                            max_debate_rounds=1,
+                            user_id=LOCAL_USER,
+                            idea_store=store,
+                            idea_id="run-persist-123",
+                        )
+                    )
+                saved = store.list_recent(LOCAL_USER, limit=1)
+            self.assertEqual(len(saved), 1)
+            self.assertEqual(saved[0].id, "run-persist-123")
+
 
 if __name__ == "__main__":
     unittest.main()

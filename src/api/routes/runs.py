@@ -19,6 +19,7 @@ from api.schemas import (
     RunListItem,
     RunListResponse,
     RunStatusResponse,
+    SimilarRunsResponse,
 )
 from config import Settings
 
@@ -96,6 +97,23 @@ def list_runs(
         limit=resolved_limit,
         offset=offset,
     )
+
+
+@router.get("/runs/{run_id}/similar", response_model=SimilarRunsResponse)
+def list_similar_runs(
+    run_id: str,
+    manager: Annotated[RunManager, Depends(get_run_manager)],
+    settings: Annotated[Settings, Depends(get_app_settings)],
+    limit: int | None = None,
+) -> SimilarRunsResponse:
+    resolved_limit = 3 if limit is None else limit
+    if resolved_limit < 1 or resolved_limit > 10:
+        raise HTTPException(status_code=422, detail="limit must be between 1 and 10")
+    try:
+        items = manager.list_similar_runs(run_id, limit=resolved_limit)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Run not found") from None
+    return SimilarRunsResponse(runs=items)
 
 
 @router.get("/runs/{run_id}", response_model=RunStatusResponse)

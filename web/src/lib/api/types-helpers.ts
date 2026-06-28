@@ -8,6 +8,8 @@ export type AppealResponse = components["schemas"]["AppealResponse"];
 export type RunListResponse = components["schemas"]["RunListResponse"];
 export type RunListItem = components["schemas"]["RunListItem"];
 export type VerdictSummary = components["schemas"]["VerdictSummary"];
+export type SimilarRunsResponse = components["schemas"]["SimilarRunsResponse"];
+export type SimilarRunItem = components["schemas"]["SimilarRunItem"];
 
 export type ApiRunStatus = RunStatusResponse["status"];
 

@@ -7,13 +7,18 @@ import os
 
 from api.schemas import CreateRunRequest
 from config import Settings, get_settings
-from idea_context import build_startup_idea_context as _build_startup_idea_context
+from idea_context import (
+    build_startup_idea_context as _build_startup_idea_context,
+)
+from idea_context import (
+    idea_display_summary,
+)
 from modeling import build_chat_model
 from research.service import (
+    ResearchContext,
     TavilyHttpClient,
     build_research_context,
     decide_web_search_usage,
-    format_research_context,
 )
 
 logger = logging.getLogger(__name__)
@@ -40,10 +45,7 @@ def get_cors_origins() -> list[str]:
 
 
 def build_idea_preview(idea: str, *, max_length: int = 120) -> str:
-    text = idea.strip().replace("\n", " ")
-    if len(text) <= max_length:
-        return text
-    return text[: max_length - 3].rstrip() + "..."
+    return idea_display_summary(idea, max_chars=max_length)
 
 
 def build_startup_idea_context(request: CreateRunRequest) -> str:
@@ -69,7 +71,7 @@ def build_research_context_for_run(
     startup_idea: str,
     settings: Settings,
     model,
-) -> str | None:
+) -> ResearchContext | None:
     if not request.enable_web_search:
         return None
 
@@ -85,16 +87,27 @@ def build_research_context_for_run(
         if not search_decision.use_search:
             return None
 
-        research = build_research_context(
+        return build_research_context(
             startup_idea=startup_idea,
             tavily_client=TavilyHttpClient(tavily_key),
             max_results=settings.web_search_max_results,
             enabled=True,
             decision=search_decision,
         )
-        if research is None:
-            return None
-        return format_research_context(research)
     except Exception:
         logger.exception("Web research failed for API run")
         return None
+
+
+_idea_store = None
+
+
+def get_idea_store():
+    from memory.factory import build_idea_store
+    from memory.identity import get_local_user_id
+
+    global _idea_store
+    if _idea_store is None:
+        _idea_store = build_idea_store()
+        get_local_user_id(_idea_store)
+    return _idea_store

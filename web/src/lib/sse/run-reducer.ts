@@ -8,6 +8,7 @@ import {
   type SpeakerId,
   type Verdict,
   type AppealResult,
+  type ResearchFindings,
 } from "./types.ts";
 
 function isJudgeId(value: string): value is JudgeId {
@@ -83,6 +84,28 @@ function parseAppealPanel(raw: unknown): Record<JudgeId, Verdict> | null {
     if (verdict) byJudge[verdict.judge] = verdict;
   }
   return Object.keys(byJudge).length > 0 ? byJudge : null;
+}
+
+function parseResearchFindings(payload: Record<string, unknown>): ResearchFindings | null {
+  const query = payload.query;
+  const rawFindings = payload.findings;
+  if (typeof query !== "string" || !Array.isArray(rawFindings)) return null;
+  const findings = rawFindings
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const row = item as Record<string, unknown>;
+      if (
+        typeof row.title === "string" &&
+        typeof row.url === "string" &&
+        typeof row.snippet === "string"
+      ) {
+        return { title: row.title, url: row.url, snippet: row.snippet };
+      }
+      return null;
+    })
+    .filter((f): f is NonNullable<typeof f> => f !== null);
+  if (findings.length === 0) return null;
+  return { query, findings };
 }
 
 function parseAppealResult(payload: Record<string, unknown>): AppealResult | null {
@@ -352,6 +375,12 @@ export function runReducer(state: RunState, envelope: ApiEventEnvelope): RunStat
       const appeal = parseAppealResult(payload);
       if (!appeal) return next;
       return { ...next, appeal };
+    }
+
+    case "research_findings": {
+      const researchFindings = parseResearchFindings(payload);
+      if (!researchFindings) return next;
+      return { ...next, researchFindings };
     }
 
     default:

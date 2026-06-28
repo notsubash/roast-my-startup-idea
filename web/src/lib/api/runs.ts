@@ -6,6 +6,7 @@ import type {
   RunCreatedResponse,
   RunListResponse,
   RunStatusResponse,
+  SimilarRunsResponse,
 } from "./types-helpers";
 
 export async function createRun(body: CreateRunRequest): Promise<RunCreatedResponse> {
@@ -44,4 +45,16 @@ export async function submitAppeal(
     method: "POST",
     body: JSON.stringify(body),
   });
+}
+
+export async function getSimilarRuns(
+  runId: string,
+  params?: { limit?: number },
+): Promise<SimilarRunsResponse> {
+  const search = new URLSearchParams();
+  if (params?.limit != null) search.set("limit", String(params.limit));
+  const qs = search.toString();
+  return apiClient<SimilarRunsResponse>(
+    `/api/runs/${runId}/similar${qs ? `?${qs}` : ""}`,
+  );
 }
