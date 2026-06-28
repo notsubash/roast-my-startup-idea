@@ -11,6 +11,8 @@ import asyncio
 from collections.abc import AsyncIterator
 import logging
 from pathlib import Path
+import threading
+import time
 from uuid import uuid4
 
 from api.deps import (
@@ -19,13 +21,19 @@ from api.deps import (
     build_research_context_for_run,
     build_startup_idea_context,
 )
-from api.events import run_failed_envelope, stream_connected_envelope, to_api_envelope
+from api.events import (
+    run_cancelled_envelope,
+    run_failed_envelope,
+    stream_connected_envelope,
+    to_api_envelope,
+)
 from api.run_store import RunStore
 from api.schemas import ApiEventEnvelope, CreateRunRequest
 from config import Settings, get_settings
 from events import RunMetrics
 from observability.metrics import log_run_metrics
 from pipeline import stream_pipeline
+from run_control import RunAbort
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +53,7 @@ class _RunState:
         self.done = done
         self.task: asyncio.Task | None = None
         self._subscribers: set[asyncio.Event] = set()
+        self._cancel = threading.Event()
 
     def append(self, envelope: ApiEventEnvelope) -> ApiEventEnvelope:
         envelope = self._store.append_event(self.record.run_id, envelope)
@@ -62,6 +71,9 @@ class _RunState:
 
     def remove_subscriber(self, wakeup: asyncio.Event) -> None:
         self._subscribers.discard(wakeup)
+
+    def request_cancel(self) -> None:
+        self._cancel.set()
 
 
 class RunManager:
@@ -115,7 +127,7 @@ class RunManager:
         record = self._store.get_run_record(run_id)
         if record is None:
             raise KeyError(run_id)
-        terminal = record.status in ("completed", "failed")
+        terminal = record.status in ("completed", "failed", "cancelled")
         state = _RunState(record, store=self._store, done=terminal)
         self._runs[run_id] = state
         return state
@@ -130,7 +142,7 @@ class RunManager:
     def ensure_started(self, run_id: str, settings: Settings) -> None:
         """Start the run's background task once. Idempotent."""
         state = self._ensure_state(run_id)
-        if state.record.status in ("completed", "failed"):
+        if state.record.status in ("completed", "failed", "cancelled"):
             return
         if state.task is not None:
             return
@@ -142,6 +154,20 @@ class RunManager:
             self._store.update_status(run_id, "running")
         state.append(stream_connected_envelope(run_id=run_id))
         state.task = asyncio.create_task(self._drive(run_id, settings))
+
+    def cancel(self, run_id: str) -> RunRecord:
+        state = self._ensure_state(run_id)
+        if state.record.status in ("completed", "failed", "cancelled"):
+            raise ValueError("Run already finished")
+        if state.record.status == "created":
+            state.record.status = "cancelled"
+            self._store.update_status(run_id, "cancelled")
+            state.append(stream_connected_envelope(run_id=run_id))
+            state.append(run_cancelled_envelope(run_id=run_id, sequence=0))
+            state.finish()
+            return state.record
+        state.request_cancel()
+        return state.record
 
     async def subscribe(
         self, run_id: str, *, after_sequence: int = -1
@@ -177,6 +203,16 @@ class RunManager:
             loop.call_soon_threadsafe(state.append, envelope)
 
         def work() -> None:
+            started_at = time.monotonic()
+            max_seconds = settings.max_run_seconds
+
+            def abort_check() -> str | None:
+                if state._cancel.is_set():
+                    return "cancelled"
+                if max_seconds > 0 and time.monotonic() - started_at > max_seconds:
+                    return "budget_exceeded"
+                return None
+
             startup_idea = build_startup_idea_context(record.request)
             model = build_model_for_run(record.request, settings)
             research_context = build_research_context_for_run(
@@ -188,6 +224,7 @@ class RunManager:
                 max_debate_rounds=record.request.max_debate_rounds,
                 research_context=research_context,
                 model_runtime=record.request.model_runtime,
+                abort_check=abort_check,
             ):
                 if isinstance(event, RunMetrics):
                     log_run_metrics(event.as_dict(), run_id=run_id)
@@ -195,8 +232,33 @@ class RunManager:
 
         try:
             await asyncio.to_thread(work)
-            record.status = "completed"
-            self._store.update_status(run_id, "completed")
+            event_types = {envelope.type for envelope in self._store.list_events_after(run_id, -1)}
+            if "run_completed" in event_types:
+                record.status = "completed"
+                self._store.update_status(run_id, "completed")
+            elif state._cancel.is_set():
+                record.status = "cancelled"
+                self._store.update_status(run_id, "cancelled")
+                if "run_cancelled" not in event_types:
+                    state.append(run_cancelled_envelope(run_id=run_id, sequence=0))
+            else:
+                record.status = "completed"
+                self._store.update_status(run_id, "completed")
+        except RunAbort as exc:
+            if exc.reason == "cancelled":
+                record.status = "cancelled"
+                self._store.update_status(run_id, "cancelled")
+                state.append(run_cancelled_envelope(run_id=run_id, sequence=0))
+            else:
+                record.status = "failed"
+                self._store.update_status(run_id, "failed")
+                state.append(
+                    run_failed_envelope(
+                        run_id=run_id,
+                        sequence=0,
+                        message="Run exceeded the wall-clock budget. Please try again.",
+                    )
+                )
         except Exception:
             logger.exception("Run %s failed", run_id)
             record.status = "failed"

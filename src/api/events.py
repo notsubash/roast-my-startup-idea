@@ -118,6 +118,22 @@ def run_failed_envelope(
     )
 
 
+def run_cancelled_envelope(
+    *,
+    run_id: str,
+    sequence: int,
+    message: str = "Run cancelled.",
+    created_at: datetime | None = None,
+) -> ApiEventEnvelope:
+    return ApiEventEnvelope(
+        type="run_cancelled",
+        run_id=run_id,
+        sequence=sequence,
+        payload={"message": message},
+        created_at=created_at or datetime.now(UTC),
+    )
+
+
 def stream_connected_envelope(
     *,
     run_id: str,

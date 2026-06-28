@@ -71,6 +71,26 @@ def get_run_status(
     )
 
 
+@router.post("/runs/{run_id}/cancel", response_model=RunStatusResponse)
+def cancel_run(
+    run_id: str,
+    manager: Annotated[RunManager, Depends(get_run_manager)],
+) -> RunStatusResponse:
+    record = manager.get(run_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Run not found")
+    try:
+        record = manager.cancel(run_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return RunStatusResponse(
+        run_id=record.run_id,
+        status=record.status,
+        idea_preview=build_idea_preview(record.request.idea),
+        created_at=record.created_at,
+    )
+
+
 @router.get("/runs/{run_id}/events")
 async def stream_run_events(
     run_id: str,

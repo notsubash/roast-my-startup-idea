@@ -35,6 +35,12 @@ class Settings:
     sse_heartbeat_seconds: float
     stale_run_minutes: int
     runs_db_path: Path
+    rate_limit_enabled: bool = True
+    rate_limit_requests: int = 30
+    rate_limit_burst: int = 10
+    rate_limit_window_seconds: float = 60.0
+    max_run_seconds: int = 600
+    trust_proxy: bool = False
 
 
 def _read_bool(name: str, default: bool) -> bool:
@@ -61,4 +67,10 @@ def get_settings() -> Settings:
         sse_heartbeat_seconds=float(os.getenv("SSE_HEARTBEAT_SECONDS", "15")),
         stale_run_minutes=int(os.getenv("STALE_RUN_MINUTES", "30")),
         runs_db_path=Path(os.getenv("RUNS_DB_PATH", str(PROJECT_ROOT / "data" / "runs.db"))),
+        rate_limit_enabled=_read_bool("RATE_LIMIT_ENABLED", True),
+        rate_limit_requests=int(os.getenv("RATE_LIMIT_REQUESTS", "30")),
+        rate_limit_burst=int(os.getenv("RATE_LIMIT_BURST", "10")),
+        rate_limit_window_seconds=float(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60")),
+        max_run_seconds=int(os.getenv("MAX_RUN_SECONDS", "600")),
+        trust_proxy=_read_bool("TRUST_PROXY", False),
     )

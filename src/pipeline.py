@@ -8,7 +8,7 @@ reliably dispatch all five judge subagents via task(); debate routing
 must be deterministic, not LLM-planned.
 """
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 
 from debate.service import run_debate, stream_debate
 from events import (
@@ -28,6 +28,7 @@ from memory.store import IdeaStore
 from observability import build_run_config, idea_fingerprint, traceable
 from observability.metrics import ModelRuntime, PhaseTimer, RunMetricsCollector
 from orchestrator.deep_agent import run_roast_via_orchestrator
+from run_control import check_abort
 from version import get_version
 
 
@@ -74,6 +75,7 @@ def stream_pipeline(
     research_context: str | None = None,
     run_config: dict | None = None,
     model_runtime: ModelRuntime = "local",
+    abort_check: Callable[[], str | None] | None = None,
 ) -> Iterator[PipelineEvent]:
     """Run roast panel then debate, yielding all intermediate events."""
     resolved_memory_context = memory_context or ""
@@ -92,6 +94,7 @@ def stream_pipeline(
     timer = PhaseTimer()
     in_debate = False
 
+    check_abort(abort_check)
     yield PhaseStarted(phase="roast")
 
     roast_panel: RoastPanel | None = None
@@ -102,14 +105,17 @@ def stream_pipeline(
         research_context,
         run_config=resolved_config,
         metrics=metrics,
+        abort_check=abort_check,
     ):
         yield event
+        check_abort(abort_check)
         if isinstance(event, RoastPanelCompleted):
             roast_panel = event.panel
 
     if roast_panel is None:
         raise RuntimeError("Roast panel did not complete")
 
+    check_abort(abort_check)
     timer.start_debate()
     in_debate = True
     yield PhaseStarted(phase="debate")
@@ -122,6 +128,7 @@ def stream_pipeline(
         max_debate_rounds,
         run_config=resolved_config,
         metrics=metrics,
+        abort_check=abort_check,
     ):
         yield event
         if isinstance(event, DebateCompleted):
@@ -149,6 +156,7 @@ def stream_pipeline(
         debate_seconds=debate_seconds,
         total_seconds=total_seconds,
     )
+    check_abort(abort_check)
     yield RunMetrics(**metrics_payload)
     yield PipelineCompleted(roast_panel=roast_panel, debate_result=debate_result)
 

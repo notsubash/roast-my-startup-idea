@@ -1,6 +1,6 @@
 """Phase 1: parallel judge panel with event streaming."""
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 import concurrent.futures
 
 from config import JUDGE_ORDER
@@ -10,6 +10,7 @@ from judges.schemas import RoastPanel, Verdict
 from judges.service import DEGENERATE_PANEL_RETRY_SUFFIX, invoke_judge
 from observability import build_run_config, idea_fingerprint, traceable
 from observability.metrics import RunMetricsCollector
+from run_control import check_abort
 
 
 def _run_judge_panel(
@@ -21,6 +22,7 @@ def _run_judge_panel(
     *,
     system_suffix: str | None = None,
     metrics: RunMetricsCollector | None = None,
+    abort_check: Callable[[], str | None] | None = None,
 ) -> dict[str, Verdict]:
     total = len(JUDGE_ORDER)
     with concurrent.futures.ThreadPoolExecutor(max_workers=total) as pool:
@@ -41,6 +43,8 @@ def _run_judge_panel(
 
         results: dict[str, Verdict] = {}
         for future in concurrent.futures.as_completed(future_to_judge):
+            # ponytail: in-flight judge calls still finish; abort stops before the next wait.
+            check_abort(abort_check)
             judge = future_to_judge[future]
             results[judge] = future.result()
     return results
@@ -53,8 +57,10 @@ def stream_roast_panel(
     research_context: str | None = None,
     run_config: dict | None = None,
     metrics: RunMetricsCollector | None = None,
+    abort_check: Callable[[], str | None] | None = None,
 ) -> Iterator[JudgeVerdictCompleted | JudgesDispatched | RoastPanelCompleted]:
     """Run all judges in parallel; yield verdict events after the panel completes."""
+    check_abort(abort_check)
     total = len(JUDGE_ORDER)
     yield JudgesDispatched(total=total)
     resolved_config = run_config or build_run_config(
@@ -70,7 +76,9 @@ def stream_roast_panel(
         research_context,
         resolved_config,
         metrics=metrics,
+        abort_check=abort_check,
     )
+    check_abort(abort_check)
     verdicts = [results[judge] for judge in JUDGE_ORDER]
     if is_degenerate_panel(verdicts):
         # ponytail: one retry with an anti-collusion suffix; fail closed if still uniform.
@@ -84,7 +92,9 @@ def stream_roast_panel(
             resolved_config,
             system_suffix=DEGENERATE_PANEL_RETRY_SUFFIX,
             metrics=metrics,
+            abort_check=abort_check,
         )
+        check_abort(abort_check)
         verdicts = [results[judge] for judge in JUDGE_ORDER]
         if is_degenerate_panel(verdicts):
             raise ValueError(

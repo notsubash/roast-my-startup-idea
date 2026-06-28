@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-RunStatus = Literal["created", "running", "completed", "failed"]
+RunStatus = Literal["created", "running", "completed", "failed", "cancelled"]
 IDEA_MAX_LENGTH = 8000
 
 

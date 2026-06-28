@@ -1,6 +1,6 @@
 """Phase 2: LangGraph debate — deterministic turn order, event streaming."""
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from typing import Any
 
 from langchain_core.messages import HumanMessage
@@ -18,6 +18,7 @@ from events import (
 from judges.schemas import RoastPanel
 from observability import build_run_config, idea_fingerprint, optional_config_kwargs, traceable
 from observability.metrics import RunMetricsCollector
+from run_control import check_abort
 
 
 def _initial_state(startup_idea: str, roast_panel: RoastPanel, max_rounds: int) -> dict:
@@ -40,6 +41,7 @@ def stream_debate(
     max_rounds: int = 3,
     run_config: dict | None = None,
     metrics: RunMetricsCollector | None = None,
+    abort_check: Callable[[], str | None] | None = None,
 ) -> Iterator[
     DebateRoundStarted
     | DebateSpeakerThinking
@@ -70,6 +72,7 @@ def stream_debate(
         stream_mode=["custom", "updates"],
         **optional_config_kwargs(resolved_config),
     ):
+        check_abort(abort_check)
         mode, payload = stream_item
 
         if mode == "custom":

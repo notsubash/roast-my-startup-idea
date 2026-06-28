@@ -119,7 +119,7 @@ def _wait_for_run_terminal(manager: RunManager, run_id: str, *, timeout: float =
         if record is None:
             time.sleep(0.005)
             continue
-        if record.status in ("completed", "failed"):
+        if record.status in ("completed", "failed", "cancelled"):
             state = manager._runs.get(run_id)
             if state is not None and state.task is not None and not state.task.done():
                 time.sleep(0.005)
