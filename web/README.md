@@ -1,36 +1,64 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Roast My Startup — frontend
 
-## Getting Started
+Next.js App Router frontend for the editorial verdict experience. See
+`docs/specs/frontend-spec.md` for the full product spec.
 
-First, run the development server:
+## Prerequisites
+
+- Node.js 20+
+- Python backend running on port 8000 (for API + type generation)
+
+## Setup
+
+```bash
+cd web
+npm install
+cp .env.example .env.local
+```
+
+Edit `.env.local` if your API is not at `http://127.0.0.1:8000`.
+
+## Generate API types
+
+With the backend up:
+
+```bash
+uvicorn api.app:app --app-dir src --reload --port 8000
+```
+
+In another terminal:
+
+```bash
+cd web
+npm run gen:types
+```
+
+This writes `src/lib/api/types.ts` from the live OpenAPI schema. The committed
+file is a snapshot so CI/build work without a running API; regenerate when the
+backend schema changes.
+
+## Development
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). The footer health dot
+turns green when `GET /health` succeeds.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Script              | Purpose                             |
+| ------------------- | ----------------------------------- |
+| `npm run dev`       | Next.js dev server                  |
+| `npm run build`     | Production build                    |
+| `npm run lint`      | ESLint                              |
+| `npm run format`    | Prettier write                      |
+| `npm run gen:types` | Regenerate OpenAPI TypeScript types |
 
-## Learn More
+## Stack
 
-To learn more about Next.js, take a look at the following resources:
+Next.js 16 · TypeScript · Tailwind CSS v4 · Sonner · openapi-typescript
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Fonts (via `next/font`): Newsreader (display), Public Sans (UI), JetBrains Mono
+(mono).

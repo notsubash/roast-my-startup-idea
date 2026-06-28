@@ -7,7 +7,7 @@ export default function Home() {
         <p className="font-sans text-sm font-semibold uppercase tracking-widest text-heat-ink">
           Editorial verdict
         </p>
-        <h1 className="mt-4 font-serif text-[44px] font-semibold leading-[1.05] tracking-tight text-ink md:text-[56px] lg:text-[72px]">
+        <h1 className="mt-4 font-serif text-display-md font-semibold leading-[1.05] tracking-tight text-ink md:text-display-lg lg:text-display-xl">
           Five AI judges roast your startup idea, debate it, and hand down a{" "}
           <span className="text-heat">verdict</span>.
         </h1>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { getApiBaseUrl } from "@/lib/api/client";
+import { apiClient, type HealthResponse } from "@/lib/api/client";
 
 type HealthState = "loading" | "ok" | "down";
 
@@ -14,15 +14,10 @@ export function HealthStatus() {
 
     async function check() {
       try {
-        const res = await fetch(`${getApiBaseUrl()}/health`, {
+        const data = await apiClient<HealthResponse>("/health", {
           cache: "no-store",
         });
         if (cancelled) return;
-        if (!res.ok) {
-          setState("down");
-          return;
-        }
-        const data = (await res.json()) as { status?: string };
         setState(data.status === "ok" ? "ok" : "down");
       } catch {
         if (!cancelled) setState("down");
