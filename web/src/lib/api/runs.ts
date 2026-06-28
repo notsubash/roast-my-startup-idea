@@ -11,3 +11,9 @@ export async function createRun(body: CreateRunRequest): Promise<RunCreatedRespo
 export async function getRunStatus(runId: string): Promise<RunStatusResponse> {
   return apiClient<RunStatusResponse>(`/api/runs/${runId}`);
 }
+
+export async function cancelRun(runId: string): Promise<RunStatusResponse> {
+  return apiClient<RunStatusResponse>(`/api/runs/${runId}/cancel`, {
+    method: "POST",
+  });
+}

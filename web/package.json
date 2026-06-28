@@ -10,7 +10,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "gen:types": "node scripts/gen-types.mjs",
-    "check:form": "node scripts/check-form-map.mjs"
+    "check:form": "node scripts/check-form-map.mjs",
+    "test:reducer": "node --experimental-strip-types --test scripts/test-run-reducer.mjs",
+    "test:synthesis": "node --experimental-strip-types --test scripts/test-synthesis-format.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

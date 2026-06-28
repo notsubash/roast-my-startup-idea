@@ -2,9 +2,10 @@
 
 import { AlertTriangle, CheckCircle, HelpCircle } from "lucide-react";
 
+import type { VerdictLabel } from "@/lib/sse/types";
 import { cn } from "@/lib/utils";
 
-export type VerdictLabel = "PASS" | "FAIL" | "CONDITIONAL";
+export type { VerdictLabel };
 
 const STAMP_CONFIG: Record<
   VerdictLabel,
