@@ -73,6 +73,7 @@ def stream_pipeline(
     memory_limit: int = 3,
     memory_context: str | None = None,
     research_context: str | None = None,
+    idea_id: str | None = None,
     run_config: dict | None = None,
     model_runtime: ModelRuntime = "local",
     abort_check: Callable[[], str | None] | None = None,
@@ -141,14 +142,15 @@ def stream_pipeline(
         raise RuntimeError("Debate did not complete")
 
     if user_id and idea_store:
-        idea_store.save(
-            IdeaRecord(
-                user_id=user_id,
-                idea_text=startup_idea,
-                roast_panel=roast_panel,
-                debate_result=debate_result,
-            )
-        )
+        record_kwargs: dict = {
+            "user_id": user_id,
+            "idea_text": startup_idea,
+            "roast_panel": roast_panel,
+            "debate_result": debate_result,
+        }
+        if idea_id:
+            record_kwargs["id"] = idea_id
+        idea_store.save(IdeaRecord(**record_kwargs))
 
     roast_seconds, debate_seconds, total_seconds = timer.finish(in_debate=in_debate)
     metrics_payload = metrics.snapshot(

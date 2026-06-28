@@ -18,24 +18,30 @@ from uuid import uuid4
 
 from api.deps import (
     RunRecord,
+    build_idea_preview,
     build_model_for_run,
     build_research_context_for_run,
     build_startup_idea_context,
+    get_idea_store,
 )
 from api.events import (
+    research_findings_envelope,
     run_cancelled_envelope,
     run_failed_envelope,
     stream_connected_envelope,
     to_api_envelope,
 )
 from api.run_store import RunStore
-from api.schemas import ApiEventEnvelope, CreateRunRequest, VerdictSummary
+from api.schemas import ApiEventEnvelope, CreateRunRequest, SimilarRunItem, VerdictSummary
 from appeal.service import AppealResult, run_appeal
 from config import Settings, get_settings
 from events import RunMetrics
 from judges.schemas import RoastPanel
+from memory.identity import LOCAL_USER
+from memory.retrieval import records_for_memory
 from observability.metrics import log_run_metrics
 from pipeline import stream_pipeline
+from research.service import format_research_context
 from run_control import RunAbort
 
 logger = logging.getLogger(__name__)
@@ -189,6 +195,32 @@ class RunManager:
             items.append((record, summary))
         return items, total
 
+    def list_similar_runs(self, run_id: str, *, limit: int = 3) -> list[SimilarRunItem]:
+        record = self.get(run_id)
+        if record is None:
+            raise KeyError(run_id)
+
+        store = get_idea_store()
+        query_text = build_startup_idea_context(record.request)
+        candidates = records_for_memory(store, LOCAL_USER, query_text, limit=limit + 1)
+        items: list[SimilarRunItem] = []
+        for idea in candidates:
+            if idea.id == run_id:
+                continue
+            panel = idea.revised_panel or idea.roast_panel
+            summary = _verdict_summary_from_panel(panel.model_dump(mode="json"))
+            items.append(
+                SimilarRunItem(
+                    run_id=idea.id,
+                    idea_preview=build_idea_preview(idea.idea_text),
+                    created_at=idea.created_at,
+                    verdict_summary=summary,
+                )
+            )
+            if len(items) >= limit:
+                break
+        return items
+
     async def appeal(
         self,
         run_id: str,
@@ -339,13 +371,18 @@ class RunManager:
 
             startup_idea = build_startup_idea_context(record.request)
             model = build_model_for_run(record.request, settings)
-            research_context = build_research_context_for_run(
-                record.request, startup_idea, settings, model
-            )
+            research = build_research_context_for_run(record.request, startup_idea, settings, model)
+            if research is not None:
+                emit(research_findings_envelope(run_id=run_id, sequence=0, context=research))
+            research_context = format_research_context(research) if research is not None else None
+            idea_store = get_idea_store()
             for event in stream_pipeline(
                 model,
                 startup_idea,
                 max_debate_rounds=record.request.max_debate_rounds,
+                user_id=LOCAL_USER,
+                idea_store=idea_store,
+                idea_id=run_id,
                 research_context=research_context,
                 model_runtime=record.request.model_runtime,
                 abort_check=abort_check,

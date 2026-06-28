@@ -8,6 +8,7 @@ from research.service import (
     build_research_context,
     decide_web_search_usage,
     format_research_context,
+    research_context_payload,
 )
 import tests  # noqa: F401
 
@@ -142,6 +143,12 @@ class ResearchServiceTest(unittest.TestCase):
         self.assertIn("https://example.com/compliance-market", rendered)
         self.assertIn("https://example.com/incumbent-assistants", rendered)
         self.assertEqual(len(client.queries), 1)
+        payload = research_context_payload(context)
+        self.assertEqual(
+            payload["query"], "AI compliance copilot hospitals competitors regulation trend"
+        )
+        self.assertEqual(len(payload["findings"]), 2)
+        self.assertTrue(all("snippet" in row for row in payload["findings"]))
 
 
 if __name__ == "__main__":
