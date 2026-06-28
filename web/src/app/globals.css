@@ -69,6 +69,21 @@ body {
   animation: stamp-slam 120ms var(--ease) forwards;
 }
 
+@keyframes round-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-round-enter {
+  animation: round-enter var(--dur-in) var(--ease) forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

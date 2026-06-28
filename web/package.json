@@ -12,7 +12,8 @@
     "gen:types": "node scripts/gen-types.mjs",
     "check:form": "node scripts/check-form-map.mjs",
     "test:reducer": "node --experimental-strip-types --test scripts/test-run-reducer.mjs",
-    "test:synthesis": "node --experimental-strip-types --test scripts/test-synthesis-format.mjs"
+    "test:synthesis": "node --experimental-strip-types --test scripts/test-synthesis-format.mjs",
+    "test:format": "node --experimental-strip-types --test scripts/test-format.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
@@ -31,6 +32,7 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-hook-form": "^7.80.0",
+    "recharts": "^3.9.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
     "zod": "^4.4.3"

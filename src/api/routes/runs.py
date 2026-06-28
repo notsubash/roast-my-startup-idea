@@ -66,6 +66,7 @@ def get_run_status(
     return RunStatusResponse(
         run_id=record.run_id,
         status=record.status,
+        idea=record.request.idea,
         idea_preview=build_idea_preview(record.request.idea),
         created_at=record.created_at,
     )
@@ -86,6 +87,7 @@ def cancel_run(
     return RunStatusResponse(
         run_id=record.run_id,
         status=record.status,
+        idea=record.request.idea,
         idea_preview=build_idea_preview(record.request.idea),
         created_at=record.created_at,
     )

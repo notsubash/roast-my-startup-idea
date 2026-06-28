@@ -58,7 +58,11 @@ export function DebateTranscript({
       {rounds.map((round) => {
         const roundTurns = turns.filter((t) => t.round === round);
         return (
-          <section key={round} aria-labelledby={`debate-round-${round}`}>
+          <section
+            key={round}
+            aria-labelledby={`debate-round-${round}`}
+            className="animate-round-enter"
+          >
             <h3
               id={`debate-round-${round}`}
               className="font-sans text-xs font-semibold uppercase tracking-widest text-ink-muted"

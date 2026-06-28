@@ -202,6 +202,7 @@ class ApiRunsTest(unittest.TestCase):
         payload = status_response.json()
         self.assertEqual(payload["run_id"], run_id)
         self.assertEqual(payload["status"], "created")
+        self.assertEqual(payload["idea"], IDEA)
         self.assertIn("journal", payload["idea_preview"])
 
     def test_get_unknown_run_returns_404(self):

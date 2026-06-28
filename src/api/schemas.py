@@ -44,6 +44,7 @@ class RunCreatedResponse(BaseModel):
 class RunStatusResponse(BaseModel):
     run_id: str
     status: RunStatus
+    idea: str
     idea_preview: str
     created_at: datetime
 

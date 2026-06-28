@@ -8,6 +8,7 @@ import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { stashRunIdea } from "@/lib/format/run-idea";
 import { ApiError } from "@/lib/api/client";
 import { createRun } from "@/lib/api/runs";
 import { parseApiDetail, RATE_LIMIT_MESSAGE } from "@/lib/api/types-helpers";
@@ -64,7 +65,8 @@ export function IdeaForm() {
 
   const mutation = useMutation({
     mutationFn: createRun,
-    onSuccess: ({ run_id }) => {
+    onSuccess: ({ run_id }, variables) => {
+      stashRunIdea(run_id, variables.idea);
       router.push(`/run/${run_id}`);
     },
     onError: (error: Error) => {

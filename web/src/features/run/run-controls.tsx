@@ -4,12 +4,18 @@ import Link from "next/link";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { OctagonX, Share2 } from "lucide-react";
+import { Copy, Download, OctagonX, Share2 } from "lucide-react";
 
+import {
+  buildTranscriptMarkdown,
+  transcriptFilename,
+  type TranscriptInput,
+} from "@/lib/format/transcript-md";
 import { ApiError } from "@/lib/api/client";
 import { cancelRun } from "@/lib/api/runs";
 import { parseApiDetail } from "@/lib/api/types-helpers";
 import { secondaryCtaClass, heatCtaClass } from "@/lib/cta-classes";
+import { JUDGE_ORDER } from "@/lib/sse/types";
 import type { RunStatus } from "@/lib/sse/types";
 import { Button } from "@/ui/button";
 import {
@@ -21,15 +27,22 @@ import {
   DialogTitle,
 } from "@/ui/dialog";
 
+function canExportTranscript(input: TranscriptInput | null): boolean {
+  if (!input) return false;
+  return JUDGE_ORDER.some((id) => input.judges[id].verdict !== undefined);
+}
+
 export function RunControls({
   runId,
   status,
   onCancelSettled,
+  exportInput,
 }: {
   runId: string;
   status: RunStatus;
   /** Refetch run status after cancel succeeds or run already finished (409). */
   onCancelSettled?: () => void;
+  exportInput?: TranscriptInput | null;
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const canStop = status === "running" || status === "created" || status === "connecting";
@@ -66,6 +79,37 @@ export function RunControls({
       toast.error("Could not copy the link.");
     }
   };
+
+  const copyTranscript = async () => {
+    if (!exportInput || !canExportTranscript(exportInput)) {
+      toast.error("Nothing to export yet — wait for at least one verdict.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(buildTranscriptMarkdown(exportInput));
+      toast.success("Transcript copied to clipboard.");
+    } catch {
+      toast.error("Could not copy the transcript.");
+    }
+  };
+
+  const downloadTranscript = () => {
+    if (!exportInput || !canExportTranscript(exportInput)) {
+      toast.error("Nothing to export yet — wait for at least one verdict.");
+      return;
+    }
+    const markdown = buildTranscriptMarkdown(exportInput);
+    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = transcriptFilename(exportInput.idea, runId);
+    anchor.click();
+    URL.revokeObjectURL(url);
+    toast.success("Transcript downloaded.");
+  };
+
+  const exportReady = canExportTranscript(exportInput ?? null);
 
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -112,6 +156,27 @@ export function RunControls({
           <Share2 className="size-4" aria-hidden />
           Share link
         </button>
+      )}
+
+      {isTerminal && exportReady && (
+        <>
+          <button
+            type="button"
+            className={`inline-flex items-center gap-2 ${secondaryCtaClass}`}
+            onClick={() => void copyTranscript()}
+          >
+            <Copy className="size-4" aria-hidden />
+            Copy transcript
+          </button>
+          <button
+            type="button"
+            className={`inline-flex items-center gap-2 ${secondaryCtaClass}`}
+            onClick={downloadTranscript}
+          >
+            <Download className="size-4" aria-hidden />
+            Download .md
+          </button>
+        </>
       )}
 
       {isTerminal && (

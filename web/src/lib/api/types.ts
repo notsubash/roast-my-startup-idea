@@ -156,6 +156,8 @@ export interface components {
              * @enum {string}
              */
             status: "created" | "running" | "completed" | "failed" | "cancelled";
+            /** Idea */
+            idea: string;
             /** Idea Preview */
             idea_preview: string;
             /**

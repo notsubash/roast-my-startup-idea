@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
 
 import { EditorialContainer } from "@/components/app-shell";
+import { resolveExportIdea } from "@/lib/format/run-idea";
 import { ApiError } from "@/lib/api/client";
 import { getRunStatus } from "@/lib/api/runs";
 import { heatCtaClass } from "@/lib/cta-classes";
@@ -18,7 +19,11 @@ import { DebateTranscript } from "./debate-transcript";
 import { JudgeColumn, JudgeColumnSkeleton } from "./judge-column";
 import { PhaseRail } from "./phase-rail";
 import { RunControls } from "./run-controls";
+import { RunMetricsBar } from "./run-metrics-bar";
+import { ScoreLollipopStrip } from "./score-lollipop-strip";
+import { ScoreRadar } from "./score-radar";
 import { SynthesisBlock } from "./synthesis-block";
+import { VerdictTallyBar } from "./verdict-tally";
 
 function isTerminalStatus(status: RunStatus): boolean {
   return status === "completed" || status === "failed" || status === "cancelled";
@@ -94,11 +99,13 @@ function TerminalBanner({ state }: { state: RunState }) {
 function RunSheetContent({
   runId,
   ideaPreview,
+  idea,
   restStatus,
   refetchStatus,
 }: {
   runId: string;
   ideaPreview: string;
+  idea: string;
   restStatus: RunStatus;
   refetchStatus: () => void;
 }) {
@@ -116,7 +123,7 @@ function RunSheetContent({
   const status = effectiveStatus(streamStatus, restStatus);
   const hasAnyVerdict = JUDGE_ORDER.some((id) => stream.judges[id].status === "revealed");
   const awaitingReplay =
-    isTerminalStatus(restStatus) && !hasAnyVerdict && !stream.connected;
+    restStatus === "completed" && !hasAnyVerdict && !stream.roastPanelComplete;
   const initialLoad = !stream.connected && !isTerminalStatus(restStatus);
   const showJudgeSkeletons = awaitingReplay || initialLoad;
 
@@ -138,6 +145,14 @@ function RunSheetContent({
             runId={runId}
             status={status}
             onCancelSettled={refetchStatus}
+            exportInput={{
+              idea: resolveExportIdea(runId, ideaPreview, idea),
+              runId,
+              judges: stream.judges,
+              debateTurns: stream.debateTurns,
+              synthesis: stream.synthesis,
+              metrics: stream.metrics,
+            }}
           />
         </div>
       </header>
@@ -174,6 +189,53 @@ function RunSheetContent({
           </div>
         </section>
 
+        <section className="mt-12 border-t-2 border-rule-soft pt-10" aria-labelledby="scores-heading">
+          <h2 id="scores-heading" className="font-serif text-2xl font-semibold text-ink">
+            Score panel
+          </h2>
+          <p className="mt-2 max-w-prose font-sans text-sm text-ink-muted">
+            The split, the report card, and the radar — three views of the same verdict.
+          </p>
+
+          <div className="mt-6 space-y-8">
+            <div aria-labelledby="verdict-split-heading">
+              <h3
+                id="verdict-split-heading"
+                className="font-sans text-xs font-semibold uppercase tracking-widest text-ink-muted"
+              >
+                The split
+              </h3>
+              <div className="mt-3">
+                <VerdictTallyBar judges={stream.judges} />
+              </div>
+            </div>
+
+            <div aria-labelledby="report-card-heading">
+              <h3
+                id="report-card-heading"
+                className="font-sans text-xs font-semibold uppercase tracking-widest text-ink-muted"
+              >
+                Report card
+              </h3>
+              <div className="mt-3">
+                <ScoreLollipopStrip judges={stream.judges} />
+              </div>
+            </div>
+
+            <div aria-labelledby="radar-heading">
+              <h3
+                id="radar-heading"
+                className="font-sans text-xs font-semibold uppercase tracking-widest text-ink-muted"
+              >
+                Radar
+              </h3>
+              <div className="mt-3">
+                <ScoreRadar judges={stream.judges} />
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="mt-12 border-t-2 border-rule-soft pt-10" aria-labelledby="debate-heading">
           <h2 id="debate-heading" className="font-serif text-2xl font-semibold text-ink">
             Debate transcript
@@ -194,6 +256,8 @@ function RunSheetContent({
             <SynthesisBlock content={stream.synthesis} />
           </div>
         </section>
+
+        <RunMetricsBar metrics={stream.metrics} status={status} className="col-span-12 mt-12" />
       </div>
     </>
   );
@@ -247,7 +311,7 @@ export function RunSheet({ runId }: { runId: string }) {
     return null;
   }
 
-  const { idea_preview: ideaPreview, status: restStatus } = statusQuery.data;
+  const { idea_preview: ideaPreview, idea, status: restStatus } = statusQuery.data;
 
   return (
     <EditorialContainer className="py-12 md:py-16 lg:py-24">
@@ -255,6 +319,7 @@ export function RunSheet({ runId }: { runId: string }) {
         key={runId}
         runId={runId}
         ideaPreview={ideaPreview}
+        idea={idea}
         restStatus={restStatus}
         refetchStatus={() => void statusQuery.refetch()}
       />
