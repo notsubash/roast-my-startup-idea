@@ -32,6 +32,11 @@
   --shadow-soft: 0 2px 8px rgb(20 17 15 / 0.08);
   --radius-editorial: var(--radius-0);
   --radius-ui: var(--radius);
+  --radius-ui-token: var(--radius);
+}
+
+@utility rounded-ui {
+  border-radius: var(--radius);
 }
 
 body {
@@ -47,6 +52,21 @@ body {
 :focus-visible {
   outline: 2px solid var(--heat);
   outline-offset: 2px;
+}
+
+@keyframes stamp-slam {
+  0% {
+    transform: rotate(-3deg) scale(1.04);
+    box-shadow: none;
+  }
+  100% {
+    transform: rotate(-3deg) scale(1);
+    box-shadow: var(--shadow-hard);
+  }
+}
+
+.animate-stamp-slam {
+  animation: stamp-slam 120ms var(--ease) forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {

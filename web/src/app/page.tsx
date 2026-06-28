@@ -1,4 +1,5 @@
 import { EditorialContainer } from "@/components/app-shell";
+import { IdeaForm } from "@/features/submit/idea-form";
 
 export default function Home() {
   return (
@@ -12,9 +13,10 @@ export default function Home() {
           <span className="text-heat">verdict</span>.
         </h1>
         <p className="mt-8 max-w-prose font-sans text-lg leading-relaxed text-ink-muted">
-          Submit your pitch. Watch five distinct critics score, roast, and argue in real
-          time. The form lands in Phase 1 — this shell is the editorial foundation.
+          Submit your pitch. Watch five distinct critics score, roast, and argue in
+          real time.
         </p>
+        <IdeaForm />
       </div>
     </EditorialContainer>
   );

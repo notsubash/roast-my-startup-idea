@@ -4,6 +4,7 @@ import { JetBrains_Mono, Newsreader, Public_Sans } from "next/font/google";
 import { AppToaster } from "@/components/app-toaster";
 import { AppFooter, AppHeader, SkipLink } from "@/components/app-shell";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { QueryProvider } from "@/components/query-provider";
 
 import "./globals.css";
 
@@ -48,11 +49,13 @@ export default function RootLayout({
       <body className="flex min-h-full flex-col antialiased">
         <SkipLink />
         <AppHeader />
-        <ErrorBoundary>
-          <main id="main" className="flex-1">
-            {children}
-          </main>
-        </ErrorBoundary>
+        <QueryProvider>
+          <ErrorBoundary>
+            <main id="main" className="flex-1">
+              {children}
+            </main>
+          </ErrorBoundary>
+        </QueryProvider>
         <AppFooter />
         <AppToaster />
       </body>
