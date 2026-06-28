@@ -1,0 +1,17 @@
+.git
+.github
+.cursor
+.env
+venv
+.venv
+__pycache__
+.pytest_cache
+.ruff_cache
+data
+transcripts
+evals/results
+images
+docs
+tests
+*.md
+!README.md

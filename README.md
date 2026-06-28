@@ -47,14 +47,32 @@ Endpoints:
 | `POST` | `/api/runs` | Create a run, returns `run_id` immediately |
 | `GET` | `/api/runs/{run_id}` | Poll run status |
 | `GET` | `/api/runs/{run_id}/events` | SSE stream of roast/debate events |
+| `POST` | `/api/runs/{run_id}/cancel` | Cooperatively stop a run (emits `run_cancelled`) |
 
-Create a run, then open an `EventSource` (or equivalent) on `/api/runs/{run_id}/events`. The stream emits ordered envelopes ending in `run_metrics` (latency, token counts, estimated cost), then `run_completed` or `run_failed`.
+Create a run, then open an `EventSource` (or equivalent) on `/api/runs/{run_id}/events`. The stream emits ordered envelopes ending in `run_metrics` (latency, token counts, estimated cost), then `run_completed`, `run_cancelled`, or `run_failed`.
 
 The run engine is decoupled from the HTTP connection: `RunManager` drives the pipeline once into a durable SQLite event log (`data/runs.db`). Multiple tabs can watch the same run; disconnect and reconnect with the SSE `Last-Event-ID` header to resume without gaps. Heartbeat comment frames keep idle connections alive (`SSE_HEARTBEAT_SECONDS`, default 15s).
 
 Set `ROAST_CORS_ORIGINS` in `.env` for your frontend origin (comma-separated). Default: `http://localhost:3000,http://127.0.0.1:3000`.
 
 Run uvicorn with a single worker per machine; background tasks and in-process subscribers are not coordinated across workers yet.
+
+**Rate limits:** `POST /api/runs` is token-bucket limited per client IP (`RATE_LIMIT_*` in `.env`). Returns `429` when exceeded. Disable with `RATE_LIMIT_ENABLED=false`. Set `TRUST_PROXY=true` only when the API sits behind a reverse proxy that sets `X-Forwarded-For` (Fly, Render, nginx). Otherwise clients could spoof that header to bypass limits.
+
+**Run budget:** `MAX_RUN_SECONDS` (default 600) fails long runs cleanly between roast/debate boundaries and debate turns. In-flight judge LLM calls during roast may still finish after cancel/budget. Set `0` to disable.
+
+**Cancel:** `POST /api/runs/{run_id}/cancel` is cooperative and asynchronous for running runs — the HTTP response may still show `status: "running"`. Poll `GET /api/runs/{run_id}` or watch SSE for the terminal `run_cancelled` event. Cancelling a `created` run (before SSE connect) is immediate.
+
+### Docker (API only)
+
+```bash
+cp .env.example .env   # set DEEPSEEK_API_KEY and/or point LOCAL_MODEL at host Ollama
+docker compose up --build
+```
+
+`GET http://localhost:8000/health` should return `{"status":"ok"}`. Completed runs survive container restarts via the `roast-data` volume (`RUNS_DB_PATH=/data/runs.db`).
+
+For local Ollama from inside the container, use `host.docker.internal` in `LOCAL_MODEL` / `DEEPSEEK_BASE_URL` as needed, or run the API on the host and skip Docker. Behind nginx or a PaaS load balancer, set `TRUST_PROXY=true` in `.env`.
 
 ## What it does
 

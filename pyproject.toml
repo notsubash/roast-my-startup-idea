@@ -1,6 +1,6 @@
 [project]
 name = "roast-my-startup"
-version = "0.2.0"
+version = "0.4.0"
 description = "Multi-agent startup critique app"
 requires-python = ">=3.11"
 
@@ -45,6 +45,7 @@ known-first-party = [
     "orchestrator",
     "pipeline",
     "research",
+    "run_control",
     "ui",
     "utils",
     "version",
