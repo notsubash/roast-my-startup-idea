@@ -48,6 +48,83 @@ export function splitBulletBody(body: string): string[] {
   return [trimmed.replace(/^[-•]\s+/, "")];
 }
 
+function parseAppealSectionChunk(chunk: string): { title: string; body: string } | null {
+  const match = chunk.match(/^\*\*(.+?)\*\*:?\s*([\s\S]*)$/);
+  if (!match) return null;
+  return {
+    title: match[1].trim().replace(/:$/, ""),
+    body: match[2].trim(),
+  };
+}
+
+function parseAppealScore(body: string): string | null {
+  const revised = body.match(/(?:revised score|score)[:\s]*([\d.]+)\s*(?:\/\s*10)?/i);
+  if (revised) return revised[1];
+  const plain = body.match(/([\d.]+)\s*\/\s*10/);
+  return plain ? plain[1] : null;
+}
+
+/** Parse appeal synthesis markdown (section headings + bullet lists, not numbered sections). */
+export function parseAppealSynthesis(content: string): ParsedSynthesis | null {
+  const chunks = content
+    .split(/\n\n+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (chunks.length === 0) return null;
+
+  let verdict: VerdictLabel | null = null;
+  let score: string | null = null;
+  const sections: Array<{ title: string; bullets: string[] }> = [];
+
+  for (const chunk of chunks) {
+    const parsed = parseAppealSectionChunk(chunk);
+    if (!parsed) continue;
+
+    const titleLower = parsed.title.toLowerCase();
+    if (titleLower === "appeal synthesis") continue;
+
+    if (titleLower.includes("overall verdict")) {
+      verdict = parseVerdictLabel(parsed.body);
+      score = parseAppealScore(parsed.body);
+      continue;
+    }
+
+    if (parsed.body) {
+      sections.push({
+        title: parsed.title,
+        bullets: splitBulletBody(parsed.body),
+      });
+    }
+  }
+
+  if (!verdict && !score && sections.length === 0) return null;
+  return { verdict, score, sections };
+}
+
+/** ponytail: naive inline markdown for synthesis bullets — upgrade path is a shared markdown renderer. */
+export function splitInlineMarkdown(text: string): Array<{ kind: "text" | "bold" | "italic"; value: string }> {
+  const parts: Array<{ kind: "text" | "bold" | "italic"; value: string }> = [];
+  const re = /(\*\*[^*]+\*\*|\*[^*]+\*)/g;
+  let last = 0;
+  for (const match of text.matchAll(re)) {
+    const index = match.index ?? 0;
+    if (index > last) {
+      parts.push({ kind: "text", value: text.slice(last, index) });
+    }
+    const token = match[0];
+    if (token.startsWith("**")) {
+      parts.push({ kind: "bold", value: token.slice(2, -2) });
+    } else {
+      parts.push({ kind: "italic", value: token.slice(1, -1) });
+    }
+    last = index + token.length;
+  }
+  if (last < text.length) {
+    parts.push({ kind: "text", value: text.slice(last) });
+  }
+  return parts.length > 0 ? parts : [{ kind: "text", value: text }];
+}
+
 /** Parse moderator synthesis markdown (fixed 5-section shape from moderator_node_prompt). */
 export function parseSynthesis(content: string): ParsedSynthesis | null {
   const chunks = content

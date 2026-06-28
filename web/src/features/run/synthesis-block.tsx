@@ -2,7 +2,7 @@ import type { VerdictLabel } from "@/lib/sse/types";
 import { cn } from "@/lib/utils";
 
 import { VerdictStamp } from "./verdict-stamp";
-import { parseSynthesis } from "./synthesis-format";
+import { parseAppealSynthesis, parseSynthesis, splitInlineMarkdown } from "./synthesis-format";
 
 function SynthesisFallback({ content, className }: { content: string; className?: string }) {
   return (
@@ -53,18 +53,45 @@ function SynthesisHeader({
   );
 }
 
+function FormattedInline({ text }: { text: string }) {
+  return (
+    <>
+      {splitInlineMarkdown(text).map((part, i) => {
+        if (part.kind === "bold") {
+          return (
+            <strong key={i} className="font-semibold text-ink">
+              {part.value}
+            </strong>
+          );
+        }
+        if (part.kind === "italic") {
+          return <em key={i}>{part.value}</em>;
+        }
+        return part.value;
+      })}
+    </>
+  );
+}
+
 function SynthesisSection({
   title,
   bullets,
+  richText = false,
 }: {
   title: string;
   bullets: string[];
+  richText?: boolean;
 }) {
+  const renderBullet = (bullet: string) =>
+    richText ? <FormattedInline text={bullet} /> : bullet;
+
   return (
     <section>
       <h3 className="font-serif text-xl font-semibold text-ink">{title}</h3>
       {bullets.length === 1 && !bullets[0].includes("\n") ? (
-        <p className="mt-3 font-sans text-base leading-relaxed text-ink-muted">{bullets[0]}</p>
+        <p className="mt-3 font-sans text-base leading-relaxed text-ink-muted">
+          {renderBullet(bullets[0])}
+        </p>
       ) : (
         <ul className="mt-3 space-y-2 border-l-2 border-rule-soft pl-4">
           {bullets.map((bullet, i) => (
@@ -72,7 +99,7 @@ function SynthesisSection({
               key={i}
               className="font-sans text-base leading-relaxed text-ink-muted"
             >
-              {bullet}
+              {renderBullet(bullet)}
             </li>
           ))}
         </ul>
@@ -84,9 +111,12 @@ function SynthesisSection({
 export function SynthesisBlock({
   content,
   className,
+  variant = "debate",
 }: {
   content: string | null;
   className?: string;
+  /** Appeal synthesis uses free-form markdown sections instead of numbered moderator shape. */
+  variant?: "debate" | "appeal";
 }) {
   if (!content) {
     return (
@@ -96,10 +126,15 @@ export function SynthesisBlock({
     );
   }
 
-  const parsed = parseSynthesis(content);
+  const parsed =
+    variant === "appeal"
+      ? parseAppealSynthesis(content) ?? parseSynthesis(content)
+      : parseSynthesis(content);
   if (!parsed) {
     return <SynthesisFallback content={content} className={className} />;
   }
+
+  const richText = variant === "appeal";
 
   return (
     <article
@@ -116,6 +151,7 @@ export function SynthesisBlock({
               key={section.title}
               title={section.title}
               bullets={section.bullets}
+              richText={richText}
             />
           ))}
         </div>

@@ -7,6 +7,7 @@ import {
   type RunState,
   type SpeakerId,
   type Verdict,
+  type AppealResult,
 } from "./types.ts";
 
 function isJudgeId(value: string): value is JudgeId {
@@ -70,6 +71,33 @@ function applyRoastPanel(state: RunState, verdicts: Verdict[]): RunState {
     judges[verdict.judge] = { status: "revealed", verdict };
   }
   return { ...state, judges, roastPanelComplete: true };
+}
+
+function parseAppealPanel(raw: unknown): Record<JudgeId, Verdict> | null {
+  if (!raw || typeof raw !== "object") return null;
+  const verdicts = (raw as { verdicts?: unknown[] }).verdicts;
+  if (!Array.isArray(verdicts)) return null;
+  const byJudge = {} as Record<JudgeId, Verdict>;
+  for (const item of verdicts) {
+    const verdict = parseVerdict(item);
+    if (verdict) byJudge[verdict.judge] = verdict;
+  }
+  return Object.keys(byJudge).length > 0 ? byJudge : null;
+}
+
+function parseAppealResult(payload: Record<string, unknown>): AppealResult | null {
+  const appealText = payload.appeal_text;
+  const revisedSynthesis = payload.revised_synthesis;
+  if (typeof appealText !== "string" || typeof revisedSynthesis !== "string") return null;
+  const originalByJudge = parseAppealPanel(payload.original_panel);
+  const revisedByJudge = parseAppealPanel(payload.revised_panel);
+  if (!originalByJudge || !revisedByJudge) return null;
+  return {
+    appealText,
+    originalByJudge,
+    revisedByJudge,
+    revisedSynthesis,
+  };
 }
 
 function reconcileDebateMessages(
@@ -318,6 +346,12 @@ export function runReducer(state: RunState, envelope: ApiEventEnvelope): RunStat
         { ...next, cancelMessage: message },
         "cancelled",
       );
+    }
+
+    case "appeal_completed": {
+      const appeal = parseAppealResult(payload);
+      if (!appeal) return next;
+      return { ...next, appeal };
     }
 
     default:

@@ -8,6 +8,8 @@ import type { JudgeId } from "@/lib/sse/types";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/ui/skeleton";
 
+import { ScoreDeltaBadge } from "../appeal/score-delta-badge";
+
 import { VerdictStamp } from "./verdict-stamp";
 
 export function JudgeColumnSkeleton() {
@@ -26,10 +28,13 @@ export function JudgeColumn({
   judgeId,
   view,
   animateStamp = false,
+  scoreDelta,
 }: {
   judgeId: JudgeId;
   view: JudgeView;
   animateStamp?: boolean;
+  /** When set, shows a delta badge beside the score (appeal before/after). */
+  scoreDelta?: number | null;
 }) {
   const meta = JUDGE_META[judgeId];
 
@@ -92,10 +97,13 @@ export function JudgeColumn({
           </h3>
           <p className="mt-1 font-sans text-xs text-ink-muted">{meta.role}</p>
         </div>
-        <p className="font-mono text-2xl font-bold tabular-nums text-ink">
-          {verdict.score}
-          <span className="text-sm font-normal text-ink-muted">/10</span>
-        </p>
+        <div className="flex flex-col items-end gap-1">
+          {scoreDelta != null && <ScoreDeltaBadge delta={scoreDelta} />}
+          <p className="font-mono text-2xl font-bold tabular-nums text-ink">
+            {verdict.score}
+            <span className="text-sm font-normal text-ink-muted">/10</span>
+          </p>
+        </div>
       </header>
 
       <blockquote className="mt-6 border-l-2 border-ink pl-4 font-serif text-base italic leading-relaxed text-ink">

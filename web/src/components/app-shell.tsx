@@ -27,7 +27,13 @@ export function AppHeader() {
             Roast My Startup
           </Link>
         </div>
-        <div className="col-span-4 flex justify-end sm:col-span-3">
+        <div className="col-span-4 flex items-center justify-end gap-3 sm:col-span-3">
+          <Link
+            href="/history"
+            className="font-sans text-sm font-semibold text-ink-muted underline-offset-4 hover:text-ink hover:underline"
+          >
+            History
+          </Link>
           <Link href="/" className={heatCtaClass}>
             Roast an idea
           </Link>

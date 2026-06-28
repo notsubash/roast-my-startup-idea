@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { Skeleton } from "@/ui/skeleton";
 
 import { DebateTranscript } from "./debate-transcript";
+import { AppealSection } from "../appeal/appeal-section";
 import { JudgeColumn, JudgeColumnSkeleton } from "./judge-column";
 import { PhaseRail } from "./phase-rail";
 import { RunControls } from "./run-controls";
@@ -258,6 +259,12 @@ function RunSheetContent({
         </section>
 
         <RunMetricsBar metrics={stream.metrics} status={status} className="col-span-12 mt-12" />
+
+        <AppealSection
+          runId={runId}
+          completed={status === "completed"}
+          streamAppeal={stream.appeal}
+        />
       </div>
     </>
   );

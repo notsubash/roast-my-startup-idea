@@ -137,3 +137,24 @@ test("moderator debate turn is supported", () => {
   assert.equal(state.debateTurns[0].speaker, "moderator");
   assert.equal(state.debateTurns[0].content, "Verdict: no path to PMF.");
 });
+
+test("appeal_completed restores appeal state from replay", () => {
+  const revised = { ...VERDICT, score: 6, verdict: "CONDITIONAL" };
+  const events = [
+    env(0, "stream_connected", { status: "connected" }),
+    env(1, "run_completed", {
+      roast_panel: { verdicts: [VERDICT] },
+      debate_result: { debate_messages: [], final_synthesis: "Original synthesis." },
+    }),
+    env(2, "appeal_completed", {
+      appeal_text: "We signed two LOIs and completed a validation study.",
+      original_panel: { verdicts: [VERDICT] },
+      revised_panel: { verdicts: [revised] },
+      revised_synthesis: "Revised synthesis after appeal.",
+    }),
+  ];
+  const state = reduceEnvelopes(events);
+  assert.equal(state.appeal?.appealText, "We signed two LOIs and completed a validation study.");
+  assert.equal(state.appeal?.revisedByJudge.vc.score, 6);
+  assert.equal(state.appeal?.revisedSynthesis, "Revised synthesis after appeal.");
+});
