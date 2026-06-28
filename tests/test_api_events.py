@@ -27,6 +27,7 @@ from events import (
     PhaseStarted,
     PipelineCompleted,
     RoastPanelCompleted,
+    RunMetrics,
 )
 from judges.schemas import RoastPanel, Verdict
 import tests  # noqa: F401
@@ -207,6 +208,50 @@ class ApiEventSerializationTest(unittest.TestCase):
         envelope = stream_connected_envelope(run_id="run-1")
         self.assertEqual(envelope.type, "stream_connected")
         self.assertEqual(envelope.payload, {"status": "connected"})
+
+    def test_run_metrics_payload_shape(self):
+        payload = pipeline_event_payload(
+            RunMetrics(
+                roast_seconds=4.2,
+                debate_seconds=11.8,
+                total_seconds=16.0,
+                input_tokens=2500,
+                output_tokens=600,
+                total_tokens=3100,
+                estimated_cost_usd=0.004,
+                model_runtime="deepseek",
+                judge_calls=[
+                    {"label": "vc", "phase": "roast", "seconds": 0.8, "total_tokens": 120}
+                ],
+                debate_calls=[
+                    {"label": "vc", "phase": "debate", "seconds": 1.2, "total_tokens": 90}
+                ],
+            )
+        )
+        self.assertEqual(payload["roast_seconds"], 4.2)
+        self.assertEqual(payload["debate_seconds"], 11.8)
+        self.assertEqual(payload["total_tokens"], 3100)
+        self.assertEqual(payload["estimated_cost_usd"], 0.004)
+        self.assertEqual(payload["model_runtime"], "deepseek")
+
+    def test_run_metrics_event_type(self):
+        self.assertEqual(
+            pipeline_event_type(
+                RunMetrics(
+                    roast_seconds=1.0,
+                    debate_seconds=2.0,
+                    total_seconds=3.0,
+                    input_tokens=10,
+                    output_tokens=5,
+                    total_tokens=15,
+                    estimated_cost_usd=0.0,
+                    model_runtime="local",
+                    judge_calls=[],
+                    debate_calls=[],
+                )
+            ),
+            "run_metrics",
+        )
 
     def test_to_api_envelope_assigns_sequence_and_run_id(self):
         created_at = datetime(2026, 6, 24, 12, 0, tzinfo=UTC)

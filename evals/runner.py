@@ -22,9 +22,11 @@ from events import (
     JudgeVerdictCompleted,
     PhaseStarted,
     PipelineCompleted,
+    RunMetrics,
 )
 from judges.schemas import RoastPanel
 from log_config import get_logger
+from observability.metrics import ModelRuntime
 from pipeline import stream_pipeline
 
 logger = get_logger(__name__)
@@ -40,16 +42,12 @@ def run_idea_eval(
     *,
     max_debate_rounds: int,
     include_appeals: bool = True,
+    model_runtime: ModelRuntime = "local",
 ) -> dict[str, Any]:
     judge_attempts: list[dict[str, Any]] = []
     roast_panel_dict: dict[str, Any] | None = None
     debate_result: dict[str, Any] | None = None
-
-    start = time.perf_counter()
-    phase_started_at = start
-    roast_seconds = 0.0
-    debate_seconds = 0.0
-    in_debate = False
+    run_metrics: dict[str, Any] | None = None
 
     roast_panel_obj: RoastPanel | None = None
     judges_total = 0
@@ -62,7 +60,12 @@ def run_idea_eval(
         include_appeals,
     )
 
-    for event in stream_pipeline(model, idea.idea_text, max_debate_rounds=max_debate_rounds):
+    for event in stream_pipeline(
+        model,
+        idea.idea_text,
+        max_debate_rounds=max_debate_rounds,
+        model_runtime=model_runtime,
+    ):
         if isinstance(event, JudgesDispatched):
             judges_total = event.total
             logger.info("[%s] roast phase: dispatching %d judges", idea.id, event.total)
@@ -76,10 +79,7 @@ def run_idea_eval(
                 event.total,
             )
         elif isinstance(event, PhaseStarted) and event.phase == "debate":
-            roast_seconds = time.perf_counter() - phase_started_at
-            in_debate = True
-            phase_started_at = time.perf_counter()
-            logger.info("[%s] roast complete in %.1fs — starting debate", idea.id, roast_seconds)
+            logger.info("[%s] roast complete — starting debate", idea.id)
         elif isinstance(event, DebateRoundStarted):
             logger.info("[%s] debate round %d started", idea.id, event.round)
         elif isinstance(event, DebateMessagePublished):
@@ -92,22 +92,32 @@ def run_idea_eval(
             )
         elif isinstance(event, DebateSynthesisPublished):
             logger.info("[%s] debate synthesis complete (%d chars)", idea.id, len(event.content))
+        elif isinstance(event, RunMetrics):
+            run_metrics = event.as_dict()
+            logger.info(
+                "[%s] pipeline complete — roast %.1fs, debate %.1fs, ~%d tokens, ~$%.4f",
+                idea.id,
+                event.roast_seconds,
+                event.debate_seconds,
+                event.total_tokens,
+                event.estimated_cost_usd,
+            )
         elif isinstance(event, PipelineCompleted):
             roast_panel_obj = event.roast_panel
             roast_panel_dict = _panel_to_dict(event.roast_panel)
             debate_result = event.debate_result
-            if in_debate:
-                debate_seconds = time.perf_counter() - phase_started_at
-            else:
-                roast_seconds = time.perf_counter() - start
-            logger.info(
-                "[%s] pipeline complete — roast %.1fs, debate %.1fs",
-                idea.id,
-                roast_seconds,
-                debate_seconds,
-            )
 
-    total_seconds = time.perf_counter() - start
+    timings = {
+        "roast_seconds": 0.0,
+        "debate_seconds": 0.0,
+        "total_seconds": 0.0,
+    }
+    if run_metrics is not None:
+        timings = {
+            "roast_seconds": run_metrics["roast_seconds"],
+            "debate_seconds": run_metrics["debate_seconds"],
+            "total_seconds": run_metrics["total_seconds"],
+        }
 
     result: dict[str, Any] = {
         "idea_id": idea.id,
@@ -116,12 +126,10 @@ def run_idea_eval(
         "judge_attempts": judge_attempts,
         "roast_panel": roast_panel_dict,
         "debate_result": debate_result,
-        "timings": {
-            "roast_seconds": round(roast_seconds, 2),
-            "debate_seconds": round(debate_seconds, 2),
-            "total_seconds": round(total_seconds, 2),
-        },
+        "timings": timings,
     }
+    if run_metrics is not None:
+        result["run_metrics"] = run_metrics
 
     if include_appeals and idea.appeal_cases and roast_panel_obj and debate_result:
         logger.info("[%s] starting appeals (weak + strong)", idea.id)
@@ -163,9 +171,8 @@ def run_idea_eval(
             logger.info("[%s] appeal_%s complete in %.1fs", idea.id, case_name, appeal_seconds)
 
     logger.info(
-        "[%s] finished in %.1fs (judges=%d, appeals=%s)",
+        "[%s] finished (judges=%d, appeals=%s)",
         idea.id,
-        total_seconds,
         judges_total or len(judge_attempts),
         include_appeals,
     )

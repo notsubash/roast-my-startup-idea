@@ -23,6 +23,8 @@ from api.events import run_failed_envelope, stream_connected_envelope, to_api_en
 from api.run_store import RunStore
 from api.schemas import ApiEventEnvelope, CreateRunRequest
 from config import Settings, get_settings
+from events import RunMetrics
+from observability.metrics import log_run_metrics
 from pipeline import stream_pipeline
 
 logger = logging.getLogger(__name__)
@@ -185,7 +187,10 @@ class RunManager:
                 startup_idea,
                 max_debate_rounds=record.request.max_debate_rounds,
                 research_context=research_context,
+                model_runtime=record.request.model_runtime,
             ):
+                if isinstance(event, RunMetrics):
+                    log_run_metrics(event.as_dict(), run_id=run_id)
                 emit(to_api_envelope(event, run_id=run_id, sequence=0))
 
         try:

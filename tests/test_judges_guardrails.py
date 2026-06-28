@@ -22,6 +22,7 @@ from judges.service import (
     invoke_judge,
     judge_system_prompt,
 )
+from observability.metrics import RunMetricsCollector
 import tests  # noqa: F401
 
 
@@ -310,6 +311,45 @@ class DegeneratePanelRetryTest(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "remained degenerate"):
             list(stream_roast_panel(model=object(), startup_idea="uniform attack"))
+
+    @patch("judges.panel._run_judge_panel")
+    def test_degenerate_panel_retry_does_not_double_count_metrics(self, run_panel_mock):
+        uniform = [_verdict(judge, verdict="PASS", score=10) for judge in JUDGE_ORDER]
+        corrected = [
+            _verdict("vc", verdict="FAIL", score=2),
+            _verdict("engineer", verdict="CONDITIONAL", score=5),
+            _verdict("pm", verdict="FAIL", score=3),
+            _verdict("customer", verdict="CONDITIONAL", score=4),
+            _verdict("competitor", verdict="FAIL", score=2),
+        ]
+        metrics = RunMetricsCollector(model_runtime="deepseek")
+
+        def first_panel(*_args, **kwargs):
+            panel_metrics = kwargs.get("metrics")
+            if panel_metrics is not None:
+                for judge in JUDGE_ORDER:
+                    panel_metrics.record_judge(
+                        judge, seconds=1.0, prompt_text="a" * 40, output_text="b" * 20
+                    )
+            return {verdict.judge.value: verdict for verdict in uniform}
+
+        def second_panel(*_args, **kwargs):
+            panel_metrics = kwargs.get("metrics")
+            if panel_metrics is not None:
+                for judge in JUDGE_ORDER:
+                    panel_metrics.record_judge(
+                        judge, seconds=1.0, prompt_text="a" * 40, output_text="b" * 20
+                    )
+            return {verdict.judge.value: verdict for verdict in corrected}
+
+        calls = iter([first_panel, second_panel])
+        run_panel_mock.side_effect = lambda *args, **kwargs: next(calls)(*args, **kwargs)
+
+        list(stream_roast_panel(model=object(), startup_idea="uniform attack", metrics=metrics))
+
+        snapshot = metrics.snapshot(roast_seconds=1.0, debate_seconds=0.0, total_seconds=1.0)
+        self.assertEqual(len(snapshot["judge_calls"]), 5)
+        self.assertEqual(snapshot["total_tokens"], 5 * ((40 // 4) + (20 // 4)))
 
 
 if __name__ == "__main__":

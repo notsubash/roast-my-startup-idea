@@ -12,11 +12,16 @@ from events import (
     DebateTokenDelta,
     JudgesDispatched,
     JudgeVerdictCompleted,
+    PhaseStarted,
+    PipelineCompleted,
     RoastPanelCompleted,
+    RunMetrics,
 )
 from judges.panel import run_roast_panel, stream_roast_panel
 from judges.schemas import RoastPanel
+from observability.metrics import ModelRuntime, format_run_metrics_footer
 from orchestrator.deep_agent import run_roast_via_orchestrator
+from pipeline import stream_pipeline
 from ui.text_display import plain_text_html, write_plain_text
 
 VERDICT_ICONS = {"PASS": "\U0001f7e2", "FAIL": "\U0001f534", "CONDITIONAL": "\U0001f7e1"}
@@ -160,3 +165,129 @@ def run_debate_in_container(
             }
 
     return result
+
+
+def run_deterministic_pipeline_in_ui(
+    model,
+    startup_idea: str,
+    max_rounds: int,
+    status,
+    debate_container,
+    *,
+    memory_context: str | None = None,
+    research_context: str | None = None,
+    model_runtime: ModelRuntime = "local",
+) -> tuple[RoastPanel, dict, dict | None]:
+    """Run the production pipeline and render roast/debate progress in Streamlit."""
+    roast_panel: RoastPanel | None = None
+    debate_result: dict | None = None
+    run_metrics: dict | None = None
+    progress_bar = None
+    thinking_placeholder = debate_container.empty()
+    streaming: dict | None = None
+
+    for event in stream_pipeline(
+        model,
+        startup_idea,
+        max_debate_rounds=max_rounds,
+        memory_context=memory_context,
+        research_context=research_context,
+        model_runtime=model_runtime,
+    ):
+        if isinstance(event, PhaseStarted):
+            if event.phase == "debate":
+                status.update(label="Phase 2: Judges are debating...", state="running")
+            continue
+
+        if isinstance(event, JudgesDispatched):
+            status.write(f"Dispatching {event.total} judges in parallel...")
+            progress_bar = status.progress(0, text=f"0/{event.total} judges responded")
+            continue
+
+        if isinstance(event, JudgeVerdictCompleted):
+            icon = VERDICT_ICONS.get(event.verdict.verdict.value, "\u26aa")
+            status.write(
+                f"{icon} **{event.judge.upper()}** — "
+                f"{event.verdict.score}/10 ({event.verdict.verdict.value})"
+            )
+            if progress_bar:
+                progress_bar.progress(
+                    event.completed / event.total,
+                    text=f"{event.completed}/{event.total} judges responded",
+                )
+            continue
+
+        if isinstance(event, RoastPanelCompleted):
+            roast_panel = event.panel
+            continue
+
+        if isinstance(event, DebateRoundStarted):
+            thinking_placeholder.empty()
+            debate_container.markdown(f"#### Round {event.round}")
+            continue
+
+        if isinstance(event, DebateTokenDelta):
+            thinking_placeholder.empty()
+            key = (event.speaker, event.round)
+            if streaming is None or streaming["key"] != key:
+                avatar = JUDGE_AVATARS.get(event.speaker, "\U0001f916")
+                with debate_container.chat_message(event.speaker, avatar=avatar):
+                    st.markdown(f"**{event.speaker.upper()}**")
+                    streaming = {"key": key, "text": "", "placeholder": st.empty()}
+            streaming["text"] += event.delta
+            streaming["placeholder"].markdown(
+                plain_text_html(streaming["text"]),
+                unsafe_allow_html=True,
+            )
+            continue
+
+        if isinstance(event, DebateMessagePublished):
+            thinking_placeholder.empty()
+            key = (event.speaker, event.round)
+            if streaming is not None and streaming["key"] == key:
+                streaming["placeholder"].markdown(
+                    plain_text_html(event.content),
+                    unsafe_allow_html=True,
+                )
+                streaming = None
+            else:
+                avatar = JUDGE_AVATARS.get(event.speaker, "\U0001f916")
+                with debate_container.chat_message(event.speaker, avatar=avatar):
+                    st.markdown(f"**{event.speaker.upper()}**")
+                    write_plain_text(event.content)
+            continue
+
+        if isinstance(event, DebateSpeakerThinking):
+            thinking_placeholder.caption(f"⏳ {event.judge.upper()} is thinking...")
+            continue
+
+        if isinstance(event, DebateSynthesisPublished):
+            thinking_placeholder.empty()
+            continue
+
+        if isinstance(event, RunMetrics):
+            run_metrics = event.as_dict()
+            continue
+
+        if isinstance(event, PipelineCompleted):
+            roast_panel = event.roast_panel
+            debate_result = event.debate_result
+            continue
+
+        if isinstance(event, DebateCompleted):
+            debate_result = {
+                "debate_messages": event.debate_messages,
+                "final_synthesis": event.final_synthesis,
+            }
+
+    if roast_panel is None or debate_result is None:
+        raise RuntimeError("Pipeline did not complete")
+
+    return roast_panel, debate_result, run_metrics
+
+
+def render_run_metrics_footer(metrics: dict | None) -> None:
+    """Show the run cost/latency summary when metrics are available."""
+    if metrics is None:
+        return
+    st.caption(format_run_metrics_footer(metrics))

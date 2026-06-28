@@ -16,6 +16,7 @@ sys.modules.setdefault(
 )
 
 from judges.schemas import RoastPanel, Verdict
+from observability.metrics import format_run_metrics_footer
 from ui.streamlit_runner import run_deepagent_roast_in_status
 
 
@@ -98,6 +99,17 @@ class StreamlitRunnerTest(unittest.TestCase):
             any("falling back to deterministic phase 1" in m.lower() for m in status.messages)
         )
         run_roast_panel_mock.assert_called_once()
+
+    def test_format_run_metrics_footer_matches_spec_example(self):
+        footer = format_run_metrics_footer(
+            {
+                "roast_seconds": 4.2,
+                "debate_seconds": 11.8,
+                "total_tokens": 3100,
+                "estimated_cost_usd": 0.004,
+            }
+        )
+        self.assertEqual(footer, "Roast 4.2s · Debate 11.8s · ~3.1k tokens · ~$0.004")
 
 
 if __name__ == "__main__":

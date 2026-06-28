@@ -75,6 +75,34 @@ class PipelineCompleted:
     debate_result: dict
 
 
+@dataclass(frozen=True)
+class RunMetrics:
+    roast_seconds: float
+    debate_seconds: float
+    total_seconds: float
+    input_tokens: int
+    output_tokens: int
+    total_tokens: int
+    estimated_cost_usd: float
+    model_runtime: str
+    judge_calls: list[dict]
+    debate_calls: list[dict]
+
+    def as_dict(self) -> dict:
+        return {
+            "roast_seconds": self.roast_seconds,
+            "debate_seconds": self.debate_seconds,
+            "total_seconds": self.total_seconds,
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
+            "total_tokens": self.total_tokens,
+            "estimated_cost_usd": self.estimated_cost_usd,
+            "model_runtime": self.model_runtime,
+            "judge_calls": self.judge_calls,
+            "debate_calls": self.debate_calls,
+        }
+
+
 PipelineEvent = (
     PhaseStarted
     | JudgesDispatched
@@ -86,5 +114,6 @@ PipelineEvent = (
     | DebateMessagePublished
     | DebateSynthesisPublished
     | DebateCompleted
+    | RunMetrics
     | PipelineCompleted
 )

@@ -17,6 +17,7 @@ from events import (
     PipelineCompleted,
     PipelineEvent,
     RoastPanelCompleted,
+    RunMetrics,
 )
 from judges.panel import run_roast_panel, stream_roast_panel
 from judges.schemas import RoastPanel
@@ -25,6 +26,7 @@ from memory.models import IdeaRecord
 from memory.retrieval import records_for_memory
 from memory.store import IdeaStore
 from observability import build_run_config, idea_fingerprint, traceable
+from observability.metrics import ModelRuntime, PhaseTimer, RunMetricsCollector
 from orchestrator.deep_agent import run_roast_via_orchestrator
 from version import get_version
 
@@ -68,13 +70,15 @@ def stream_pipeline(
     user_id: str | None = None,
     idea_store: IdeaStore | None = None,
     memory_limit: int = 3,
+    memory_context: str | None = None,
     research_context: str | None = None,
     run_config: dict | None = None,
+    model_runtime: ModelRuntime = "local",
 ) -> Iterator[PipelineEvent]:
     """Run roast panel then debate, yielding all intermediate events."""
-    memory_context = ""
-    if user_id and idea_store:
-        memory_context = build_memory_context(
+    resolved_memory_context = memory_context or ""
+    if not resolved_memory_context and user_id and idea_store:
+        resolved_memory_context = build_memory_context(
             records_for_memory(idea_store, user_id, startup_idea, limit=memory_limit)
         )
 
@@ -84,15 +88,20 @@ def stream_pipeline(
         max_debate_rounds=max_debate_rounds,
     )
 
+    metrics = RunMetricsCollector(model_runtime=model_runtime)
+    timer = PhaseTimer()
+    in_debate = False
+
     yield PhaseStarted(phase="roast")
 
     roast_panel: RoastPanel | None = None
     for event in stream_roast_panel(
         model,
         startup_idea,
-        memory_context,
+        resolved_memory_context,
         research_context,
         run_config=resolved_config,
+        metrics=metrics,
     ):
         yield event
         if isinstance(event, RoastPanelCompleted):
@@ -101,6 +110,8 @@ def stream_pipeline(
     if roast_panel is None:
         raise RuntimeError("Roast panel did not complete")
 
+    timer.start_debate()
+    in_debate = True
     yield PhaseStarted(phase="debate")
 
     debate_result: dict | None = None
@@ -110,6 +121,7 @@ def stream_pipeline(
         roast_panel,
         max_debate_rounds,
         run_config=resolved_config,
+        metrics=metrics,
     ):
         yield event
         if isinstance(event, DebateCompleted):
@@ -131,6 +143,13 @@ def stream_pipeline(
             )
         )
 
+    roast_seconds, debate_seconds, total_seconds = timer.finish(in_debate=in_debate)
+    metrics_payload = metrics.snapshot(
+        roast_seconds=roast_seconds,
+        debate_seconds=debate_seconds,
+        total_seconds=total_seconds,
+    )
+    yield RunMetrics(**metrics_payload)
     yield PipelineCompleted(roast_panel=roast_panel, debate_result=debate_result)
 
 

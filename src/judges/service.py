@@ -1,5 +1,8 @@
 """Single-judge evaluation — no UI, no orchestration."""
 
+import json
+import time
+
 from jinja2 import Environment, FileSystemLoader
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import ValidationError
@@ -9,6 +12,7 @@ from idea_context import UNTRUSTED_DATA_INSTRUCTION, wrap_untrusted, wrap_user_i
 from judges.guardrails import GuardrailError, validate_structured_verdict
 from judges.schemas import Verdict
 from observability import build_run_config, idea_fingerprint, optional_config_kwargs
+from observability.metrics import RunMetricsCollector
 
 template_env = Environment(loader=FileSystemLoader(PROMPTS_DIR))
 JUDGE_MAX_ATTEMPTS = 3
@@ -49,6 +53,22 @@ def build_judge_user_prompt(
     )
 
 
+def _message_text(messages) -> str:
+    parts: list[str] = []
+    for message in messages:
+        content = getattr(message, "content", message)
+        parts.append(content if isinstance(content, str) else str(content))
+    return "\n\n".join(parts)
+
+
+def _structured_result_text(result) -> str:
+    if hasattr(result, "model_dump_json"):
+        return result.model_dump_json()
+    if isinstance(result, dict):
+        return json.dumps(result)
+    return str(result)
+
+
 def invoke_structured_verdict(
     structured_model,
     messages,
@@ -56,7 +76,12 @@ def invoke_structured_verdict(
     *,
     run_config: dict,
     label: str = "judge",
+    metrics: RunMetricsCollector | None = None,
+    started_at: float | None = None,
 ) -> Verdict:
+    prompt_text = _message_text(messages)
+    output_parts: list[str] = []
+    attempt_started = started_at if started_at is not None else time.perf_counter()
     last_error: ValidationError | GuardrailError | None = None
     for _ in range(JUDGE_MAX_ATTEMPTS):
         result = structured_model.invoke(messages, **optional_config_kwargs(run_config))
@@ -64,9 +89,18 @@ def invoke_structured_verdict(
         if result is None:
             continue
 
+        output_parts.append(_structured_result_text(result))
+
         try:
             verdict = Verdict.model_validate(result)
             validate_structured_verdict(verdict, judge=judge)
+            if metrics is not None:
+                metrics.record_judge(
+                    judge,
+                    seconds=time.perf_counter() - attempt_started,
+                    prompt_text=prompt_text,
+                    output_text="\n".join(output_parts),
+                )
             return verdict
         except (ValidationError, GuardrailError) as exc:
             last_error = exc
@@ -91,6 +125,7 @@ def invoke_judge(
     run_config: dict | None = None,
     *,
     system_suffix: str | None = None,
+    metrics: RunMetricsCollector | None = None,
 ) -> Verdict:
     """Evaluate one startup idea with structured output."""
     user_content = build_judge_user_prompt(
@@ -110,10 +145,13 @@ def invoke_judge(
         metadata={"idea_fingerprint": idea_fingerprint(startup_idea)},
     )
 
+    started_at = time.perf_counter()
     return invoke_structured_verdict(
         structured_model,
         messages,
         judge,
         run_config=resolved_config,
         label="judge",
+        metrics=metrics,
+        started_at=started_at,
     )

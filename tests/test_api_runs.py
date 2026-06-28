@@ -25,6 +25,7 @@ from events import (
     PhaseStarted,
     PipelineCompleted,
     RoastPanelCompleted,
+    RunMetrics,
 )
 from judges.schemas import RoastPanel, Verdict
 import tests  # noqa: F401
@@ -247,6 +248,18 @@ class ApiRunsTest(unittest.TestCase):
                 RoastPanelCompleted(panel=_panel()),
                 PhaseStarted(phase="debate"),
                 DebateCompleted(debate_messages=[], final_synthesis="summary"),
+                RunMetrics(
+                    roast_seconds=4.2,
+                    debate_seconds=11.8,
+                    total_seconds=16.0,
+                    input_tokens=2500,
+                    output_tokens=600,
+                    total_tokens=3100,
+                    estimated_cost_usd=0.004,
+                    model_runtime="deepseek",
+                    judge_calls=[],
+                    debate_calls=[],
+                ),
                 PipelineCompleted(
                     roast_panel=_panel(),
                     debate_result={"debate_messages": [], "final_synthesis": "summary"},
@@ -267,6 +280,8 @@ class ApiRunsTest(unittest.TestCase):
         self.assertEqual(events[0]["sequence"], 0)
         self.assertEqual(events[1]["type"], "phase_started")
         self.assertEqual(events[1]["sequence"], 1)
+        self.assertEqual(events[-2]["type"], "run_metrics")
+        self.assertEqual(events[-2]["payload"]["total_tokens"], 3100)
         self.assertEqual(events[-1]["type"], "run_completed")
         self.assertTrue(all(event["run_id"] == run_id for event in events))
 

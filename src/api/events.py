@@ -17,6 +17,7 @@ from events import (
     PipelineCompleted,
     PipelineEvent,
     RoastPanelCompleted,
+    RunMetrics,
 )
 
 
@@ -32,6 +33,8 @@ def _camel_to_snake(name: str) -> str:
 def pipeline_event_type(event: PipelineEvent) -> str:
     if isinstance(event, PipelineCompleted):
         return "run_completed"
+    if isinstance(event, RunMetrics):
+        return "run_metrics"
     return _camel_to_snake(type(event).__name__)
 
 
@@ -77,6 +80,8 @@ def pipeline_event_payload(event: PipelineEvent) -> dict[str, Any]:
             "roast_panel": event.roast_panel.model_dump(mode="json"),
             "debate_result": event.debate_result,
         }
+    if isinstance(event, RunMetrics):
+        return event.as_dict()
     raise TypeError(f"Unsupported pipeline event: {type(event)!r}")
 
 

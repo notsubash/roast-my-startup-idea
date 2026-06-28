@@ -1,4 +1,5 @@
 import json
+import time
 from typing import Any
 
 from jinja2 import Environment, FileSystemLoader
@@ -7,6 +8,7 @@ from langgraph.config import get_stream_writer
 
 from config import DEBATE_PERSONAS, JUDGE_ORDER, PROMPTS_DIR
 from idea_context import wrap_user_idea
+from observability.metrics import RunMetricsCollector
 
 template_env = Environment(loader=FileSystemLoader(PROMPTS_DIR))
 
@@ -39,11 +41,17 @@ def _stream_model_text(
     *,
     speaker: str | None = None,
     round_num: int | None = None,
+    metrics: RunMetricsCollector | None = None,
+    call_label: str | None = None,
 ) -> str:
     """Stream LLM output; emit debate_token custom events when inside a graph node."""
+    started_at = time.perf_counter()
+    prompt_text = messages[0]["content"] if messages else ""
+    label = call_label or speaker or "debate"
     stream = getattr(model, "stream", None)
     if stream is None:
-        text = _response_text(model.invoke(messages))
+        response = model.invoke(messages)
+        text = _response_text(response)
         writer = get_stream_writer()
         if writer and speaker is not None and text:
             writer(
@@ -54,11 +62,21 @@ def _stream_model_text(
                     "delta": text,
                 }
             )
+        if metrics is not None:
+            metrics.record_debate(
+                label,
+                seconds=time.perf_counter() - started_at,
+                response=response,
+                prompt_text=prompt_text,
+                output_text=text,
+            )
         return text
 
     writer = get_stream_writer()
     parts: list[str] = []
+    last_chunk: Any = None
     for chunk in stream(messages):
+        last_chunk = chunk
         delta = _chunk_delta(chunk)
         if not delta:
             continue
@@ -72,7 +90,16 @@ def _stream_model_text(
                     "delta": delta,
                 }
             )
-    return "".join(parts).strip()
+    text = "".join(parts).strip()
+    if metrics is not None:
+        metrics.record_debate(
+            label,
+            seconds=time.perf_counter() - started_at,
+            response=last_chunk,
+            prompt_text=prompt_text,
+            output_text=text,
+        )
+    return text
 
 
 def _own_verdict(state: dict, judge: str) -> dict | None:
@@ -92,7 +119,7 @@ def _recent_transcript(state: dict, limit: int = 8) -> str:
     )
 
 
-def make_speaker_node(judge: str, model: Any):
+def make_speaker_node(judge: str, model: Any, metrics: RunMetricsCollector | None = None):
     def speaker_node(state: dict) -> dict:
         # ponytail: LangGraph get_stream_writer + stream_mode="custom" in service.py
         # streams tokens mid-node; graph still owns routing.
@@ -114,6 +141,7 @@ def make_speaker_node(judge: str, model: Any):
             ],
             speaker=judge,
             round_num=state["round"],
+            metrics=metrics,
         )
 
         return {
@@ -134,28 +162,38 @@ def _format_verdicts_readable(verdicts: list[dict]) -> str:
     return "\n".join(parts)
 
 
-def make_moderator_node(model: Any):
+def make_moderator_node(model: Any, metrics: RunMetricsCollector | None = None):
     def moderator_node(state: dict) -> dict:
         transcript = "\n".join(
             f"Round {msg['round']}: {msg['speaker']}: {msg['content']}"
             for msg in state["debate_messages"]
         )
 
+        prompt = template_env.get_template("moderator_node_prompt.jinja2").render(
+            state=state,
+            startup_idea=wrap_user_idea(state["startup_idea"]),
+            original_verdicts=_format_verdicts_readable(state["verdicts"]),
+            transcript=transcript,
+        )
+        started_at = time.perf_counter()
         response = model.invoke(
             [
                 {
                     "role": "user",
-                    "content": template_env.get_template("moderator_node_prompt.jinja2").render(
-                        state=state,
-                        startup_idea=wrap_user_idea(state["startup_idea"]),
-                        original_verdicts=_format_verdicts_readable(state["verdicts"]),
-                        transcript=transcript,
-                    ),
+                    "content": prompt,
                 }
             ]
         )
 
         synthesis = _response_text(response)
+        if metrics is not None:
+            metrics.record_debate(
+                "moderator",
+                seconds=time.perf_counter() - started_at,
+                response=response,
+                prompt_text=prompt,
+                output_text=synthesis,
+            )
 
         return {
             "final_synthesis": synthesis,

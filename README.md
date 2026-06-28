@@ -13,6 +13,7 @@ Submit a startup idea and get torn apart, constructively, by a VC, engineer, pro
 | **Synthesis** | Moderator ties it together into a final verdict |
 | **Appeal** | Founder rebuttal → revised scores and updated synthesis |
 | **Memory** | Past ideas inform future roasts (compact summaries; optional semantic retrieval) |
+| **Run metrics** | Per-phase latency, token usage, and estimated cost (Streamlit footer + SSE `run_metrics`) |
 
 ## Quick start
 
@@ -47,7 +48,7 @@ Endpoints:
 | `GET` | `/api/runs/{run_id}` | Poll run status |
 | `GET` | `/api/runs/{run_id}/events` | SSE stream of roast/debate events |
 
-Create a run, then open an `EventSource` (or equivalent) on `/api/runs/{run_id}/events`. The stream emits ordered envelopes ending in `run_completed` or `run_failed`.
+Create a run, then open an `EventSource` (or equivalent) on `/api/runs/{run_id}/events`. The stream emits ordered envelopes ending in `run_metrics` (latency, token counts, estimated cost), then `run_completed` or `run_failed`.
 
 The run engine is decoupled from the HTTP connection: `RunManager` drives the pipeline once into a durable SQLite event log (`data/runs.db`). Multiple tabs can watch the same run; disconnect and reconnect with the SSE `Last-Event-ID` header to resume without gaps. Heartbeat comment frames keep idle connections alive (`SSE_HEARTBEAT_SECONDS`, default 15s).
 
@@ -64,6 +65,7 @@ Run uvicorn with a single worker per machine; background tasks and in-process su
 | **Synthesis** | Moderator produces a final summary |
 | **Appeal** *(optional)* | Founder rebuttal → judges revise scores → updated synthesis |
 | **Memory** | Prior ideas summarized into future judge prompts (SQLite, session-scoped; optional semantic retrieval) |
+| **Metrics** | Wall-clock per phase, token counts, and estimated API cost (`run_metrics` event) |
 
 Each judge returns structured output: score, pass/fail/conditional label, roast, and key concern. The UI renders a radar chart, debate transcript, and Markdown export.
 
@@ -94,9 +96,9 @@ User idea
   → Persist compact idea memory
 ```
 
-**Deterministic pipeline** (`src/pipeline.py`): Direct model calls plus LangGraph guarantee all five judges speak, debate rounds advance predictably, and Pydantic validates every boundary. Debate streams token deltas (`DebateTokenDelta`) for live UI updates.
+**Deterministic pipeline** (`src/pipeline.py`): Direct model calls plus LangGraph guarantee all five judges speak, debate rounds advance predictably, and Pydantic validates every boundary. Debate streams token deltas (`DebateTokenDelta`) for live UI updates. At completion the pipeline emits `RunMetrics` (roast/debate seconds, tokens, estimated cost) before `PipelineCompleted`.
 
-**Run engine** (`src/api/run_manager.py`): Background task per run, durable event log in SQLite, subscriber-based SSE with reconnect support.
+**Run engine** (`src/api/run_manager.py`): Background task per run, durable event log in SQLite, subscriber-based SSE with reconnect support. Structured `run_metrics` JSON is logged once per API run (with `run_id`).
 
 **DeepAgents orchestrator** (`src/orchestrator/deep_agent.py`): Agent harness that dispatches subagents via `task()` with stronger tool-calling models. Not the default user path.
 
@@ -157,6 +159,8 @@ Traces cover roast panel calls, LangGraph debate, appeal flows, and experimental
 
 Filter by tags such as `phase:roast`, `phase:debate`, `phase:appeal`, or `flow:deterministic`.
 
+**Run metrics (in-app):** the deterministic Streamlit path and API SSE stream surface per-run cost and latency without opening LangSmith — phase wall-clock, token totals, and a static DeepSeek/local cost estimate from `src/observability/metrics.py`. Token counts use provider metadata when available, otherwise a chars÷4 fallback.
+
 ![LangSmith tracing dashboard](images/Observability.png)
 
 ## Using the app
@@ -165,9 +169,9 @@ Filter by tags such as `phase:roast`, `phase:debate`, `phase:appeal`, or `flow:d
 2. Choose execution flow: **Deterministic (production)** or **DeepAgents (experimental)**.
 3. Choose model runtime: **local** or **deepseek**.
 4. Optionally enable **Web research (Tavily)**.
-5. Review verdicts, radar chart, debate transcript, and synthesis.
+5. Review verdicts, radar chart, debate transcript, synthesis, and the **run metrics** footer (e.g. `Roast 4.2s · Debate 11.8s · ~3.1k tokens · ~$0.004`) on deterministic runs.
 6. Use **Appeal Mode** with concrete evidence (LOIs, pilots, buyer persona, not persuasion alone).
-7. Download the Markdown transcript if needed.
+7. Download the Markdown transcript if needed (includes run metrics when available).
 
 ### Memory
 
@@ -192,8 +196,8 @@ src/
   memory/                        SQLite store, semantic retrieval, compact prompt context
   appeal/                        Re-evaluation and synthesis
   orchestrator/deep_agent.py     Experimental DeepAgents path
-  observability/langsmith.py     LangSmith bootstrap and run config
-  ui/streamlit_runner.py         Streamlit event-stream adapters
+  observability/                 LangSmith bootstrap; run cost/latency metrics (`metrics.py`)
+  ui/streamlit_runner.py         Streamlit pipeline adapter + metrics footer
   utils/                         Parser fallback, radar chart, transcript export
 tests/                           Unit tests (unittest, fake models, no Ollama required)
 evals/                           Regression evals and monthly audit (see evals/README.md)

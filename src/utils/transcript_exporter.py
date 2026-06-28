@@ -1,7 +1,9 @@
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from judges.schemas import RoastPanel
+from observability.metrics import format_run_metrics_markdown
 
 
 def export_transcript(
@@ -12,6 +14,7 @@ def export_transcript(
     appeal_text: str | None = None,
     revised_panel: RoastPanel | None = None,
     revised_synthesis: str | None = None,
+    run_metrics: dict[str, Any] | None = None,
 ) -> Path:
     """Export the full roast + debate session to a Markdown file."""
     output_dir.mkdir(exist_ok=True)
@@ -26,11 +29,16 @@ def export_transcript(
         f"**Idea:** {startup_idea}",
         f"**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M')}",
         "",
-        "---",
-        "",
-        "## Phase 1: Individual Roasts",
-        "",
     ]
+    lines.extend(format_run_metrics_markdown(run_metrics))
+    lines.extend(
+        [
+            "---",
+            "",
+            "## Phase 1: Individual Roasts",
+            "",
+        ]
+    )
 
     for v in roast_panel.verdicts:
         lines.append(f"### {v.judge.value.upper()} — {v.verdict.value} ({v.score}/10)")

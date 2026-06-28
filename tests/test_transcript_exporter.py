@@ -65,6 +65,32 @@ class TranscriptExporterTest(unittest.TestCase):
             self.assertIn("## Final Synthesis", content)
             self.assertNotIn("## Phase 3: Appeal", content)
 
+    def test_export_includes_run_metrics_when_provided(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = export_transcript(
+                "AI calendar for founders",
+                _panel(3, "No urgent buyer."),
+                {"final_synthesis": "Too vague to fund.", "debate_messages": []},
+                output_dir=Path(tmpdir),
+                run_metrics={
+                    "roast_seconds": 4.2,
+                    "debate_seconds": 11.8,
+                    "total_seconds": 16.0,
+                    "input_tokens": 2500,
+                    "output_tokens": 600,
+                    "total_tokens": 3100,
+                    "estimated_cost_usd": 0.004,
+                    "model_runtime": "deepseek",
+                    "judge_calls": [],
+                    "debate_calls": [],
+                },
+            )
+            content = path.read_text(encoding="utf-8")
+            self.assertIn("## Run Metrics", content)
+            self.assertIn("Roast 4.2s · Debate 11.8s · ~3.1k tokens · ~$0.004", content)
+            self.assertIn("2,500 input / 600 output", content)
+            self.assertIn("$0.0040 (deepseek)", content)
+
     def test_export_with_appeal_includes_revised_verdicts_and_synthesis(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = export_transcript(

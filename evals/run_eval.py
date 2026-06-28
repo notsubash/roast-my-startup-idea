@@ -100,6 +100,7 @@ def run_local_eval(
             idea,
             max_debate_rounds=debate_rounds,
             include_appeals=include_appeals,
+            model_runtime=runtime,  # type: ignore[arg-type]
         )
         metrics = score_idea_result(
             result,

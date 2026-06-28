@@ -9,6 +9,7 @@ from judges.guardrails import is_degenerate_panel
 from judges.schemas import RoastPanel, Verdict
 from judges.service import DEGENERATE_PANEL_RETRY_SUFFIX, invoke_judge
 from observability import build_run_config, idea_fingerprint, traceable
+from observability.metrics import RunMetricsCollector
 
 
 def _run_judge_panel(
@@ -19,6 +20,7 @@ def _run_judge_panel(
     run_config: dict,
     *,
     system_suffix: str | None = None,
+    metrics: RunMetricsCollector | None = None,
 ) -> dict[str, Verdict]:
     total = len(JUDGE_ORDER)
     with concurrent.futures.ThreadPoolExecutor(max_workers=total) as pool:
@@ -32,6 +34,7 @@ def _run_judge_panel(
                 research_context,
                 run_config,
                 system_suffix=system_suffix,
+                metrics=metrics,
             ): judge
             for judge in JUDGE_ORDER
         }
@@ -49,6 +52,7 @@ def stream_roast_panel(
     memory_context: str | None = None,
     research_context: str | None = None,
     run_config: dict | None = None,
+    metrics: RunMetricsCollector | None = None,
 ) -> Iterator[JudgeVerdictCompleted | JudgesDispatched | RoastPanelCompleted]:
     """Run all judges in parallel; yield verdict events after the panel completes."""
     total = len(JUDGE_ORDER)
@@ -65,10 +69,13 @@ def stream_roast_panel(
         memory_context,
         research_context,
         resolved_config,
+        metrics=metrics,
     )
     verdicts = [results[judge] for judge in JUDGE_ORDER]
     if is_degenerate_panel(verdicts):
         # ponytail: one retry with an anti-collusion suffix; fail closed if still uniform.
+        if metrics is not None:
+            metrics.discard_phase("roast")
         results = _run_judge_panel(
             model,
             startup_idea,
@@ -76,6 +83,7 @@ def stream_roast_panel(
             research_context,
             resolved_config,
             system_suffix=DEGENERATE_PANEL_RETRY_SUFFIX,
+            metrics=metrics,
         )
         verdicts = [results[judge] for judge in JUDGE_ORDER]
         if is_degenerate_panel(verdicts):

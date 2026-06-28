@@ -17,6 +17,7 @@ from events import (
 )
 from judges.schemas import RoastPanel
 from observability import build_run_config, idea_fingerprint, optional_config_kwargs, traceable
+from observability.metrics import RunMetricsCollector
 
 
 def _initial_state(startup_idea: str, roast_panel: RoastPanel, max_rounds: int) -> dict:
@@ -38,6 +39,7 @@ def stream_debate(
     roast_panel: RoastPanel,
     max_rounds: int = 3,
     run_config: dict | None = None,
+    metrics: RunMetricsCollector | None = None,
 ) -> Iterator[
     DebateRoundStarted
     | DebateSpeakerThinking
@@ -47,7 +49,7 @@ def stream_debate(
     | DebateCompleted
 ]:
     """Stream debate graph node updates as frontend-agnostic events."""
-    debate_graph = build_debate_graph(model)
+    debate_graph = build_debate_graph(model, metrics=metrics)
     initial_state = _initial_state(startup_idea, roast_panel, max_rounds)
     resolved_config = run_config or build_run_config(
         "debate-graph",

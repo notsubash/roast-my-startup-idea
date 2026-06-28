@@ -24,9 +24,10 @@ from research.service import (
     format_research_context,
 )
 from ui.streamlit_runner import (
+    render_run_metrics_footer,
     run_debate_in_container,
     run_deepagent_roast_in_status,
-    run_roast_panel_in_status,
+    run_deterministic_pipeline_in_ui,
 )
 from ui.text_display import (
     write_labelled_plain,
@@ -183,6 +184,8 @@ if "revised_synthesis" not in st.session_state:
     st.session_state.revised_synthesis = None
 if "appeal_text_used" not in st.session_state:
     st.session_state.appeal_text_used = None
+if "run_metrics" not in st.session_state:
+    st.session_state.run_metrics = None
 
 # ── Run the pipeline ──
 
@@ -201,6 +204,7 @@ if run_clicked and idea_text.strip():
     st.session_state.revised_panel = None
     st.session_state.revised_synthesis = None
     st.session_state.appeal_text_used = None
+    st.session_state.run_metrics = None
     st.session_state.startup_idea_used = startup_idea
 
     try:
@@ -264,7 +268,10 @@ if run_clicked and idea_text.strip():
                     )
                     st.warning(f"Web research failed: {exc}")
 
-    # ── Phase 1: Roast Panel with streaming verdicts ──
+    # ── Phase 1 + 2: Roast panel and debate ──
+
+    st.subheader("Debate")
+    debate_container = st.container()
 
     with st.status("Phase 1: Judges are roasting your idea...", expanded=True) as status:
         try:
@@ -277,36 +284,38 @@ if run_clicked and idea_text.strip():
                     research_context=research_context,
                     web_search_enabled=deepagent_web_search_enabled,
                 )
+                status.update(
+                    label="\u2705 Phase 1 complete — all judges have spoken!", state="complete"
+                )
+                with st.status("Phase 2: Judges are debating...", expanded=True) as debate_status:
+                    debate_result = run_debate_in_container(
+                        model, startup_idea, roast_panel, max_rounds, debate_container
+                    )
+                    debate_status.update(
+                        label="\u2705 Phase 2 complete — debate concluded!", state="complete"
+                    )
+                st.session_state.run_metrics = None
             else:
-                roast_panel = run_roast_panel_in_status(
+                roast_panel, debate_result, run_metrics = run_deterministic_pipeline_in_ui(
                     model=model,
                     startup_idea=startup_idea,
+                    max_rounds=max_rounds,
                     status=status,
+                    debate_container=debate_container,
                     memory_context=memory_context,
                     research_context=research_context,
+                    model_runtime=model_runtime,
                 )
+                status.update(
+                    label="\u2705 Roast and debate complete — all judges have spoken!",
+                    state="complete",
+                )
+                st.session_state.run_metrics = run_metrics
         except (ValidationError, Exception) as exc:
-            st.error(f"Phase 1 failed: {exc}")
+            st.error(f"Pipeline failed: {exc}")
             st.stop()
-        status.update(label="\u2705 Phase 1 complete — all judges have spoken!", state="complete")
 
     st.session_state.roast_panel = roast_panel
-
-    # ── Phase 2: Debate with streaming ──
-
-    st.subheader("Debate")
-    debate_container = st.container()
-
-    with st.status("Phase 2: Judges are debating...", expanded=True) as status:
-        try:
-            debate_result = run_debate_in_container(
-                model, startup_idea, roast_panel, max_rounds, debate_container
-            )
-        except Exception as exc:
-            st.error(f"Phase 2 failed: {exc}")
-            st.stop()
-        status.update(label="\u2705 Phase 2 complete — debate concluded!", state="complete")
-
     st.session_state.debate_result = debate_result
     record = IdeaRecord(
         user_id=st.session_state.user_id,
@@ -402,6 +411,7 @@ if debate_result is not None:
     st.subheader("\U0001f3af Final Synthesis")
     synthesis = debate_result.get("final_synthesis", "No synthesis produced.")
     write_synthesis(synthesis)
+    render_run_metrics_footer(st.session_state.get("run_metrics"))
 
     # ── Appeal mode ──
 
@@ -510,6 +520,7 @@ if debate_result is not None:
         appeal_text=st.session_state.appeal_text_used,
         revised_panel=revised_panel,
         revised_synthesis=revised_synthesis,
+        run_metrics=st.session_state.get("run_metrics"),
     )
     transcript_content = transcript_path.read_text(encoding="utf-8")
 

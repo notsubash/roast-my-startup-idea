@@ -5,16 +5,17 @@ from langgraph.graph import END, StateGraph
 from debate.nodes import make_moderator_node, make_speaker_node
 from debate.router import JUDGE_ORDER, advance_round, route_next_speaker
 from debate.state import DebateState
+from observability.metrics import RunMetricsCollector
 
 
-def build_debate_graph(model: Any):
+def build_debate_graph(model: Any, metrics: RunMetricsCollector | None = None):
     graph = StateGraph(DebateState)
 
     for judge in JUDGE_ORDER:
-        graph.add_node(judge, make_speaker_node(judge, model))
+        graph.add_node(judge, make_speaker_node(judge, model, metrics=metrics))
 
     graph.add_node("advance_round", advance_round)
-    graph.add_node("moderator", make_moderator_node(model))
+    graph.add_node("moderator", make_moderator_node(model, metrics=metrics))
 
     route_map = {
         **{judge: judge for judge in JUDGE_ORDER},
