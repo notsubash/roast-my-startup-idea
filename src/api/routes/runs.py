@@ -10,7 +10,16 @@ from fastapi.responses import StreamingResponse
 
 from api.deps import build_idea_preview, get_app_settings
 from api.run_manager import RunManager, get_run_manager
-from api.schemas import ApiEventEnvelope, CreateRunRequest, RunCreatedResponse, RunStatusResponse
+from api.schemas import (
+    ApiEventEnvelope,
+    AppealRequest,
+    AppealResponse,
+    CreateRunRequest,
+    RunCreatedResponse,
+    RunListItem,
+    RunListResponse,
+    RunStatusResponse,
+)
 from config import Settings
 
 logger = logging.getLogger(__name__)
@@ -55,6 +64,40 @@ def create_run(
     return RunCreatedResponse(run_id=record.run_id)
 
 
+@router.get("/runs", response_model=RunListResponse)
+def list_runs(
+    manager: Annotated[RunManager, Depends(get_run_manager)],
+    settings: Annotated[Settings, Depends(get_app_settings)],
+    limit: int | None = None,
+    offset: int = 0,
+) -> RunListResponse:
+    resolved_limit = settings.list_runs_default_limit if limit is None else limit
+    if resolved_limit < 1 or resolved_limit > settings.list_runs_max_limit:
+        raise HTTPException(
+            status_code=422,
+            detail=f"limit must be between 1 and {settings.list_runs_max_limit}",
+        )
+    if offset < 0:
+        raise HTTPException(status_code=422, detail="offset must be >= 0")
+
+    items, total = manager.list_runs(limit=resolved_limit, offset=offset)
+    return RunListResponse(
+        runs=[
+            RunListItem(
+                run_id=record.run_id,
+                status=record.status,
+                idea_preview=build_idea_preview(record.request.idea),
+                created_at=record.created_at,
+                verdict_summary=summary,
+            )
+            for record, summary in items
+        ],
+        total=total,
+        limit=resolved_limit,
+        offset=offset,
+    )
+
+
 @router.get("/runs/{run_id}", response_model=RunStatusResponse)
 def get_run_status(
     run_id: str,
@@ -90,6 +133,28 @@ def cancel_run(
         idea=record.request.idea,
         idea_preview=build_idea_preview(record.request.idea),
         created_at=record.created_at,
+    )
+
+
+@router.post("/runs/{run_id}/appeal", response_model=AppealResponse)
+async def appeal_run(
+    run_id: str,
+    body: AppealRequest,
+    manager: Annotated[RunManager, Depends(get_run_manager)],
+    settings: Annotated[Settings, Depends(get_app_settings)],
+) -> AppealResponse:
+    try:
+        original_panel, result = await manager.appeal(run_id, body.appeal_text, settings)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Run not found") from None
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    return AppealResponse(
+        appeal_text=body.appeal_text.strip(),
+        original_panel=original_panel.model_dump(mode="json"),
+        revised_panel=result.revised_panel.model_dump(mode="json"),
+        revised_synthesis=result.revised_synthesis,
     )
 
 

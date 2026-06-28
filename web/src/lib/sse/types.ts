@@ -71,6 +71,13 @@ export interface RunError {
   recoverable: boolean;
 }
 
+export interface AppealResult {
+  appealText: string;
+  originalByJudge: Record<JudgeId, Verdict>;
+  revisedByJudge: Record<JudgeId, Verdict>;
+  revisedSynthesis: string;
+}
+
 export interface RunState {
   lastSequence: number;
   connected: boolean;
@@ -86,6 +93,7 @@ export interface RunState {
   status: RunStatus;
   error: RunError | null;
   cancelMessage: string | null;
+  appeal: AppealResult | null;
 }
 
 export interface ApiEventEnvelope {
@@ -122,5 +130,6 @@ export function initialRunState(
     status,
     error: null,
     cancelMessage: null,
+    appeal: null,
   };
 }

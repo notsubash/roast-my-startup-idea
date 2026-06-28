@@ -30,6 +30,29 @@ from events import (
 from judges.schemas import RoastPanel, Verdict
 import tests  # noqa: F401
 
+
+def _revised_verdict(judge: str, *, score: int = 5) -> Verdict:
+    return Verdict(
+        judge=judge,
+        verdict="CONDITIONAL",
+        roast="After hearing the appeal, there is still meaningful execution risk in this pitch.",
+        score=score,
+        key_concern="The founder needs more evidence before this becomes a clear pass.",
+    )
+
+
+def _revised_panel() -> RoastPanel:
+    return RoastPanel(
+        verdicts=[
+            _revised_verdict("vc", score=5),
+            _revised_verdict("engineer", score=4),
+            _revised_verdict("pm", score=6),
+            _revised_verdict("customer", score=5),
+            _revised_verdict("competitor", score=4),
+        ]
+    )
+
+
 IDEA = "An AI-powered journal for startup founders with daily reflection prompts."
 
 
@@ -746,6 +769,238 @@ class ApiRunsTest(unittest.TestCase):
             self.assertEqual(parsed[-1]["type"], "run_failed")
         finally:
             recovered_manager.close()
+
+    def test_list_runs_empty(self):
+        response = self.client.get("/api/runs")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["runs"], [])
+        self.assertEqual(payload["total"], 0)
+
+    @patch("api.run_manager.build_research_context_for_run", return_value=None)
+    @patch("api.run_manager.build_model_for_run")
+    @patch("api.run_manager.stream_pipeline")
+    def test_list_runs_returns_completed_run_with_verdict_summary(
+        self,
+        stream_pipeline_mock,
+        build_model_mock,
+        _research_mock,
+    ):
+        build_model_mock.return_value = object()
+        stream_pipeline_mock.return_value = iter(
+            [
+                PhaseStarted(phase="roast"),
+                RoastPanelCompleted(panel=_panel()),
+                PipelineCompleted(
+                    roast_panel=_panel(),
+                    debate_result={"debate_messages": [], "final_synthesis": "summary"},
+                ),
+            ]
+        )
+
+        create_response = self.client.post("/api/runs", json={"idea": IDEA})
+        run_id = create_response.json()["run_id"]
+        _fetch_sse_events(self.client, run_id, manager=self.manager)
+
+        list_response = self.client.get("/api/runs")
+        self.assertEqual(list_response.status_code, 200)
+        payload = list_response.json()
+        self.assertEqual(payload["total"], 1)
+        item = payload["runs"][0]
+        self.assertEqual(item["run_id"], run_id)
+        self.assertEqual(item["status"], "completed")
+        self.assertIn("journal", item["idea_preview"])
+        summary = item["verdict_summary"]
+        self.assertEqual(summary["fail"], 5)
+        self.assertEqual(summary["pass"], 0)
+        self.assertEqual(summary["avg_score"], 3.0)
+
+    def test_list_runs_rejects_invalid_pagination(self):
+        response = self.client.get("/api/runs?limit=0")
+        self.assertEqual(response.status_code, 422)
+
+    @patch("api.run_manager.build_research_context_for_run", return_value=None)
+    @patch("api.run_manager.build_model_for_run")
+    @patch("api.run_manager.stream_pipeline")
+    @patch("api.run_manager.run_appeal")
+    def test_appeal_completed_run_returns_revised_panel(
+        self,
+        run_appeal_mock,
+        stream_pipeline_mock,
+        build_model_mock,
+        _research_mock,
+    ):
+        from appeal.service import AppealResult
+
+        build_model_mock.return_value = object()
+        stream_pipeline_mock.return_value = iter(
+            [
+                PhaseStarted(phase="roast"),
+                RoastPanelCompleted(panel=_panel()),
+                PipelineCompleted(
+                    roast_panel=_panel(),
+                    debate_result={"debate_messages": [], "final_synthesis": "summary"},
+                ),
+            ]
+        )
+        run_appeal_mock.return_value = AppealResult(
+            revised_panel=_revised_panel(),
+            revised_synthesis="Revised synthesis after appeal.",
+        )
+
+        create_response = self.client.post("/api/runs", json={"idea": IDEA})
+        run_id = create_response.json()["run_id"]
+        _fetch_sse_events(self.client, run_id, manager=self.manager)
+
+        appeal_response = self.client.post(
+            f"/api/runs/{run_id}/appeal",
+            json={
+                "appeal_text": (
+                    "We completed two university validation studies and signed LOIs "
+                    "with two NCAA programs."
+                ),
+            },
+        )
+        self.assertEqual(appeal_response.status_code, 200)
+        payload = appeal_response.json()
+        self.assertEqual(len(payload["original_panel"]["verdicts"]), 5)
+        self.assertEqual(len(payload["revised_panel"]["verdicts"]), 5)
+        self.assertEqual(payload["revised_synthesis"], "Revised synthesis after appeal.")
+
+        events = self.manager.list_events(run_id)
+        self.assertEqual(events[-1].type, "appeal_completed")
+
+    def test_appeal_unknown_run_returns_404(self):
+        response = self.client.post(
+            "/api/runs/missing-run/appeal",
+            json={"appeal_text": "We have traction and signed LOIs with two pilots."},
+        )
+        self.assertEqual(response.status_code, 404)
+
+    @patch("api.run_manager.build_research_context_for_run", return_value=None)
+    @patch("api.run_manager.build_model_for_run")
+    @patch("api.run_manager.stream_pipeline")
+    def test_appeal_incomplete_run_returns_409(
+        self,
+        stream_pipeline_mock,
+        build_model_mock,
+        _research_mock,
+    ):
+        build_model_mock.return_value = object()
+        stream_pipeline_mock.return_value = iter([PhaseStarted(phase="roast")])
+
+        create_response = self.client.post("/api/runs", json={"idea": IDEA})
+        run_id = create_response.json()["run_id"]
+
+        appeal_response = self.client.post(
+            f"/api/runs/{run_id}/appeal",
+            json={"appeal_text": "We have traction and signed LOIs with two pilots."},
+        )
+        self.assertEqual(appeal_response.status_code, 409)
+
+    @patch("api.run_manager.build_research_context_for_run", return_value=None)
+    @patch("api.run_manager.build_model_for_run")
+    @patch("api.run_manager.stream_pipeline")
+    @patch("api.run_manager.run_appeal")
+    def test_list_runs_uses_revised_panel_after_appeal(
+        self,
+        run_appeal_mock,
+        stream_pipeline_mock,
+        build_model_mock,
+        _research_mock,
+    ):
+        from appeal.service import AppealResult
+
+        build_model_mock.return_value = object()
+        stream_pipeline_mock.return_value = iter(
+            [
+                PhaseStarted(phase="roast"),
+                RoastPanelCompleted(panel=_panel()),
+                PipelineCompleted(
+                    roast_panel=_panel(),
+                    debate_result={"debate_messages": [], "final_synthesis": "summary"},
+                ),
+            ]
+        )
+        run_appeal_mock.return_value = AppealResult(
+            revised_panel=_revised_panel(),
+            revised_synthesis="Revised synthesis after appeal.",
+        )
+
+        create_response = self.client.post("/api/runs", json={"idea": IDEA})
+        run_id = create_response.json()["run_id"]
+        _fetch_sse_events(self.client, run_id, manager=self.manager)
+
+        appeal_response = self.client.post(
+            f"/api/runs/{run_id}/appeal",
+            json={
+                "appeal_text": (
+                    "We completed two university validation studies and signed LOIs "
+                    "with two NCAA programs."
+                ),
+            },
+        )
+        self.assertEqual(appeal_response.status_code, 200)
+
+        list_response = self.client.get("/api/runs")
+        summary = list_response.json()["runs"][0]["verdict_summary"]
+        self.assertEqual(summary["fail"], 0)
+        self.assertEqual(summary["conditional"], 5)
+        self.assertEqual(summary["avg_score"], 4.8)
+
+    @patch("api.run_manager.build_research_context_for_run", return_value=None)
+    @patch("api.run_manager.build_model_for_run")
+    @patch("api.run_manager.stream_pipeline")
+    @patch("api.run_manager.run_appeal")
+    def test_duplicate_appeal_returns_409(
+        self,
+        run_appeal_mock,
+        stream_pipeline_mock,
+        build_model_mock,
+        _research_mock,
+    ):
+        from appeal.service import AppealResult
+
+        build_model_mock.return_value = object()
+        stream_pipeline_mock.return_value = iter(
+            [
+                PhaseStarted(phase="roast"),
+                RoastPanelCompleted(panel=_panel()),
+                PipelineCompleted(
+                    roast_panel=_panel(),
+                    debate_result={"debate_messages": [], "final_synthesis": "summary"},
+                ),
+            ]
+        )
+        run_appeal_mock.return_value = AppealResult(
+            revised_panel=_revised_panel(),
+            revised_synthesis="Revised synthesis after appeal.",
+        )
+
+        create_response = self.client.post("/api/runs", json={"idea": IDEA})
+        run_id = create_response.json()["run_id"]
+        _fetch_sse_events(self.client, run_id, manager=self.manager)
+
+        body = {
+            "appeal_text": (
+                "We completed two university validation studies and signed LOIs "
+                "with two NCAA programs."
+            ),
+        }
+        first = self.client.post(f"/api/runs/{run_id}/appeal", json=body)
+        second = self.client.post(f"/api/runs/{run_id}/appeal", json=body)
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 409)
+
+    def test_appeal_rejects_short_text(self):
+        create_response = self.client.post("/api/runs", json={"idea": IDEA})
+        run_id = create_response.json()["run_id"]
+
+        response = self.client.post(
+            f"/api/runs/{run_id}/appeal",
+            json={"appeal_text": "too short"},
+        )
+        self.assertEqual(response.status_code, 422)
 
 
 if __name__ == "__main__":

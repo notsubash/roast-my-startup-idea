@@ -123,6 +123,87 @@ class RunStore:
             self._conn.commit()
             return envelope
 
+    def append_event_once(
+        self,
+        run_id: str,
+        envelope: ApiEventEnvelope,
+        *,
+        guard_type: str,
+    ) -> ApiEventEnvelope:
+        """Append ``envelope`` only if no event of ``guard_type`` exists for ``run_id``."""
+        with self._lock:
+            exists = self._conn.execute(
+                "SELECT 1 FROM run_events WHERE run_id = ? AND type = ? LIMIT 1",
+                (run_id, guard_type),
+            ).fetchone()
+            if exists:
+                raise ValueError(f"An event of type {guard_type!r} already exists for this run")
+
+            row = self._conn.execute(
+                "SELECT COALESCE(MAX(sequence), -1) FROM run_events WHERE run_id = ?",
+                (run_id,),
+            ).fetchone()
+            next_sequence = int(row[0]) + 1
+            envelope = envelope.model_copy(update={"sequence": next_sequence})
+            self._conn.execute(
+                """
+                INSERT INTO run_events (run_id, sequence, type, payload_json, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    run_id,
+                    envelope.sequence,
+                    envelope.type,
+                    json.dumps(envelope.payload),
+                    envelope.created_at.isoformat(),
+                ),
+            )
+            self._conn.execute(
+                "UPDATE runs SET updated_at = ? WHERE run_id = ?",
+                (envelope.created_at.isoformat(), run_id),
+            )
+            self._conn.commit()
+            return envelope
+
+    def list_runs(self, *, limit: int = 20, offset: int = 0) -> tuple[list[RunRecord], int]:
+        with self._lock:
+            total = int(self._conn.execute("SELECT COUNT(*) FROM runs").fetchone()[0])
+            rows = self._conn.execute(
+                """
+                SELECT run_id, request_json, status, created_at
+                FROM runs
+                ORDER BY created_at DESC
+                LIMIT ? OFFSET ?
+                """,
+                (limit, offset),
+            ).fetchall()
+        records = [
+            RunRecord(
+                run_id=run_id,
+                request=CreateRunRequest.model_validate_json(request_json),
+                status=status,
+                created_at=datetime.fromisoformat(created_at),
+            )
+            for run_id, request_json, status, created_at in rows
+        ]
+        return records, total
+
+    def get_latest_event(self, run_id: str, event_type: str) -> ApiEventEnvelope | None:
+        with self._lock:
+            row = self._conn.execute(
+                """
+                SELECT sequence, type, payload_json, created_at
+                FROM run_events
+                WHERE run_id = ? AND type = ?
+                ORDER BY sequence DESC
+                LIMIT 1
+                """,
+                (run_id, event_type),
+            ).fetchone()
+        if row is None:
+            return None
+        return self._row_to_envelope(run_id, row)
+
     def list_events_after(self, run_id: str, after_sequence: int) -> list[ApiEventEnvelope]:
         with self._lock:
             rows = self._conn.execute(

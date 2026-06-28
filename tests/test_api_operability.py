@@ -263,6 +263,80 @@ class ApiOperabilityTest(unittest.TestCase):
         self.assertEqual(first.status_code, 200)
         self.assertEqual(second.status_code, 429)
 
+    @patch("api.run_manager.build_research_context_for_run", return_value=None)
+    @patch("api.run_manager.build_model_for_run")
+    @patch("api.run_manager.stream_pipeline")
+    @patch("api.run_manager.run_appeal")
+    def test_appeal_rate_limit_returns_429(
+        self,
+        run_appeal_mock,
+        stream_pipeline_mock,
+        build_model_mock,
+        _research_mock,
+    ):
+        from appeal.service import AppealResult
+        from events import PipelineCompleted
+        from tests.test_api_runs import _fetch_sse_events
+
+        build_model_mock.return_value = object()
+        completed_events = [
+            PhaseStarted(phase="roast"),
+            RoastPanelCompleted(panel=_panel()),
+            PipelineCompleted(
+                roast_panel=_panel(),
+                debate_result={"debate_messages": [], "final_synthesis": "summary"},
+            ),
+        ]
+        stream_pipeline_mock.return_value = iter(completed_events)
+        run_appeal_mock.return_value = AppealResult(
+            revised_panel=_panel(),
+            revised_synthesis="Revised synthesis.",
+        )
+
+        limited = Settings(
+            local_model="ollama:test",
+            deepseek_model="test",
+            deepseek_base_url="https://example.com",
+            embedding_model="ollama:test",
+            embedding_dimension=768,
+            enable_semantic_memory=False,
+            max_debate_rounds=3,
+            enable_web_search=False,
+            web_search_max_results=3,
+            sse_heartbeat_seconds=15,
+            stale_run_minutes=30,
+            runs_db_path=self.db_path,
+            rate_limit_enabled=True,
+            rate_limit_requests=30,
+            rate_limit_burst=10,
+            rate_limit_window_seconds=60,
+            rate_limit_appeal_requests=1,
+            rate_limit_appeal_burst=1,
+            rate_limit_appeal_window_seconds=60,
+            max_run_seconds=600,
+        )
+        with patch("api.app.get_settings", return_value=limited):
+            client = TestClient(create_app(manager=self.manager))
+
+        body = {
+            "appeal_text": (
+                "We completed two university validation studies and signed LOIs "
+                "with two NCAA programs."
+            ),
+        }
+
+        run_ids: list[str] = []
+        for _ in range(2):
+            create_response = client.post("/api/runs", json={"idea": IDEA})
+            run_id = create_response.json()["run_id"]
+            run_ids.append(run_id)
+            _fetch_sse_events(client, run_id, manager=self.manager)
+
+        first = client.post(f"/api/runs/{run_ids[0]}/appeal", json=body)
+        second = client.post(f"/api/runs/{run_ids[1]}/appeal", json=body)
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 429)
+
     def test_token_bucket_allows_burst_then_blocks(self):
         limiter = TokenBucketLimiter(rate=0.1, capacity=2.0)
         self.assertTrue(limiter.allow("127.0.0.1"))

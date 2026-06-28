@@ -39,7 +39,12 @@ class Settings:
     rate_limit_requests: int = 30
     rate_limit_burst: int = 10
     rate_limit_window_seconds: float = 60.0
+    rate_limit_appeal_requests: int = 5
+    rate_limit_appeal_burst: int = 2
+    rate_limit_appeal_window_seconds: float = 60.0
     max_run_seconds: int = 600
+    list_runs_default_limit: int = 20
+    list_runs_max_limit: int = 100
     trust_proxy: bool = False
 
 
@@ -71,6 +76,11 @@ def get_settings() -> Settings:
         rate_limit_requests=int(os.getenv("RATE_LIMIT_REQUESTS", "30")),
         rate_limit_burst=int(os.getenv("RATE_LIMIT_BURST", "10")),
         rate_limit_window_seconds=float(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60")),
+        rate_limit_appeal_requests=int(os.getenv("RATE_LIMIT_APPEAL_REQUESTS", "5")),
+        rate_limit_appeal_burst=int(os.getenv("RATE_LIMIT_APPEAL_BURST", "2")),
+        rate_limit_appeal_window_seconds=float(os.getenv("RATE_LIMIT_APPEAL_WINDOW_SECONDS", "60")),
         max_run_seconds=int(os.getenv("MAX_RUN_SECONDS", "600")),
+        list_runs_default_limit=int(os.getenv("LIST_RUNS_DEFAULT_LIMIT", "20")),
+        list_runs_max_limit=int(os.getenv("LIST_RUNS_MAX_LIMIT", "100")),
         trust_proxy=_read_bool("TRUST_PROXY", False),
     )

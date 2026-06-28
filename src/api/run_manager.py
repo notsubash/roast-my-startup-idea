@@ -9,6 +9,7 @@ run dying or a second viewer getting rejected.
 
 import asyncio
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 import logging
 from pathlib import Path
 import threading
@@ -28,14 +29,60 @@ from api.events import (
     to_api_envelope,
 )
 from api.run_store import RunStore
-from api.schemas import ApiEventEnvelope, CreateRunRequest
+from api.schemas import ApiEventEnvelope, CreateRunRequest, VerdictSummary
+from appeal.service import AppealResult, run_appeal
 from config import Settings, get_settings
 from events import RunMetrics
+from judges.schemas import RoastPanel
 from observability.metrics import log_run_metrics
 from pipeline import stream_pipeline
 from run_control import RunAbort
 
 logger = logging.getLogger(__name__)
+
+
+def _verdict_summary_from_panel(panel: dict) -> VerdictSummary | None:
+    verdicts = panel.get("verdicts")
+    if not isinstance(verdicts, list) or not verdicts:
+        return None
+    counts = {"pass": 0, "fail": 0, "conditional": 0}
+    scores: list[float] = []
+    for item in verdicts:
+        if not isinstance(item, dict):
+            continue
+        label = str(item.get("verdict", "")).lower()
+        if label in counts:
+            counts[label] += 1
+        score = item.get("score")
+        if isinstance(score, (int, float)):
+            scores.append(float(score))
+    if not any(counts.values()):
+        return None
+    avg = sum(scores) / len(scores) if scores else None
+    return VerdictSummary(
+        pass_count=counts["pass"],
+        fail_count=counts["fail"],
+        conditional_count=counts["conditional"],
+        avg_score=round(avg, 1) if avg is not None else None,
+    )
+
+
+def _summary_for_completed_run(store: RunStore, run_id: str) -> VerdictSummary | None:
+    appeal = store.get_latest_event(run_id, "appeal_completed")
+    if appeal is not None:
+        revised = appeal.payload.get("revised_panel")
+        if isinstance(revised, dict):
+            summary = _verdict_summary_from_panel(revised)
+            if summary is not None:
+                return summary
+
+    completed = store.get_latest_event(run_id, "run_completed")
+    if completed is None:
+        return None
+    roast_panel = completed.payload.get("roast_panel")
+    if isinstance(roast_panel, dict):
+        return _verdict_summary_from_panel(roast_panel)
+    return None
 
 
 class _RunState:
@@ -57,6 +104,14 @@ class _RunState:
 
     def append(self, envelope: ApiEventEnvelope) -> ApiEventEnvelope:
         envelope = self._store.append_event(self.record.run_id, envelope)
+        for wakeup in self._subscribers:
+            wakeup.set()
+        return envelope
+
+    def append_once(self, envelope: ApiEventEnvelope, *, guard_type: str) -> ApiEventEnvelope:
+        envelope = self._store.append_event_once(
+            self.record.run_id, envelope, guard_type=guard_type
+        )
         for wakeup in self._subscribers:
             wakeup.set()
         return envelope
@@ -119,6 +174,75 @@ class RunManager:
 
     def list_events(self, run_id: str) -> list[ApiEventEnvelope]:
         return self._store.list_events_after(run_id, -1)
+
+    def list_runs(
+        self, *, limit: int = 20, offset: int = 0
+    ) -> tuple[list[tuple[RunRecord, VerdictSummary | None]], int]:
+        records, total = self._store.list_runs(limit=limit, offset=offset)
+        items: list[tuple[RunRecord, VerdictSummary | None]] = []
+        for record in records:
+            summary = (
+                _summary_for_completed_run(self._store, record.run_id)
+                if record.status == "completed"
+                else None
+            )
+            items.append((record, summary))
+        return items, total
+
+    async def appeal(
+        self,
+        run_id: str,
+        appeal_text: str,
+        settings: Settings,
+    ) -> tuple[RoastPanel, AppealResult]:
+        record = self.get(run_id)
+        if record is None:
+            raise KeyError(run_id)
+        if record.status != "completed":
+            raise ValueError("Run must be completed before submitting an appeal")
+        if self._store.get_latest_event(run_id, "appeal_completed") is not None:
+            raise ValueError("An appeal has already been submitted for this run")
+
+        completed = self._store.get_latest_event(run_id, "run_completed")
+        if completed is None:
+            raise ValueError("Run has no completed results to appeal")
+
+        roast_panel = RoastPanel.model_validate(completed.payload["roast_panel"])
+        debate_result = completed.payload.get("debate_result")
+        if not isinstance(debate_result, dict):
+            debate_result = {}
+
+        model = build_model_for_run(record.request, settings)
+        startup_idea = build_startup_idea_context(record.request)
+        result = await asyncio.to_thread(
+            run_appeal,
+            model,
+            startup_idea,
+            roast_panel,
+            debate_result,
+            appeal_text,
+        )
+
+        state = self._ensure_state(run_id)
+        try:
+            state.append_once(
+                ApiEventEnvelope(
+                    type="appeal_completed",
+                    run_id=run_id,
+                    sequence=0,
+                    payload={
+                        "appeal_text": appeal_text.strip(),
+                        "original_panel": roast_panel.model_dump(mode="json"),
+                        "revised_panel": result.revised_panel.model_dump(mode="json"),
+                        "revised_synthesis": result.revised_synthesis,
+                    },
+                    created_at=datetime.now(UTC),
+                ),
+                guard_type="appeal_completed",
+            )
+        except ValueError as exc:
+            raise ValueError("An appeal has already been submitted for this run") from exc
+        return roast_panel, result
 
     def _ensure_state(self, run_id: str) -> _RunState:
         state = self._runs.get(run_id)
