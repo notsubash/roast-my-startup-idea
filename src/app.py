@@ -21,6 +21,7 @@ from memory.context import build_memory_context
 from memory.factory import build_idea_store
 from memory.identity import get_local_user_id
 from memory.models import IdeaRecord
+from memory.lineage import concern_addressed_status, group_by_lineage
 from memory.retrieval import records_for_memory
 from modeling import build_chat_model
 from research.service import (
@@ -126,16 +127,36 @@ with st.sidebar:
     )
     st.divider()
     st.subheader("Memory")
-    recent_records = idea_store.list_recent(st.session_state.user_id, limit=5)
-    if recent_records:
-        for record in recent_records:
-            avg = sum(v.score for v in record.roast_panel.verdicts) / len(
-                record.roast_panel.verdicts
-            )
-            st.markdown(
-                f"**{record.created_at.date()}** · {avg:.1f}/10  \n"
-                f"{idea_display_summary(record.idea_text, max_chars=100)}"
-            )
+    saved_records = idea_store.list_all(st.session_state.user_id, limit=50)
+    if saved_records:
+        for lineage in group_by_lineage(saved_records):
+            root = lineage[0]
+            summary = idea_display_summary(root.idea_text, max_chars=80)
+            if len(lineage) == 1:
+                record = lineage[0]
+                avg = sum(v.score for v in record.roast_panel.verdicts) / len(
+                    record.roast_panel.verdicts
+                )
+                st.markdown(
+                    f"**v{record.version}** · {record.created_at.date()} · {avg:.1f}/10  \n"
+                    f"{summary}"
+                )
+            else:
+                latest = lineage[-1]
+                latest_avg = sum(v.score for v in latest.roast_panel.verdicts) / len(
+                    latest.roast_panel.verdicts
+                )
+                st.markdown(
+                    f"**{summary}**  \n"
+                    f"_{len(lineage)} versions · latest v{latest.version} ({latest_avg:.1f}/10)_"
+                )
+                for record in lineage:
+                    avg = sum(v.score for v in record.roast_panel.verdicts) / len(
+                        record.roast_panel.verdicts
+                    )
+                    st.markdown(
+                        f"&nbsp;&nbsp;v{record.version} · {record.created_at.date()} · {avg:.1f}/10"
+                    )
     else:
         st.caption("No previous ideas remembered yet.")
     st.divider()
@@ -376,6 +397,47 @@ structured_synthesis = (
 )
 
 if roast_panel is not None:
+    current_record = st.session_state.current_record
+    prior_record = (
+        idea_store.get(current_record.parent_id)
+        if current_record is not None and current_record.parent_id
+        else None
+    )
+    if prior_record is not None and current_record is not None:
+        st.subheader("Version Comparison")
+        st.caption(
+            f"Comparing v{current_record.version} to v{prior_record.version} "
+            "(consecutive versions of the same pitch)."
+        )
+        prior_avg = sum(v.score for v in prior_record.roast_panel.verdicts) / len(
+            prior_record.roast_panel.verdicts
+        )
+        current_avg = sum(v.score for v in effective_panel.verdicts) / len(
+            effective_panel.verdicts
+        )
+        avg_delta = current_avg - prior_avg
+        st.metric(
+            "Average score",
+            f"{current_avg:.1f}/10",
+            delta=f"{avg_delta:+.1f}" if avg_delta else "0",
+        )
+        version_cols = st.columns(5)
+        for i, current_v in enumerate(effective_panel.verdicts):
+            prior_v = next(
+                v for v in prior_record.roast_panel.verdicts if v.judge.value == current_v.judge.value
+            )
+            delta = current_v.score - prior_v.score
+            status = concern_addressed_status(prior_v, current_v)
+            with version_cols[i]:
+                st.metric(
+                    label=current_v.judge.value.upper(),
+                    value=f"{current_v.score}/10",
+                    delta=f"{delta:+d}" if delta else "0",
+                )
+                st.caption(f"was {prior_v.score}/10 · {status}")
+                write_labelled_plain("Prior concern:", prior_v.key_concern)
+        st.divider()
+
     if structured_synthesis is not None:
         st.subheader("\U0001f3af Verdict")
         quality = assess_verdict_output_quality(effective_panel, debate_result)
@@ -437,7 +499,6 @@ if roast_panel is not None:
             f"\U0001f534 **{fail_count}** Fail"
         )
 
-    current_record = st.session_state.current_record
     if current_record is not None:
         version_label = f"v{current_record.version}"
         st.caption(f"Saved as {version_label}" + (f" · refines prior run" if current_record.parent_id else ""))
@@ -634,6 +695,10 @@ if debate_result is not None:
         revised_panel=revised_panel,
         revised_synthesis=revised_synthesis,
         run_metrics=st.session_state.get("run_metrics"),
+        version=st.session_state.current_record.version if st.session_state.current_record else None,
+        parent_id=(
+            st.session_state.current_record.parent_id if st.session_state.current_record else None
+        ),
     )
     transcript_content = transcript_path.read_text(encoding="utf-8")
 

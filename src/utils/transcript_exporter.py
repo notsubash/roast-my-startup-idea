@@ -17,6 +17,9 @@ def export_transcript(
     revised_panel: RoastPanel | None = None,
     revised_synthesis: str | None = None,
     run_metrics: dict[str, Any] | None = None,
+    *,
+    version: int | None = None,
+    parent_id: str | None = None,
 ) -> Path:
     """Export the full roast + debate session to a Markdown file."""
     output_dir.mkdir(exist_ok=True)
@@ -30,8 +33,12 @@ def export_transcript(
         "",
         f"**Idea:** {startup_idea}",
         f"**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-        "",
     ]
+    if version is not None:
+        lines.append(f"**Version:** v{version}")
+    if parent_id:
+        lines.append(f"**Refines:** {parent_id}")
+    lines.append("")
     lines.extend(format_run_metrics_markdown(run_metrics))
     lines.extend(
         [

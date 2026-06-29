@@ -13,6 +13,7 @@ from memory.context import build_memory_context
 from memory.factory import build_idea_store
 from memory.identity import get_local_user_id
 from memory.models import IdeaRecord
+from memory.lineage import concern_addressed_status, group_by_lineage, lineage_root_id
 from memory.retrieval import records_for_memory
 from memory.store import IdeaStore
 import tests  # noqa: F401
@@ -549,6 +550,73 @@ class MemoryTest(unittest.TestCase):
 
         self.assertEqual(records[v3.id].parent_id, v2.id)
         self.assertEqual(records[v3.id].version, 3)
+
+    def test_store_get_returns_record_by_id(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with IdeaStore(Path(tmpdir) / "ideas.db") as store:
+                record = IdeaRecord(
+                    user_id="user-1",
+                    idea_text="Lookup me",
+                    roast_panel=_panel(4, "Needs clearer buyer."),
+                    debate_result={"final_synthesis": "Needs work."},
+                )
+                store.save(record)
+                loaded = store.get(record.id)
+                missing = store.get("does-not-exist")
+
+        self.assertIsNotNone(loaded)
+        assert loaded is not None
+        self.assertEqual(loaded.id, record.id)
+        self.assertIsNone(missing)
+
+    def test_group_by_lineage_clusters_versions_and_sorts_by_latest(self):
+        root = IdeaRecord(
+            user_id="user-1",
+            idea_text="Pitch A v1",
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+            roast_panel=_panel(3, "Too vague."),
+            debate_result={"final_synthesis": "Pass."},
+        )
+        child = IdeaRecord(
+            user_id="user-1",
+            idea_text="Pitch A v2",
+            created_at=datetime(2026, 1, 3, tzinfo=UTC),
+            roast_panel=_panel(5, "Better wedge."),
+            debate_result={"final_synthesis": "Maybe."},
+            parent_id=root.id,
+            version=2,
+        )
+        standalone = IdeaRecord(
+            user_id="user-1",
+            idea_text="Unrelated pitch",
+            created_at=datetime(2026, 1, 2, tzinfo=UTC),
+            roast_panel=_panel(4, "Different concern."),
+            debate_result={"final_synthesis": "Other."},
+        )
+        records = [root, child, standalone]
+        grouped = group_by_lineage(records)
+
+        self.assertEqual(len(grouped), 2)
+        self.assertEqual([item.version for item in grouped[0]], [1, 2])
+        self.assertEqual(grouped[0][0].idea_text, "Pitch A v1")
+        self.assertEqual(grouped[1][0].idea_text, "Unrelated pitch")
+        self.assertEqual(lineage_root_id(child, {r.id: r for r in records}), root.id)
+
+    def test_concern_addressed_status_uses_score_and_concern_heuristics(self):
+        prior = Verdict(
+            judge="vc",
+            verdict="FAIL",
+            roast="Distribution is expensive and the market does not look venture scale.",
+            score=3,
+            key_concern="No urgent buyer.",
+        )
+        improved = prior.model_copy(update={"score": 5, "key_concern": "Still unclear ICP."})
+        unchanged = prior.model_copy(update={"key_concern": "No urgent buyer."})
+        shifted = prior.model_copy(update={"key_concern": "Pricing still unproven."})
+
+        self.assertEqual(concern_addressed_status(prior, improved), "Likely addressed")
+        self.assertEqual(concern_addressed_status(prior, unchanged), "Still open")
+        self.assertEqual(concern_addressed_status(prior, shifted), "Concern shifted")
 
 
 if __name__ == "__main__":
