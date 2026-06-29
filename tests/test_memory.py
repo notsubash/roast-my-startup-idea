@@ -451,6 +451,105 @@ class MemoryTest(unittest.TestCase):
         self.assertIsNone(record.roast_panel.verdicts[0].recommended_fix)
         self.assertIsNone(record.roast_panel.verdicts[0].evidence_to_change_verdict)
 
+    def test_legacy_idea_record_json_without_version_fields_loads(self):
+        legacy_json = (
+            '{"id":"legacy-2","user_id":"user-1","idea_text":"AI calendar for founders",'
+            '"created_at":"2026-01-01T00:00:00+00:00",'
+            '"roast_panel":{"verdicts":[{"judge":"vc","verdict":"FAIL",'
+            '"roast":"Distribution is expensive and the market does not look venture scale.",'
+            '"score":3,"key_concern":"No urgent buyer."},'
+            '{"judge":"engineer","verdict":"CONDITIONAL",'
+            '"roast":"The build is feasible, but reliability will be harder than the demo suggests.",'
+            '"score":5,"key_concern":"Reliability risk."},'
+            '{"judge":"pm","verdict":"FAIL",'
+            '"roast":"The target user is too broad, so the product will struggle to find a repeatable wedge.",'
+            '"score":4,"key_concern":"Unclear ICP."},'
+            '{"judge":"customer","verdict":"FAIL",'
+            '"roast":"I would not change my workflow unless this saves obvious time immediately.",'
+            '"score":3,"key_concern":"Weak switching incentive."},'
+            '{"judge":"competitor","verdict":"FAIL",'
+            '"roast":"This is easy for incumbents to copy once they see any traction.",'
+            '"score":2,"key_concern":"Easy replication."}]},'
+            '"debate_result":{"final_synthesis":"Too vague to fund."}}'
+        )
+        record = IdeaRecord.model_validate_json(legacy_json)
+        self.assertIsNone(record.parent_id)
+        self.assertEqual(record.version, 1)
+
+    def test_direct_submission_is_standalone_v1(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with IdeaStore(Path(tmpdir) / "ideas.db") as store:
+                record = IdeaRecord(
+                    user_id="user-1",
+                    idea_text="First pitch",
+                    roast_panel=_panel(4, "Needs clearer buyer."),
+                    debate_result={"final_synthesis": "Needs work."},
+                )
+                store.save(record)
+                loaded = store.list_recent("user-1", limit=1)[0]
+
+        self.assertIsNone(loaded.parent_id)
+        self.assertEqual(loaded.version, 1)
+
+    def test_refine_child_links_to_parent_with_incremented_version(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with IdeaStore(Path(tmpdir) / "ideas.db") as store:
+                parent = IdeaRecord(
+                    user_id="user-1",
+                    idea_text="Original pitch",
+                    roast_panel=_panel(4, "Needs clearer buyer."),
+                    debate_result={"final_synthesis": "Needs work."},
+                )
+                store.save(parent)
+                child = IdeaRecord(
+                    user_id="user-1",
+                    idea_text="Refined pitch with pricing",
+                    roast_panel=_panel(6, "Sales cycle still long."),
+                    debate_result={"final_synthesis": "Improved wedge."},
+                    parent_id=parent.id,
+                    version=parent.version + 1,
+                )
+                store.save(child)
+                records = {record.id: record for record in store.list_recent("user-1", limit=10)}
+
+        self.assertEqual(records[child.id].parent_id, parent.id)
+        self.assertEqual(records[child.id].version, 2)
+        self.assertIsNone(records[parent.id].parent_id)
+        self.assertEqual(records[parent.id].version, 1)
+
+    def test_refine_from_v2_produces_v3(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with IdeaStore(Path(tmpdir) / "ideas.db") as store:
+                root = IdeaRecord(
+                    user_id="user-1",
+                    idea_text="v1 pitch",
+                    roast_panel=_panel(3, "Too vague."),
+                    debate_result={"final_synthesis": "Pass."},
+                )
+                store.save(root)
+                v2 = IdeaRecord(
+                    user_id="user-1",
+                    idea_text="v2 pitch",
+                    roast_panel=_panel(5, "Better wedge."),
+                    debate_result={"final_synthesis": "Maybe."},
+                    parent_id=root.id,
+                    version=2,
+                )
+                store.save(v2)
+                v3 = IdeaRecord(
+                    user_id="user-1",
+                    idea_text="v3 pitch",
+                    roast_panel=_panel(6, "Traction shown."),
+                    debate_result={"final_synthesis": "Stronger."},
+                    parent_id=v2.id,
+                    version=v2.version + 1,
+                )
+                store.save(v3)
+                records = {record.id: record for record in store.list_recent("user-1", limit=10)}
+
+        self.assertEqual(records[v3.id].parent_id, v2.id)
+        self.assertEqual(records[v3.id].version, 3)
+
 
 if __name__ == "__main__":
     unittest.main()

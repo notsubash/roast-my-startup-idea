@@ -15,7 +15,7 @@ from debate.revote import (
     roast_panel_from_state_verdicts,
     score_change_reason,
 )
-from idea_context import build_startup_idea_context, idea_display_summary
+from idea_context import build_startup_idea_context, idea_display_summary, unwrap_user_idea
 from judges.synthesis import assess_verdict_output_quality, parse_structured_synthesis
 from memory.context import build_memory_context
 from memory.factory import build_idea_store
@@ -147,10 +147,22 @@ with st.sidebar:
 
 # ── Main input ──
 
+if st.session_state.get("refine_parent_id"):
+    parent_version = st.session_state.get("refine_parent_version", 1)
+    st.info(
+        f"Refining this pitch — the next roast will save as v{parent_version + 1} "
+        "linked to your prior version."
+    )
+    if st.button("Cancel refinement", help="Submit as a new standalone pitch instead."):
+        st.session_state.pop("refine_parent_id", None)
+        st.session_state.pop("refine_parent_version", None)
+        st.rerun()
+
 idea_text = st.text_area(
     "Describe your startup idea:",
     height=120,
     placeholder="e.g., An AI-powered journal that tracks your decisions and measures whether your reasoning was correct months later.",
+    key="idea_text_input",
 )
 
 with st.expander("Optional details (helps judges roast more precisely)"):
@@ -330,11 +342,16 @@ if run_clicked and idea_text.strip():
 
     st.session_state.roast_panel = roast_panel
     st.session_state.debate_result = debate_result
+    parent_id = st.session_state.pop("refine_parent_id", None)
+    parent_version = st.session_state.pop("refine_parent_version", None)
+    version = (parent_version or 1) + 1 if parent_id is not None else 1
     record = IdeaRecord(
         user_id=st.session_state.user_id,
         idea_text=startup_idea,
         roast_panel=roast_panel,
         debate_result=debate_result,
+        parent_id=parent_id,
+        version=version,
     )
     idea_store.save(record)
     st.session_state.current_record = record
@@ -419,6 +436,19 @@ if roast_panel is not None:
             f"\U0001f7e1 **{cond_count}** Conditional &nbsp;&nbsp; "
             f"\U0001f534 **{fail_count}** Fail"
         )
+
+    current_record = st.session_state.current_record
+    if current_record is not None:
+        version_label = f"v{current_record.version}"
+        st.caption(f"Saved as {version_label}" + (f" · refines prior run" if current_record.parent_id else ""))
+        if st.button(
+            "Refine this idea",
+            help="Pre-fill the form with this pitch and save the next roast as the next version.",
+        ):
+            st.session_state.idea_text_input = unwrap_user_idea(current_record.idea_text)
+            st.session_state.refine_parent_id = current_record.id
+            st.session_state.refine_parent_version = current_record.version
+            st.rerun()
 
     st.divider()
 
