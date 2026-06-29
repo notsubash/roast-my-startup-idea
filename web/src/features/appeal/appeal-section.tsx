@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { AppealResponse } from "@/lib/api/types-helpers";
+import { appealJudgeOutcomes } from "@/lib/appeal/coaching";
 import type { AppealResult, JudgeId, Verdict } from "@/lib/sse/types";
 import { JUDGE_ORDER } from "@/lib/sse/types";
 
@@ -26,25 +27,58 @@ function toVerdictMap(panel: AppealResponse["revised_panel"]): Record<JudgeId, V
   return map;
 }
 
+function parseTargetJudges(raw: unknown): JudgeId[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(
+    (item): item is JudgeId =>
+      typeof item === "string" && (JUDGE_ORDER as readonly string[]).includes(item),
+  );
+}
+
 function responseToAppeal(result: AppealResponse): AppealResult {
+  const originalByJudge = toVerdictMap(result.original_panel);
+  const revisedByJudge = toVerdictMap(result.revised_panel);
+  const targetJudges = parseTargetJudges(result.target_judges);
+  const evidenceOutcomes =
+    result.evidence_outcomes?.map((item) => ({
+      judge: item.judge as JudgeId,
+      evidenceAsk: item.evidence_ask,
+      outcome: item.outcome,
+      targeted: item.targeted,
+      scoreDelta: item.score_delta,
+    })) ??
+    appealJudgeOutcomes(
+      Object.values(originalByJudge),
+      Object.values(revisedByJudge),
+      targetJudges,
+    );
+
   return {
     appealText: result.appeal_text,
-    originalByJudge: toVerdictMap(result.original_panel),
-    revisedByJudge: toVerdictMap(result.revised_panel),
+    originalByJudge,
+    revisedByJudge,
     revisedSynthesis: result.revised_synthesis,
+    targetJudges,
+    evidenceOutcomes,
   };
 }
 
 export function AppealSection({
   runId,
   completed,
+  baselineVerdicts,
   streamAppeal,
 }: {
   runId: string;
   completed: boolean;
+  baselineVerdicts: Verdict[];
   streamAppeal: AppealResult | null;
 }) {
   const [localAppeal, setLocalAppeal] = useState<AppealResult | null>(streamAppeal);
+  const coachingBaseline = useMemo(
+    () => baselineVerdicts.filter((verdict) => verdict.score > 0 || verdict.roast),
+    [baselineVerdicts],
+  );
 
   useEffect(() => {
     if (streamAppeal) setLocalAppeal(streamAppeal);
@@ -60,9 +94,15 @@ export function AppealSection({
     return <AppealResultView appeal={localAppeal} />;
   }
 
+  if (coachingBaseline.length === 0) return null;
+
   return (
     <section className="mt-12 border-t-2 border-rule-soft pt-10" aria-labelledby="appeal-form-heading">
-      <AppealForm runId={runId} onSuccess={onSuccess} />
+      <AppealForm
+        runId={runId}
+        baselineVerdicts={coachingBaseline}
+        onSuccess={onSuccess}
+      />
     </section>
   );
 }

@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -11,9 +12,12 @@ import { ApiError } from "@/lib/api/client";
 import { submitAppeal } from "@/lib/api/runs";
 import type { AppealResponse } from "@/lib/api/types-helpers";
 import { parseApiDetail, APPEAL_MAX_LENGTH, APPEAL_MIN_LENGTH } from "@/lib/api/types-helpers";
+import type { JudgeId, Verdict } from "@/lib/sse/types";
 import { Button } from "@/ui/button";
 import { Label } from "@/ui/label";
 import { Textarea } from "@/ui/textarea";
+
+import { AppealCoaching } from "./appeal-coaching";
 
 const APPEAL_MIN = APPEAL_MIN_LENGTH;
 const APPEAL_MAX = APPEAL_MAX_LENGTH;
@@ -30,13 +34,16 @@ type AppealFormValues = z.infer<typeof appealSchema>;
 
 export function AppealForm({
   runId,
+  baselineVerdicts,
   disabled,
   onSuccess,
 }: {
   runId: string;
+  baselineVerdicts: Verdict[];
   disabled?: boolean;
   onSuccess: (result: AppealResponse) => void;
 }) {
+  const [targetJudges, setTargetJudges] = useState<JudgeId[]>([]);
   const {
     register,
     handleSubmit,
@@ -51,7 +58,11 @@ export function AppealForm({
   const length = watch("appeal_text").trim().length;
 
   const mutation = useMutation({
-    mutationFn: (values: AppealFormValues) => submitAppeal(runId, values),
+    mutationFn: (values: AppealFormValues) =>
+      submitAppeal(runId, {
+        appeal_text: values.appeal_text,
+        target_judges: targetJudges.length > 0 ? targetJudges : undefined,
+      }),
     onSuccess,
     onError: (error: Error) => {
       if (error instanceof ApiError) {
@@ -74,9 +85,16 @@ export function AppealForm({
         Appeal the verdict
       </h2>
       <p className="mt-2 max-w-prose font-sans text-sm text-ink-muted">
-        Push back with new evidence or context. Each judge will revise their score and the
-        moderator will issue an updated synthesis.
+        Push back with new evidence or context. Tag the judges you are addressing so the panel
+        knows what you are trying to prove — not which boxes to tick.
       </p>
+
+      <AppealCoaching
+        baselineVerdicts={baselineVerdicts}
+        targetJudges={targetJudges}
+        onTargetChange={setTargetJudges}
+        disabled={disabled || isSubmitting || mutation.isPending}
+      />
 
       <div className="mt-6 space-y-2">
         <Label htmlFor="appeal_text" className="font-sans text-sm font-semibold text-ink">

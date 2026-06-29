@@ -345,6 +345,7 @@ function RunSheetContent({
         <AppealSection
           runId={runId}
           completed={status === "completed"}
+          baselineVerdicts={revealedVerdicts}
           streamAppeal={stream.appeal}
         />
       </div>

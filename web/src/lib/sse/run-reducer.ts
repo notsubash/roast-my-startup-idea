@@ -10,6 +10,7 @@ import {
   type AppealResult,
   type ResearchFindings,
 } from "./types.ts";
+import { appealJudgeOutcomes } from "../appeal/coaching.ts";
 
 function isJudgeId(value: string): value is JudgeId {
   return (JUDGE_ORDER as readonly string[]).includes(value);
@@ -120,6 +121,40 @@ function parseResearchFindings(payload: Record<string, unknown>): ResearchFindin
   return { query, findings };
 }
 
+function parseTargetJudges(raw: unknown): JudgeId[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(
+    (item): item is JudgeId =>
+      typeof item === "string" && (JUDGE_ORDER as readonly string[]).includes(item),
+  );
+}
+
+function parseEvidenceOutcomes(raw: unknown): AppealResult["evidenceOutcomes"] {
+  if (!Array.isArray(raw)) return [];
+  const outcomes: AppealResult["evidenceOutcomes"] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    if (
+      typeof row.judge === "string" &&
+      isJudgeId(row.judge) &&
+      typeof row.evidence_ask === "string" &&
+      typeof row.outcome === "string" &&
+      typeof row.targeted === "boolean" &&
+      typeof row.score_delta === "number"
+    ) {
+      outcomes.push({
+        judge: row.judge,
+        evidenceAsk: row.evidence_ask,
+        outcome: row.outcome,
+        targeted: row.targeted,
+        scoreDelta: row.score_delta,
+      });
+    }
+  }
+  return outcomes;
+}
+
 function parseAppealResult(payload: Record<string, unknown>): AppealResult | null {
   const appealText = payload.appeal_text;
   const revisedSynthesis = payload.revised_synthesis;
@@ -127,11 +162,22 @@ function parseAppealResult(payload: Record<string, unknown>): AppealResult | nul
   const originalByJudge = parseAppealPanel(payload.original_panel);
   const revisedByJudge = parseAppealPanel(payload.revised_panel);
   if (!originalByJudge || !revisedByJudge) return null;
+  const targetJudges = parseTargetJudges(payload.target_judges);
+  let evidenceOutcomes = parseEvidenceOutcomes(payload.evidence_outcomes);
+  if (evidenceOutcomes.length === 0) {
+    evidenceOutcomes = appealJudgeOutcomes(
+      Object.values(originalByJudge),
+      Object.values(revisedByJudge),
+      targetJudges,
+    );
+  }
   return {
     appealText,
     originalByJudge,
     revisedByJudge,
     revisedSynthesis,
+    targetJudges,
+    evidenceOutcomes,
   };
 }
 

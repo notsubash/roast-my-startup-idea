@@ -18,6 +18,7 @@ class IdeaRecord(BaseModel):
     roast_panel: RoastPanel
     debate_result: dict
     appeal_text: str | None = None
+    appeal_target_judges: list[str] | None = None
     revised_panel: RoastPanel | None = None
     revised_synthesis: str | None = None
     parent_id: str | None = None

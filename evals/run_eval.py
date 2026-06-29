@@ -35,11 +35,19 @@ def _aggregate_metrics(idea_rows: list[dict]) -> dict:
         row["metrics"]["reliability"]["judge_parse_success_rate"] for row in idea_rows
     ]
     passed = sum(1 for row in idea_rows if row["metrics"]["passed"])
+    appeal_scored = [
+        row["metrics"]["appeal"]["appeal_discrimination_passed"]
+        for row in idea_rows
+        if row["metrics"].get("appeal", {}).get("appeal_weak", {}).get("appeal_present")
+    ]
     return {
         "mean_judge_parse_success_rate": round(sum(reliability_rates) / len(reliability_rates), 3),
         "ideas_passed": passed,
         "ideas_total": len(idea_rows),
         "pass_rate": round(passed / len(idea_rows), 3),
+        "appeal_discrimination_pass_rate": (
+            round(sum(appeal_scored) / len(appeal_scored), 3) if appeal_scored else None
+        ),
     }
 
 
@@ -105,6 +113,7 @@ def run_local_eval(
         metrics = score_idea_result(
             result,
             max_debate_rounds=debate_rounds,
+            expected_delta_direction=idea.expected_delta_direction,
         )
         idea_rows.append({**result, "metrics": metrics})
         logger.info(

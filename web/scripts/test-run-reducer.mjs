@@ -171,12 +171,48 @@ test("appeal_completed restores appeal state from replay", () => {
       original_panel: { verdicts: [VERDICT] },
       revised_panel: { verdicts: [revised] },
       revised_synthesis: "Revised synthesis after appeal.",
+      target_judges: ["vc"],
+      evidence_outcomes: [
+        {
+          judge: "vc",
+          evidence_ask: "Three signed LOIs would change this verdict.",
+          outcome: "Evidence met",
+          targeted: true,
+          score_delta: 3,
+        },
+      ],
     }),
   ];
   const state = reduceEnvelopes(events);
   assert.equal(state.appeal?.appealText, "We signed two LOIs and completed a validation study.");
   assert.equal(state.appeal?.revisedByJudge.vc.score, 6);
   assert.equal(state.appeal?.revisedSynthesis, "Revised synthesis after appeal.");
+  assert.deepEqual(state.appeal?.targetJudges, ["vc"]);
+  assert.equal(state.appeal?.evidenceOutcomes.length, 1);
+  assert.equal(state.appeal?.evidenceOutcomes[0]?.outcome, "Evidence met");
+});
+
+test("appeal_completed without evidence_outcomes computes client fallback", () => {
+  const revised = {
+    ...VERDICT,
+    score: 6,
+    verdict: "CONDITIONAL",
+    evidence_to_change_verdict: "Three signed LOIs would change this verdict.",
+  };
+  const events = [
+    env(0, "stream_connected", { status: "connected" }),
+    env(1, "appeal_completed", {
+      appeal_text: "We signed two LOIs.",
+      original_panel: { verdicts: [VERDICT] },
+      revised_panel: { verdicts: [revised] },
+      revised_synthesis: "Revised synthesis.",
+      target_judges: ["vc"],
+    }),
+  ];
+  const state = reduceEnvelopes(events);
+  assert.equal(state.appeal?.evidenceOutcomes.length, 1);
+  assert.equal(state.appeal?.evidenceOutcomes[0]?.outcome, "Evidence met");
+  assert.equal(state.appeal?.evidenceOutcomes[0]?.targeted, true);
 });
 
 test("revote events update judges and preserve baseline for deltas", () => {

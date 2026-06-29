@@ -181,6 +181,29 @@ class AppealServiceTest(unittest.TestCase):
         self.assertIn("<memory>", model.structured_model.prompts[0])
         self.assertIn("signed LOIs", model.synthesis_prompts[0])
 
+    def test_run_appeal_passes_target_judges_to_prompt(self):
+        model = FakeAppealModel()
+        appeal_text = "We already have three hospital pilots and signed LOIs worth $180k ARR."
+
+        result = run_appeal(
+            model=model,
+            startup_idea="AI compliance copilot for hospitals",
+            roast_panel=_original_panel(),
+            debate_result={"final_synthesis": "The idea needs proof of demand."},
+            appeal_text=appeal_text,
+            target_judges=["vc", "customer"],
+        )
+
+        self.assertEqual(result.target_judges, ("vc", "customer"))
+        vc_prompt = next(
+            prompt
+            for prompt in model.structured_model.prompts
+            if "judge field must be exactly vc" in prompt.lower()
+        )
+        self.assertIn("specifically targets: vc, customer", vc_prompt)
+        self.assertIn("addresses your evidence ask", vc_prompt)
+        self.assertEqual(len(result.evidence_outcomes), 5)
+
     def test_invoke_judge_on_appeal_retries_on_guardrail_failure(self):
         from appeal.service import invoke_judge_on_appeal
 

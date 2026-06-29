@@ -251,6 +251,7 @@ class RunManager:
         run_id: str,
         appeal_text: str,
         settings: Settings,
+        target_judges: list[str] | None = None,
     ) -> tuple[RoastPanel, AppealResult]:
         record = self.get(run_id)
         if record is None:
@@ -282,8 +283,11 @@ class RunManager:
             roast_panel,
             debate_result,
             appeal_text,
+            None,
+            target_judges,
         )
 
+        outcomes = result.evidence_outcomes
         state = self._ensure_state(run_id)
         try:
             state.append_once(
@@ -296,6 +300,17 @@ class RunManager:
                         "original_panel": roast_panel.model_dump(mode="json"),
                         "revised_panel": result.revised_panel.model_dump(mode="json"),
                         "revised_synthesis": result.revised_synthesis,
+                        "target_judges": list(result.target_judges),
+                        "evidence_outcomes": [
+                            {
+                                "judge": item.judge,
+                                "evidence_ask": item.evidence_ask,
+                                "outcome": item.outcome,
+                                "targeted": item.targeted,
+                                "score_delta": item.score_delta,
+                            }
+                            for item in outcomes
+                        ],
                     },
                     created_at=datetime.now(UTC),
                 ),

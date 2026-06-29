@@ -2,6 +2,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from appeal.coaching import appeal_coaching_hint, appeal_coaching_verdicts, appeal_judge_outcomes
 from debate.revote import roast_panel_from_state_verdicts, score_change_reason
 from judges.schemas import RoastPanel, Verdict
 from judges.synthesis import parse_structured_synthesis, top_priorities
@@ -16,6 +17,7 @@ def export_transcript(
     appeal_text: str | None = None,
     revised_panel: RoastPanel | None = None,
     revised_synthesis: str | None = None,
+    target_judges: list[str] | None = None,
     run_metrics: dict[str, Any] | None = None,
     *,
     version: int | None = None,
@@ -130,26 +132,46 @@ def export_transcript(
             lines.append("")
 
     if appeal_text and revised_panel is not None:
-        lines.extend(
-            ["---", "", "## Phase 3: Appeal", "", "### Founder Appeal", "", appeal_text, ""]
-        )
-        lines.extend(["### Revised Verdicts", ""])
+        lines.extend(["---", "", "## Phase 3: Appeal", "", "### Evidence asks", ""])
         appeal_baseline = roast_panel
         if isinstance(revised_verdicts, list) and revised_verdicts:
             appeal_baseline = RoastPanel(
                 verdicts=[Verdict.model_validate(item) for item in revised_verdicts]
             )
+        resolved_targets = tuple(target_judges or ())
+        outcomes = appeal_judge_outcomes(appeal_baseline, revised_panel, resolved_targets)
+        for verdict in appeal_coaching_verdicts(appeal_baseline):
+            hint = appeal_coaching_hint(verdict)
+            targeted = verdict.judge.value in resolved_targets
+            lines.append(
+                f"- **{verdict.judge.value.upper()}** "
+                f"({verdict.verdict.value}, {verdict.score}/10): {hint}"
+            )
+            if targeted:
+                lines.append("  - Founder targeted this judge")
+            lines.append("")
+
+        lines.extend(["### Founder Appeal", "", appeal_text, ""])
+        lines.extend(["### Revised Verdicts", ""])
+        outcome_by_judge = {item.judge: item for item in outcomes}
         for v in revised_panel.verdicts:
             original = next(
                 orig for orig in appeal_baseline.verdicts if orig.judge.value == v.judge.value
             )
             delta = v.score - original.score
             delta_label = f", {delta:+d}" if delta else ""
+            item = outcome_by_judge.get(v.judge.value)
             lines.append(
                 f"#### {v.judge.value.upper()} — {v.verdict.value} "
                 f"({v.score}/10, was {original.score}/10{delta_label})"
             )
             lines.append("")
+            if item is not None:
+                lines.append(f"**Evidence ask:** {item.evidence_ask}")
+                lines.append(f"**Outcome:** {item.outcome}")
+                if item.targeted:
+                    lines.append("**Founder targeted:** yes")
+                lines.append("")
             lines.append(f"> {v.roast}")
             lines.append("")
             lines.append(f"**Key concern:** {v.key_concern}")

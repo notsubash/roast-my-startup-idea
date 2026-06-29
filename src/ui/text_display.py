@@ -35,6 +35,32 @@ def write_roast_quote(text: str) -> None:
     )
 
 
+def write_appeal_coaching_item(
+    *,
+    icon: str,
+    judge: str,
+    verdict_label: str,
+    score: int,
+    hint: str,
+    quality: str | None = None,
+) -> None:
+    """Single appeal coaching checklist row with escaped model text."""
+    quality_note = ""
+    if quality == "derived":
+        quality_note = ' <span style="opacity:0.75;">(inferred from concern)</span>'
+    elif quality == "generic":
+        quality_note = ' <span style="opacity:0.75;">(generic ask)</span>'
+    elif quality == "duplicate":
+        quality_note = ' <span style="opacity:0.75;">(same as another judge)</span>'
+    st.markdown(
+        f'<p class="llm-plain-text" style="margin:0;">'
+        f"- <strong>{icon} {html.escape(judge)}</strong> "
+        f"({html.escape(verdict_label)}, {score}/10): {html.escape(hint or '')}"
+        f"{quality_note}</p>",
+        unsafe_allow_html=True,
+    )
+
+
 def write_labelled_plain(label: str, text: str) -> None:
     """Display a bold label followed by plain model text."""
     safe_label = html.escape(label)
@@ -53,6 +79,16 @@ def write_status_badge(status: str, *, tone: str = "neutral") -> None:
         f'<span class="iteration-status iteration-status-{tone}">{safe}</span>',
         unsafe_allow_html=True,
     )
+
+
+def write_appeal_outcome_badge(outcome: str) -> None:
+    """Compact outcome label for post-appeal evidence asks."""
+    tone = "neutral"
+    if outcome == "Evidence met":
+        tone = "positive"
+    elif outcome == "Not met":
+        tone = "negative"
+    write_status_badge(outcome, tone=tone)
 
 
 def write_synthesis(text: str) -> None:

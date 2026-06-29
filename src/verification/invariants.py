@@ -20,6 +20,68 @@ def normalize_sentence(text: str) -> str:
     return " ".join(text.lower().split())
 
 
+# Shared with appeal coaching; guardrails can import for evidence_to_change_verdict retries.
+GENERIC_EVIDENCE_PHRASES = (
+    "do more research",
+    "conduct more research",
+    "provide more evidence",
+    "show more evidence",
+    "gather more data",
+    "need more validation",
+    "validate the market",
+    "show traction",
+    "prove product-market fit",
+    "prove product market fit",
+    "conduct market research",
+    "more customer discovery",
+    "build a stronger case",
+)
+
+_FILLER_AFTER_GENERIC_PHRASE = frozenset(
+    {
+        "on",
+        "the",
+        "a",
+        "an",
+        "this",
+        "that",
+        "idea",
+        "buyer",
+        "market",
+        "please",
+        "first",
+        "more",
+        "your",
+        "and",
+        "or",
+        "to",
+        "for",
+    }
+)
+
+
+def _is_generic_clause(normalized: str) -> bool:
+    for phrase in sorted(GENERIC_EVIDENCE_PHRASES, key=len, reverse=True):
+        if normalized == phrase:
+            return True
+        if normalized.startswith(phrase):
+            rest = normalized[len(phrase) :].strip(" .")
+            if not rest or all(word in _FILLER_AFTER_GENERIC_PHRASE for word in rest.split()):
+                return True
+    return False
+
+
+def is_generic_evidence(text: str) -> bool:
+    """True when evidence is empty or reads as boilerplate without concrete specifics."""
+    normalized = normalize_sentence(text)
+    if not normalized:
+        return True
+    parts = [part.strip() for part in normalized.split(" and ") if part.strip()]
+    if len(parts) > 1:
+        return all(_is_generic_clause(part) for part in parts)
+    return _is_generic_clause(normalized)
+
+
 def _verdict_fields(verdict: Verdict | dict[str, Any]) -> dict[str, Any]:
     if isinstance(verdict, Verdict):
         return {

@@ -12,6 +12,7 @@ from api.deps import build_idea_preview, get_app_settings
 from api.run_manager import RunManager, get_run_manager
 from api.schemas import (
     ApiEventEnvelope,
+    AppealJudgeOutcomeResponse,
     AppealRequest,
     AppealResponse,
     CreateRunRequest,
@@ -185,17 +186,35 @@ async def appeal_run(
     settings: Annotated[Settings, Depends(get_app_settings)],
 ) -> AppealResponse:
     try:
-        original_panel, result = await manager.appeal(run_id, body.appeal_text, settings)
+        original_panel, result = await manager.appeal(
+            run_id,
+            body.appeal_text,
+            settings,
+            body.target_judges,
+        )
     except KeyError:
         raise HTTPException(status_code=404, detail="Run not found") from None
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    outcomes = result.evidence_outcomes
 
     return AppealResponse(
         appeal_text=body.appeal_text.strip(),
         original_panel=original_panel.model_dump(mode="json"),
         revised_panel=result.revised_panel.model_dump(mode="json"),
         revised_synthesis=result.revised_synthesis,
+        target_judges=list(result.target_judges),
+        evidence_outcomes=[
+            AppealJudgeOutcomeResponse(
+                judge=item.judge,
+                evidence_ask=item.evidence_ask,
+                outcome=item.outcome,
+                targeted=item.targeted,
+                score_delta=item.score_delta,
+            )
+            for item in outcomes
+        ],
     )
 
 

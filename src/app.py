@@ -8,6 +8,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from pydantic import ValidationError
 import streamlit as st
 
+from appeal.coaching import (
+    appeal_judge_outcomes,
+    assess_appeal_coaching,
+)
 from appeal.service import run_appeal
 from config import get_settings
 from debate.revote import (
@@ -43,6 +47,8 @@ from ui.streamlit_runner import (
     run_deterministic_pipeline_in_ui,
 )
 from ui.text_display import (
+    write_appeal_coaching_item,
+    write_appeal_outcome_badge,
     write_labelled_plain,
     write_plain_text,
     write_roast_quote,
@@ -55,6 +61,8 @@ from verification import assess_revote_quality
 from version import get_version
 
 get_settings()
+
+VERDICT_ICON = {"PASS": "\U0001f7e2", "FAIL": "\U0001f534", "CONDITIONAL": "\U0001f7e1"}
 
 # ── Page config ──
 
@@ -244,6 +252,8 @@ if "revised_synthesis" not in st.session_state:
     st.session_state.revised_synthesis = None
 if "appeal_text_used" not in st.session_state:
     st.session_state.appeal_text_used = None
+if "appeal_target_judges_used" not in st.session_state:
+    st.session_state.appeal_target_judges_used = None
 if "run_metrics" not in st.session_state:
     st.session_state.run_metrics = None
 
@@ -264,6 +274,7 @@ if run_clicked and idea_text.strip():
     st.session_state.revised_panel = None
     st.session_state.revised_synthesis = None
     st.session_state.appeal_text_used = None
+    st.session_state.appeal_target_judges_used = None
     st.session_state.run_metrics = None
     st.session_state.startup_idea_used = startup_idea
 
@@ -498,11 +509,10 @@ if roast_panel is not None:
 
     st.subheader("Individual Verdicts")
 
-    verdict_icon = {"PASS": "\U0001f7e2", "FAIL": "\U0001f534", "CONDITIONAL": "\U0001f7e1"}
     cols = st.columns(5)
     for i, v in enumerate(roast_panel.verdicts):
         with cols[i]:
-            icon = verdict_icon.get(v.verdict.value, "\u26aa")
+            icon = VERDICT_ICON.get(v.verdict.value, "\u26aa")
             st.metric(
                 label=f"{icon} {v.judge.value.upper()}",
                 value=f"{v.score}/10",
@@ -600,7 +610,7 @@ if post_debate_panel is not None and roast_panel is not None:
             write_roast_quote(revised.roast)
     st.divider()
 
-if debate_result is not None:
+if debate_result is not None and roast_panel is not None:
     st.subheader("Debate Transcript")
 
     judge_avatars = {
@@ -634,6 +644,38 @@ if debate_result is not None:
     st.caption(
         "Argue back with concrete evidence. Judges will re-evaluate without rerunning the full debate."
     )
+
+    appeal_baseline = appeal_baseline_panel(roast_panel, debate_result)
+    coaching = assess_appeal_coaching(appeal_baseline)
+
+    st.markdown("#### What each judge needs to hear")
+    st.caption(
+        "These are starting points from the panel, not a checklist to game. "
+        "Check the judges you are directly addressing, and prioritize FAIL and CONDITIONAL first."
+    )
+    if coaching["degraded"]:
+        st.warning("Coaching quality is limited for this run — " + " ".join(coaching["reasons"]))
+
+    target_judges: list[str] = []
+    for item in coaching["items"]:
+        col_hint, col_tag = st.columns([5, 1])
+        with col_hint:
+            write_appeal_coaching_item(
+                icon=VERDICT_ICON.get(item.verdict, "\u26aa"),
+                judge=item.judge.upper(),
+                verdict_label=item.verdict,
+                score=item.score,
+                hint=item.hint,
+                quality=item.quality,
+            )
+        with col_tag:
+            if st.checkbox(
+                "Target",
+                key=f"appeal_target_{item.judge}",
+                label_visibility="collapsed",
+            ):
+                target_judges.append(item.judge)
+
     appeal_text = st.text_area(
         "Your appeal:",
         height=100,
@@ -669,7 +711,6 @@ if debate_result is not None:
             try:
                 with st.status("Appeal mode: judges are re-evaluating...", expanded=True) as status:
                     status.write("Sending your appeal to all five judges...")
-                    appeal_baseline = appeal_baseline_panel(roast_panel, debate_result)
                     appeal_result = run_appeal(
                         model=model,
                         startup_idea=st.session_state.startup_idea_used or "",
@@ -677,6 +718,7 @@ if debate_result is not None:
                         debate_result=debate_result,
                         appeal_text=appeal_text,
                         memory_context=build_memory_context(prior_records),
+                        target_judges=target_judges or None,
                     )
                     status.update(
                         label="\u2705 Appeal complete — revised panel ready!", state="complete"
@@ -688,11 +730,13 @@ if debate_result is not None:
             st.session_state.revised_panel = appeal_result.revised_panel
             st.session_state.revised_synthesis = appeal_result.revised_synthesis
             st.session_state.appeal_text_used = appeal_text.strip()
+            st.session_state.appeal_target_judges_used = list(appeal_result.target_judges)
 
             if current_record is not None:
                 updated_record = current_record.model_copy(
                     update={
                         "appeal_text": appeal_text,
+                        "appeal_target_judges": list(appeal_result.target_judges),
                         "revised_panel": appeal_result.revised_panel,
                         "revised_synthesis": appeal_result.revised_synthesis,
                     }
@@ -704,7 +748,14 @@ if debate_result is not None:
 
     if revised_panel is not None:
         st.markdown("#### Revised Verdicts")
-        appeal_baseline = appeal_baseline_panel(roast_panel, debate_result)
+        appeal_outcomes = {
+            item.judge: item
+            for item in appeal_judge_outcomes(
+                appeal_baseline,
+                revised_panel,
+                tuple(st.session_state.appeal_target_judges_used or ()),
+            )
+        }
         revised_cols = st.columns(5)
         for i, v in enumerate(revised_panel.verdicts):
             original = next(
@@ -714,6 +765,7 @@ if debate_result is not None:
             )
             delta = v.score - original.score
             delta_label = f"{delta:+d}" if delta else "0"
+            outcome = appeal_outcomes.get(v.judge.value)
             with revised_cols[i]:
                 st.metric(
                     label=v.judge.value.upper(),
@@ -721,6 +773,10 @@ if debate_result is not None:
                     delta=delta_label,
                 )
                 st.caption(v.verdict.value)
+                if outcome is not None:
+                    write_appeal_outcome_badge(outcome.outcome)
+                    if outcome.targeted:
+                        st.caption("You targeted this judge")
                 write_roast_quote(v.roast)
                 write_labelled_plain("Key concern:", v.key_concern)
 
@@ -737,6 +793,7 @@ if debate_result is not None:
         appeal_text=st.session_state.appeal_text_used,
         revised_panel=revised_panel,
         revised_synthesis=revised_synthesis,
+        target_judges=st.session_state.appeal_target_judges_used,
         run_metrics=st.session_state.get("run_metrics"),
         version=st.session_state.current_record.version
         if st.session_state.current_record

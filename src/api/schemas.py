@@ -76,6 +76,18 @@ class AppealRequest(BaseModel):
         max_length=APPEAL_MAX_LENGTH,
         description="Founder rebuttal to the panel verdict.",
     )
+    target_judges: list[str] | None = Field(
+        default=None,
+        description="Optional judge ids the founder is specifically addressing.",
+    )
+
+
+class AppealJudgeOutcomeResponse(BaseModel):
+    judge: str
+    evidence_ask: str
+    outcome: str
+    targeted: bool
+    score_delta: int
 
 
 class AppealResponse(BaseModel):
@@ -83,6 +95,8 @@ class AppealResponse(BaseModel):
     original_panel: dict[str, Any]
     revised_panel: dict[str, Any]
     revised_synthesis: str
+    target_judges: list[str] = Field(default_factory=list)
+    evidence_outcomes: list[AppealJudgeOutcomeResponse] = Field(default_factory=list)
 
 
 class VerdictSummary(BaseModel):

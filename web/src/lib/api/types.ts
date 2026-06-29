@@ -152,6 +152,21 @@ export interface components {
              * @description Founder rebuttal to the panel verdict.
              */
             appeal_text: string;
+            /** Target Judges */
+            target_judges?: string[] | null;
+        };
+        /** AppealJudgeOutcomeResponse */
+        AppealJudgeOutcomeResponse: {
+            /** Judge */
+            judge: string;
+            /** Evidence Ask */
+            evidence_ask: string;
+            /** Outcome */
+            outcome: string;
+            /** Targeted */
+            targeted: boolean;
+            /** Score Delta */
+            score_delta: number;
         };
         /** AppealResponse */
         AppealResponse: {
@@ -167,6 +182,10 @@ export interface components {
             };
             /** Revised Synthesis */
             revised_synthesis: string;
+            /** Target Judges */
+            target_judges?: string[];
+            /** Evidence Outcomes */
+            evidence_outcomes?: components["schemas"]["AppealJudgeOutcomeResponse"][];
         };
         /** CreateRunRequest */
         CreateRunRequest: {

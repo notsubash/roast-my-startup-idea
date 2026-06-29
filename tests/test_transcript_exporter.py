@@ -8,8 +8,10 @@ from judges.schemas import RoastPanel, Verdict
 import tests  # noqa: F401
 from utils.transcript_exporter import export_transcript
 
+SAMPLE_EVIDENCE = "Three signed LOIs from target buyers would change this verdict."
 
-def _panel(score: int, concern: str) -> RoastPanel:
+
+def _panel(score: int, concern: str, *, evidence: str | None = None) -> RoastPanel:
     return RoastPanel(
         verdicts=[
             Verdict(
@@ -18,6 +20,7 @@ def _panel(score: int, concern: str) -> RoastPanel:
                 roast="Distribution is expensive and the market does not look venture scale.",
                 score=score,
                 key_concern=concern,
+                evidence_to_change_verdict=evidence,
             ),
             Verdict(
                 judge="engineer",
@@ -110,6 +113,26 @@ class TranscriptExporterTest(unittest.TestCase):
             self.assertIn("(5/10, was 3/10, +2)", content)
             self.assertIn("### Appeal Synthesis", content)
             self.assertIn("did not remove sales-cycle risk", content)
+
+    def test_export_with_appeal_includes_evidence_asks_and_outcomes(self):
+        baseline = _panel(3, "Sales cycles are long.", evidence=SAMPLE_EVIDENCE)
+        revised = _panel(5, "Pilot conversion still uncertain.", evidence=SAMPLE_EVIDENCE)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = export_transcript(
+                "AI compliance copilot for hospitals",
+                baseline,
+                {"final_synthesis": "Specific but slow to sell.", "debate_messages": []},
+                output_dir=Path(tmpdir),
+                appeal_text="We have three signed LOIs worth $180k ARR.",
+                revised_panel=revised,
+                revised_synthesis="The appeal added concrete revenue evidence.",
+                target_judges=["vc"],
+            )
+            content = path.read_text(encoding="utf-8")
+            self.assertIn("### Evidence asks", content)
+            self.assertIn(SAMPLE_EVIDENCE, content)
+            self.assertIn("Founder targeted this judge", content)
+            self.assertIn("**Outcome:** Evidence met", content)
 
     def test_export_includes_post_debate_revote_section(self):
         initial = _panel(3, "No urgent buyer.")

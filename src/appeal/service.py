@@ -5,6 +5,7 @@ from typing import Any
 from jinja2 import Environment, FileSystemLoader
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from appeal.coaching import appeal_judge_outcomes, normalize_target_judges
 from config import JUDGE_ORDER, PROMPTS_DIR
 from idea_context import wrap_untrusted, wrap_user_idea
 from judges.schemas import RoastPanel, Verdict
@@ -18,6 +19,8 @@ template_env = Environment(loader=FileSystemLoader(PROMPTS_DIR))
 class AppealResult:
     revised_panel: RoastPanel
     revised_synthesis: str
+    target_judges: tuple[str, ...] = ()
+    evidence_outcomes: tuple = ()  # tuple[AppealJudgeOutcome, ...] — ponytail: avoid circular import in type hint
 
 
 def _response_text(response: Any) -> str:
@@ -50,6 +53,7 @@ def invoke_judge_on_appeal(
     appeal_text: str,
     memory_context: str | None = None,
     run_config: dict | None = None,
+    target_judges: tuple[str, ...] = (),
 ) -> Verdict:
     """Ask one judge to revise or defend their verdict after founder appeal."""
     original = _original_verdict(roast_panel, judge)
@@ -61,6 +65,8 @@ def invoke_judge_on_appeal(
         original_synthesis=debate_result.get("final_synthesis") or "No synthesis was produced.",
         appeal_text=wrap_untrusted(appeal_text, "appeal"),
         memory_context=wrap_untrusted(memory_context, "memory") if memory_context else None,
+        target_judges=target_judges,
+        founder_targeted=judge in target_judges,
     )
     messages = [
         SystemMessage(content=judge_system_prompt(judge)),
@@ -120,10 +126,12 @@ def run_appeal(
     debate_result: dict,
     appeal_text: str,
     memory_context: str | None = None,
+    target_judges: list[str] | None = None,
 ) -> AppealResult:
     appeal_text = appeal_text.strip()
     if not appeal_text:
         raise ValueError("Appeal text is required")
+    resolved_targets = normalize_target_judges(target_judges)
 
     run_config = build_run_config(
         "appeal-panel",
@@ -146,6 +154,7 @@ def run_appeal(
                 appeal_text,
                 memory_context,
                 run_config,
+                resolved_targets,
             ): judge
             for judge in JUDGE_ORDER
         }
@@ -172,4 +181,11 @@ def run_appeal(
             },
         ),
     )
-    return AppealResult(revised_panel=revised_panel, revised_synthesis=revised_synthesis)
+    return AppealResult(
+        revised_panel=revised_panel,
+        revised_synthesis=revised_synthesis,
+        target_judges=resolved_targets,
+        evidence_outcomes=tuple(
+            appeal_judge_outcomes(roast_panel, revised_panel, resolved_targets)
+        ),
+    )

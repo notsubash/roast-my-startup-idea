@@ -75,11 +75,21 @@ export interface RunError {
   recoverable: boolean;
 }
 
+export interface AppealJudgeOutcome {
+  judge: JudgeId;
+  evidenceAsk: string;
+  outcome: string;
+  targeted: boolean;
+  scoreDelta: number;
+}
+
 export interface AppealResult {
   appealText: string;
   originalByJudge: Record<JudgeId, Verdict>;
   revisedByJudge: Record<JudgeId, Verdict>;
   revisedSynthesis: string;
+  targetJudges: JudgeId[];
+  evidenceOutcomes: AppealJudgeOutcome[];
 }
 
 export interface ResearchFinding {
