@@ -11,6 +11,7 @@ import streamlit as st
 from appeal.service import run_appeal
 from config import get_settings
 from idea_context import build_startup_idea_context, idea_display_summary
+from judges.synthesis import parse_structured_synthesis
 from memory.context import build_memory_context
 from memory.factory import build_idea_store
 from memory.identity import get_local_user_id
@@ -34,6 +35,7 @@ from ui.text_display import (
     write_plain_text,
     write_roast_quote,
     write_synthesis,
+    write_verdict_card,
 )
 from utils.scoring_chart import generate_radar_chart
 from utils.transcript_exporter import export_transcript
@@ -335,8 +337,22 @@ roast_panel = st.session_state.roast_panel
 debate_result = st.session_state.debate_result
 revised_panel = st.session_state.revised_panel
 revised_synthesis = st.session_state.revised_synthesis
+structured_synthesis = (
+    parse_structured_synthesis(debate_result) if debate_result is not None else None
+)
 
 if roast_panel is not None:
+    if structured_synthesis is not None:
+        st.subheader("\U0001f3af Verdict")
+        write_verdict_card(structured_synthesis, roast_panel)
+        st.divider()
+    elif debate_result is not None:
+        synthesis = debate_result.get("final_synthesis", "No synthesis produced.")
+        if synthesis and synthesis != "No synthesis produced.":
+            st.subheader("\U0001f3af Final Synthesis")
+            write_synthesis(synthesis)
+            st.divider()
+
     st.subheader("Individual Verdicts")
 
     verdict_icon = {"PASS": "\U0001f7e2", "FAIL": "\U0001f534", "CONDITIONAL": "\U0001f7e1"}
@@ -351,6 +367,8 @@ if roast_panel is not None:
             st.caption(v.verdict.value)
             write_roast_quote(v.roast)
             write_labelled_plain("Key concern:", v.key_concern)
+            if v.recommended_fix:
+                write_labelled_plain("Recommended fix:", v.recommended_fix)
 
     # ── Radar chart ──
 
@@ -406,11 +424,6 @@ if debate_result is not None:
 
     st.divider()
 
-    # ── Synthesis ──
-
-    st.subheader("\U0001f3af Final Synthesis")
-    synthesis = debate_result.get("final_synthesis", "No synthesis produced.")
-    write_synthesis(synthesis)
     render_run_metrics_footer(st.session_state.get("run_metrics"))
 
     # ── Appeal mode ──

@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any
 
 from judges.schemas import RoastPanel
+from judges.synthesis import parse_structured_synthesis, top_priorities
 from observability.metrics import format_run_metrics_markdown
 
 
@@ -61,7 +62,29 @@ def export_transcript(
         lines.append("")
 
     synthesis = debate_result.get("final_synthesis", "")
-    if synthesis:
+    structured = parse_structured_synthesis(debate_result)
+    if structured is not None:
+        lines.extend(["---", "", "## Final Verdict", ""])
+        lines.append(f"**Recommendation:** {structured.overall_recommendation.value}")
+        lines.append(f"**Confidence:** {structured.confidence.value}")
+        lines.append("")
+        priorities = top_priorities(structured, roast_panel)
+        if priorities:
+            lines.append("### Top Priorities")
+            lines.append("")
+            for idx, item in enumerate(priorities, start=1):
+                lines.append(f"{idx}. {item}")
+            lines.append("")
+        if structured.top_strengths:
+            lines.extend(["### Strengths", ""])
+            lines.extend(f"- {item}" for item in structured.top_strengths)
+            lines.append("")
+        if structured.top_risks and structured.top_risks != priorities:
+            lines.extend(["### Top Risks", ""])
+            lines.extend(f"- {item}" for item in structured.top_risks)
+            lines.append("")
+        lines.extend(["### Biggest Disagreement", "", structured.biggest_disagreement, ""])
+    elif synthesis:
         lines.extend(["---", "", "## Final Synthesis", "", synthesis, ""])
 
     if appeal_text and revised_panel is not None:

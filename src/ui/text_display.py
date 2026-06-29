@@ -4,7 +4,15 @@ import html
 
 import streamlit as st
 
+from judges.schemas import RoastPanel
+from judges.synthesis import OverallRecommendation, Synthesis, top_priorities
+
 _PLAIN_STYLE = "margin:0; white-space:pre-wrap;"
+_RECOMMENDATION_ICON = {
+    OverallRecommendation.GO: "\U0001f7e2",
+    OverallRecommendation.ITERATE: "\U0001f7e1",
+    OverallRecommendation.NO_GO: "\U0001f534",
+}
 
 
 def plain_text_html(text: str) -> str:
@@ -42,3 +50,35 @@ def write_synthesis(text: str) -> None:
     """Display synthesis in a bordered container with markdown formatting."""
     with st.container(border=True):
         st.markdown(text or "")
+
+
+def write_verdict_card(
+    synthesis: Synthesis,
+    roast_panel: RoastPanel | None = None,
+) -> None:
+    """Decision-first verdict card for structured moderator synthesis."""
+    icon = _RECOMMENDATION_ICON.get(synthesis.overall_recommendation, "\u26aa")
+    priorities = top_priorities(synthesis, roast_panel)
+
+    with st.container(border=True):
+        st.markdown(
+            f"### {icon} {synthesis.overall_recommendation.value} "
+            f"({synthesis.confidence.value} confidence)"
+        )
+
+        if priorities:
+            st.markdown("**Top priorities**")
+            for idx, item in enumerate(priorities, start=1):
+                write_labelled_plain(f"{idx}.", item)
+
+        if synthesis.top_strengths:
+            st.markdown("**Strengths**")
+            for item in synthesis.top_strengths:
+                st.markdown(f"- {html.escape(item)}")
+
+        if synthesis.top_risks and synthesis.top_risks != priorities:
+            st.markdown("**Top risks**")
+            for item in synthesis.top_risks:
+                st.markdown(f"- {html.escape(item)}")
+
+        write_labelled_plain("Biggest disagreement:", synthesis.biggest_disagreement)
