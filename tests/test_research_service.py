@@ -1,14 +1,14 @@
+from io import BytesIO
 from pathlib import Path
 import sys
 import unittest
-from io import BytesIO
 from unittest.mock import patch
 from urllib.error import HTTPError
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from research.service import (
-    WebSearchDecision,
     TavilyHttpClient,
+    WebSearchDecision,
     build_research_context,
     decide_web_search_usage,
     format_research_context,

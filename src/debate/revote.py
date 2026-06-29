@@ -9,8 +9,7 @@ from jinja2 import Environment, FileSystemLoader
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.config import get_stream_writer
 
-from config import JUDGE_ORDER, PROMPTS_DIR
-from config import get_settings
+from config import JUDGE_ORDER, PROMPTS_DIR, get_settings
 from idea_context import wrap_untrusted, wrap_user_idea
 from judges.guardrails import is_degenerate_panel, validate_revote_verdict
 from judges.schemas import RoastPanel, Verdict

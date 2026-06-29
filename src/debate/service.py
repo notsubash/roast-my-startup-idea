@@ -5,8 +5,7 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage
 
-from config import JUDGE_ORDER
-from config import get_settings
+from config import JUDGE_ORDER, get_settings
 from debate.graph import build_debate_graph
 from events import (
     DebateCompleted,

@@ -9,9 +9,12 @@ from pydantic import ValidationError
 import streamlit as st
 
 from appeal.service import run_appeal
-from verification import assess_revote_quality
 from config import get_settings
-from debate.revote import appeal_baseline_panel, roast_panel_from_state_verdicts, score_change_reason
+from debate.revote import (
+    appeal_baseline_panel,
+    roast_panel_from_state_verdicts,
+    score_change_reason,
+)
 from idea_context import build_startup_idea_context, idea_display_summary
 from judges.synthesis import assess_verdict_output_quality, parse_structured_synthesis
 from memory.context import build_memory_context
@@ -41,6 +44,7 @@ from ui.text_display import (
 )
 from utils.scoring_chart import generate_radar_chart
 from utils.transcript_exporter import export_transcript
+from verification import assess_revote_quality
 from version import get_version
 
 get_settings()
