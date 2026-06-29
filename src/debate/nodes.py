@@ -8,6 +8,7 @@ from langgraph.config import get_stream_writer
 
 from config import DEBATE_PERSONAS, JUDGE_ORDER, PROMPTS_DIR
 from idea_context import wrap_user_idea
+from judges.synthesis import Synthesis, synthesis_to_prose
 from observability.metrics import RunMetricsCollector
 
 template_env = Environment(loader=FileSystemLoader(PROMPTS_DIR))
@@ -162,6 +163,35 @@ def _format_verdicts_readable(verdicts: list[dict]) -> str:
     return "\n".join(parts)
 
 
+def _invoke_plain_synthesis(model: Any, prompt: str) -> tuple[str, Any]:
+    response = model.invoke([{"role": "user", "content": prompt}])
+    return _response_text(response), response
+
+
+def _invoke_structured_synthesis(model: Any, prompt: str) -> tuple[Synthesis | None, Any | None]:
+    structured_factory = getattr(model, "with_structured_output", None)
+    if structured_factory is None:
+        return None, None
+    try:
+        structured_model = structured_factory(Synthesis)
+        result = structured_model.invoke([{"role": "user", "content": prompt}])
+        if result is None:
+            return None, None
+        return Synthesis.model_validate(result), result
+    except Exception:
+        # ponytail: local models often miss structured output; legacy prose fallback below.
+        return None, None
+
+
+def _render_moderator_prompt(template_name: str, state: dict, transcript: str) -> str:
+    return template_env.get_template(template_name).render(
+        state=state,
+        startup_idea=wrap_user_idea(state["startup_idea"]),
+        original_verdicts=_format_verdicts_readable(state["verdicts"]),
+        transcript=transcript,
+    )
+
+
 def make_moderator_node(model: Any, metrics: RunMetricsCollector | None = None):
     def moderator_node(state: dict) -> dict:
         transcript = "\n".join(
@@ -169,34 +199,38 @@ def make_moderator_node(model: Any, metrics: RunMetricsCollector | None = None):
             for msg in state["debate_messages"]
         )
 
-        prompt = template_env.get_template("moderator_node_prompt.jinja2").render(
-            state=state,
-            startup_idea=wrap_user_idea(state["startup_idea"]),
-            original_verdicts=_format_verdicts_readable(state["verdicts"]),
-            transcript=transcript,
-        )
+        prompt = _render_moderator_prompt("moderator_node_prompt.jinja2", state, transcript)
         started_at = time.perf_counter()
-        response = model.invoke(
-            [
-                {
-                    "role": "user",
-                    "content": prompt,
-                }
-            ]
-        )
 
-        synthesis = _response_text(response)
+        structured, structured_response = _invoke_structured_synthesis(model, prompt)
+        if structured is not None:
+            synthesis = synthesis_to_prose(structured)
+            response_payload = structured
+            metrics_response = structured_response
+            metrics_prompt = prompt
+        else:
+            # ponytail: second LLM call only when structured output fails; ceiling is 2x moderator cost.
+            prose_prompt = _render_moderator_prompt(
+                "moderator_node_prose_prompt.jinja2", state, transcript
+            )
+            synthesis, metrics_response = _invoke_plain_synthesis(model, prose_prompt)
+            response_payload = None
+            metrics_prompt = prose_prompt
+
         if metrics is not None:
             metrics.record_debate(
                 "moderator",
                 seconds=time.perf_counter() - started_at,
-                response=response,
-                prompt_text=prompt,
+                response=metrics_response,
+                prompt_text=metrics_prompt,
                 output_text=synthesis,
             )
 
         return {
             "final_synthesis": synthesis,
+            "structured_synthesis": (
+                response_payload.model_dump() if response_payload is not None else None
+            ),
             "debate_messages": [
                 {"speaker": "moderator", "round": state["round"], "content": synthesis}
             ],

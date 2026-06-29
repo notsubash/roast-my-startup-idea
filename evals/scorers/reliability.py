@@ -4,20 +4,17 @@ from __future__ import annotations
 
 from typing import Any
 
+from judges.synthesis import Synthesis
+from verification import (
+    fix_fields_missing_judges,
+    is_degenerate_fixes,
+    score_verdict_mismatches,
+)
+
 
 def score_verdict_score_consistency(verdicts: list[dict[str, Any]]) -> dict[str, Any]:
     """Return pass rate for verdict label vs score band alignment."""
-    mismatches: list[str] = []
-    for verdict in verdicts:
-        judge = verdict.get("judge", "?")
-        label = verdict.get("verdict", "")
-        score = verdict.get("score", 0)
-        if label == "FAIL" and not (1 <= score <= 3):
-            mismatches.append(f"{judge}: FAIL with score {score}")
-        elif label == "CONDITIONAL" and not (4 <= score <= 6):
-            mismatches.append(f"{judge}: CONDITIONAL with score {score}")
-        elif label == "PASS" and not (7 <= score <= 10):
-            mismatches.append(f"{judge}: PASS with score {score}")
+    mismatches = score_verdict_mismatches(verdicts)
     total = len(verdicts)
     passed = total - len(mismatches)
     rate = passed / total if total else 0.0
@@ -26,6 +23,58 @@ def score_verdict_score_consistency(verdicts: list[dict[str, Any]]) -> dict[str,
         "verdict_score_mismatches": mismatches,
         "passed": rate == 1.0,
     }
+
+
+def score_fix_fields(verdicts: list[dict[str, Any]]) -> dict[str, Any]:
+    if not verdicts:
+        return {
+            "fix_fields_missing_judges": [],
+            "fix_fields_complete": False,
+            "fix_fields_legacy": False,
+        }
+    # ponytail: pre-Feature-1 baselines omit fix fields entirely; skip gate until refreshed
+    if not any(verdict.get("recommended_fix") for verdict in verdicts):
+        return {
+            "fix_fields_missing_judges": [],
+            "fix_fields_complete": True,
+            "fix_fields_legacy": True,
+        }
+    missing = fix_fields_missing_judges(verdicts)
+    return {
+        "fix_fields_missing_judges": missing,
+        "fix_fields_complete": not missing,
+        "fix_fields_legacy": False,
+    }
+
+
+def score_synthesis_structure(debate_result: dict[str, Any] | None) -> dict[str, Any]:
+    if not debate_result:
+        return {
+            "synthesis_structured": False,
+            "synthesis_parses": False,
+            "synthesis_legacy": True,
+        }
+    raw = debate_result.get("structured_synthesis")
+    if raw is None:
+        has_prose = bool(str(debate_result.get("final_synthesis") or "").strip())
+        return {
+            "synthesis_structured": False,
+            "synthesis_parses": has_prose,
+            "synthesis_legacy": True,
+        }
+    try:
+        Synthesis.model_validate(raw)
+        return {
+            "synthesis_structured": True,
+            "synthesis_parses": True,
+            "synthesis_legacy": False,
+        }
+    except Exception:
+        return {
+            "synthesis_structured": True,
+            "synthesis_parses": False,
+            "synthesis_legacy": False,
+        }
 
 
 def score_reliability(
@@ -40,7 +89,8 @@ def score_reliability(
     successful = sum(1 for item in judge_attempts if item.get("success"))
     parse_rate = successful / total_judge_calls if total_judge_calls else 0.0
 
-    panel_complete = bool(roast_panel and len(roast_panel.get("verdicts", [])) == 5)
+    verdicts = (roast_panel or {}).get("verdicts", [])
+    panel_complete = bool(roast_panel and len(verdicts) == 5)
     synthesis = (debate_result or {}).get("final_synthesis") or ""
     debate_complete = bool(debate_result and synthesis.strip())
 
@@ -50,7 +100,9 @@ def score_reliability(
     debate_structure_ok = len(speaker_messages) == expected_speaker_count
     has_moderator = any(m.get("speaker") == "moderator" for m in messages)
 
-    consistency = score_verdict_score_consistency((roast_panel or {}).get("verdicts", []))
+    consistency = score_verdict_score_consistency(verdicts)
+    fix_fields = score_fix_fields(verdicts)
+    synthesis_structure = score_synthesis_structure(debate_result)
 
     return {
         "judge_parse_success_rate": parse_rate,
@@ -62,5 +114,8 @@ def score_reliability(
         "debate_speaker_count": len(speaker_messages),
         "debate_expected_speaker_count": expected_speaker_count,
         "has_moderator_message": has_moderator,
+        "panel_fixes_degenerate": is_degenerate_fixes(verdicts),
         **consistency,
+        **fix_fields,
+        **synthesis_structure,
     }

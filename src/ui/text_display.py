@@ -4,7 +4,15 @@ import html
 
 import streamlit as st
 
+from judges.schemas import RoastPanel
+from judges.synthesis import OverallRecommendation, Synthesis, top_priorities
+
 _PLAIN_STYLE = "margin:0; white-space:pre-wrap;"
+_RECOMMENDATION_ICON = {
+    OverallRecommendation.GO: "\U0001f7e2",
+    OverallRecommendation.ITERATE: "\U0001f7e1",
+    OverallRecommendation.NO_GO: "\U0001f534",
+}
 
 
 def plain_text_html(text: str) -> str:
@@ -42,3 +50,46 @@ def write_synthesis(text: str) -> None:
     """Display synthesis in a bordered container with markdown formatting."""
     with st.container(border=True):
         st.markdown(text or "")
+
+
+def write_verdict_card(
+    synthesis: Synthesis,
+    roast_panel: RoastPanel | None = None,
+    *,
+    quality: dict | None = None,
+) -> None:
+    """Decision-first verdict card for structured moderator synthesis."""
+    icon = _RECOMMENDATION_ICON.get(synthesis.overall_recommendation, "\u26aa")
+    priorities = top_priorities(synthesis, roast_panel)
+    low_confidence = bool((quality or {}).get("low_confidence"))
+    reasons = (quality or {}).get("reasons") or []
+
+    with st.container(border=True):
+        if low_confidence:
+            st.warning(
+                "Low-confidence verdict — treat priorities as directional, not precise. "
+                + " ".join(reasons)
+            )
+
+        st.markdown(
+            f"### {icon} {synthesis.overall_recommendation.value} "
+            f"({synthesis.confidence.value} confidence)"
+        )
+
+        if priorities:
+            st.markdown("**Top priorities**")
+            for idx, item in enumerate(priorities, start=1):
+                write_labelled_plain(f"{idx}.", item)
+
+        detail_lines: list[str] = []
+        if synthesis.top_strengths:
+            detail_lines.append("**Strengths**")
+            detail_lines.extend(f"- {item}" for item in synthesis.top_strengths)
+        if synthesis.top_risks and synthesis.top_risks != priorities:
+            detail_lines.append("**Top risks**")
+            detail_lines.extend(f"- {item}" for item in synthesis.top_risks)
+        detail_lines.append(f"**Biggest disagreement:** {synthesis.biggest_disagreement}")
+
+        if detail_lines:
+            with st.expander("Full rationale", expanded=False):
+                st.markdown("\n\n".join(detail_lines))

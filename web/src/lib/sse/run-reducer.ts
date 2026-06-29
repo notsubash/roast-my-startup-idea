@@ -26,7 +26,19 @@ function parseVerdict(raw: unknown): Verdict | null {
     typeof v.score === "number" &&
     typeof v.key_concern === "string"
   ) {
-    return v as unknown as Verdict;
+    return {
+      judge: v.judge,
+      verdict: v.verdict as Verdict["verdict"],
+      roast: v.roast,
+      score: v.score,
+      key_concern: v.key_concern,
+      recommended_fix:
+        typeof v.recommended_fix === "string" ? v.recommended_fix : v.recommended_fix ?? null,
+      evidence_to_change_verdict:
+        typeof v.evidence_to_change_verdict === "string"
+          ? v.evidence_to_change_verdict
+          : v.evidence_to_change_verdict ?? null,
+    };
   }
   return null;
 }
@@ -317,12 +329,19 @@ export function runReducer(state: RunState, envelope: ApiEventEnvelope): RunStat
     case "debate_completed": {
       const messages = payload.debate_messages;
       const finalSynthesis = payload.final_synthesis;
+      const structuredSynthesis = payload.structured_synthesis;
       next =
         Array.isArray(messages)
           ? reconcileDebateMessages(next, messages as Array<Record<string, unknown>>)
           : next;
       if (typeof finalSynthesis === "string") {
         next = { ...next, synthesis: finalSynthesis, phase: "synthesis" };
+      }
+      if (structuredSynthesis && typeof structuredSynthesis === "object") {
+        next = {
+          ...next,
+          structuredSynthesis: structuredSynthesis as Record<string, unknown>,
+        };
       }
       return next;
     }
@@ -337,7 +356,11 @@ export function runReducer(state: RunState, envelope: ApiEventEnvelope): RunStat
         if (verdicts.length > 0) next = applyRoastPanel(next, verdicts);
       }
       const debateResult = payload.debate_result as
-        | { debate_messages?: unknown[]; final_synthesis?: string }
+        | {
+            debate_messages?: unknown[];
+            final_synthesis?: string;
+            structured_synthesis?: Record<string, unknown>;
+          }
         | undefined;
       if (debateResult) {
         if (Array.isArray(debateResult.debate_messages)) {
@@ -348,6 +371,9 @@ export function runReducer(state: RunState, envelope: ApiEventEnvelope): RunStat
         }
         if (typeof debateResult.final_synthesis === "string") {
           next = { ...next, synthesis: debateResult.final_synthesis, phase: "synthesis" };
+        }
+        if (debateResult.structured_synthesis) {
+          next = { ...next, structuredSynthesis: debateResult.structured_synthesis };
         }
       }
       return terminalStatus(next, "completed");

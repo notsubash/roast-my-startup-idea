@@ -31,6 +31,7 @@ def _initial_state(startup_idea: str, roast_panel: RoastPanel, max_rounds: int) 
         "max_rounds": max_rounds,
         "current_speaker_idx": 0,
         "final_synthesis": None,
+        "structured_synthesis": None,
     }
 
 
@@ -66,6 +67,7 @@ def stream_debate(
     current_round_displayed = 0
     all_debate_messages: list[dict] = []
     final_synthesis: str | None = None
+    structured_synthesis: dict | None = None
 
     for stream_item in debate_graph.stream(
         initial_state,
@@ -114,6 +116,9 @@ def stream_debate(
             synthesis = node_output.get("final_synthesis")
             if synthesis:
                 final_synthesis = synthesis
+                structured = node_output.get("structured_synthesis")
+                if structured is not None:
+                    structured_synthesis = structured
                 yield DebateSynthesisPublished(content=synthesis)
             else:
                 next_idx = node_output.get("current_speaker_idx", 0)
@@ -126,6 +131,7 @@ def stream_debate(
     yield DebateCompleted(
         debate_messages=all_debate_messages,
         final_synthesis=final_synthesis,
+        structured_synthesis=structured_synthesis,
     )
 
 
@@ -150,5 +156,6 @@ def run_debate(
             result = {
                 "debate_messages": event.debate_messages,
                 "final_synthesis": event.final_synthesis,
+                "structured_synthesis": event.structured_synthesis,
             }
     return result

@@ -17,6 +17,8 @@ export interface Verdict {
   roast: string;
   score: number;
   key_concern: string;
+  recommended_fix?: string | null;
+  evidence_to_change_verdict?: string | null;
 }
 
 export type RunPhase = "roast" | "debate" | "synthesis" | null;
@@ -100,6 +102,7 @@ export interface RunState {
   activeSpeaker: SpeakerId | null;
   debateTurns: DebateTurnView[];
   synthesis: string | null;
+  structuredSynthesis: Record<string, unknown> | null;
   metrics: RunMetrics | null;
   status: RunStatus;
   error: RunError | null;
@@ -138,6 +141,7 @@ export function initialRunState(
     activeSpeaker: null,
     debateTurns: [],
     synthesis: null,
+    structuredSynthesis: null,
     metrics: null,
     status,
     error: null,

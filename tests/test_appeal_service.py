@@ -7,6 +7,9 @@ from appeal.service import run_appeal
 from judges.schemas import RoastPanel, Verdict
 import tests  # noqa: F401
 
+SAMPLE_FIX = "Interview ten target buyers and document their top workflow pain before building."
+SAMPLE_EVIDENCE = "Three signed LOIs from target buyers would change this verdict."
+
 
 class FakeStructuredVerdictModel:
     def __init__(self, responses):
@@ -48,6 +51,8 @@ class FakeStructuredModel:
             roast=f"The appeal helps, but {judge} still sees material execution risk in this pitch.",
             score=6,
             key_concern="The founder needs more evidence before this becomes a clear pass.",
+            recommended_fix=SAMPLE_FIX,
+            evidence_to_change_verdict=SAMPLE_EVIDENCE,
         )
 
 
@@ -129,6 +134,8 @@ class AppealServiceTest(unittest.TestCase):
                     roast="The appeal adds useful context, but switching costs still dominate the decision.",
                     score=5,
                     key_concern="Payroll migration risk remains the main blocker.",
+                    recommended_fix=SAMPLE_FIX,
+                    evidence_to_change_verdict=SAMPLE_EVIDENCE,
                 )
 
         class FlakyModel:
@@ -185,6 +192,8 @@ class AppealServiceTest(unittest.TestCase):
                     "roast": "The appeal adds useful context, but switching costs still dominate the decision.",
                     "score": 2,
                     "key_concern": "Payroll migration risk remains the main blocker.",
+                    "recommended_fix": SAMPLE_FIX,
+                    "evidence_to_change_verdict": SAMPLE_EVIDENCE,
                 },
                 {
                     "judge": "customer",
@@ -192,6 +201,8 @@ class AppealServiceTest(unittest.TestCase):
                     "roast": "The appeal adds useful context, but switching costs still dominate the decision.",
                     "score": 5,
                     "key_concern": "Payroll migration risk remains the main blocker.",
+                    "recommended_fix": SAMPLE_FIX,
+                    "evidence_to_change_verdict": SAMPLE_EVIDENCE,
                 },
             ]
         )

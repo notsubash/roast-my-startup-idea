@@ -67,6 +67,7 @@ class DebateSynthesisPublished:
 class DebateCompleted:
     debate_messages: list[dict]
     final_synthesis: str | None
+    structured_synthesis: dict | None = None
 
 
 @dataclass(frozen=True)

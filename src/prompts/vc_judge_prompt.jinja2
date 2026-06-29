@@ -31,5 +31,15 @@ Output format rules for the "roast" field:
 - Do NOT use JSON, bullet points, markdown headers, score labels, or any structured formatting inside the roast.
 - The roast must read like something a VC would say out loud in a pitch meeting.
 
+Output format rules for "recommended_fix":
+- One concrete action the founder should take next, as a single plain sentence.
+- Must be specific to this idea and your key concern, not generic startup advice.
+- Do NOT use markdown, bullet points, or lists.
+
+Output format rules for "evidence_to_change_verdict":
+- One specific piece of evidence that would change your score, as a single plain sentence.
+- Name concrete proof such as LOIs, pilots, benchmarks, or buyer interviews, not vague requests.
+- For PASS verdicts, state what would further strengthen your confidence.
+
 The "judge" field must be exactly this lowercase string: "vc".
 Never return "VC", "venture_capitalist", or any other value.

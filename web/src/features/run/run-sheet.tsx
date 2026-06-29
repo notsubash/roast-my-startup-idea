@@ -11,7 +11,7 @@ import { getRunStatus } from "@/lib/api/runs";
 import { heatCtaClass } from "@/lib/cta-classes";
 import { JUDGE_ORDER } from "@/lib/sse/types";
 import { useRunStream } from "@/lib/sse/use-run-stream";
-import type { RunState, RunStatus } from "@/lib/sse/types";
+import type { RunState, RunStatus, Verdict } from "@/lib/sse/types";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/ui/skeleton";
 
@@ -25,7 +25,7 @@ import { RunMetricsBar } from "./run-metrics-bar";
 import { ScoreLollipopStrip } from "./score-lollipop-strip";
 import { SourcesPanel } from "./sources-panel";
 import { ScoreRadar } from "./score-radar";
-import { SynthesisBlock } from "./synthesis-block";
+import { VerdictCard } from "./verdict-card";
 import { VerdictTallyBar } from "./verdict-tally";
 
 function isTerminalStatus(status: RunStatus): boolean {
@@ -129,6 +129,10 @@ function RunSheetContent({
     restStatus === "completed" && !hasAnyVerdict && !stream.roastPanelComplete;
   const initialLoad = !stream.connected && !isTerminalStatus(restStatus);
   const showJudgeSkeletons = awaitingReplay || initialLoad;
+  const revealedVerdicts = JUDGE_ORDER.map((id) => stream.judges[id].verdict).filter(
+    (verdict): verdict is Verdict => verdict !== undefined,
+  );
+  const showDecisionCard = Boolean(stream.synthesis || stream.structuredSynthesis);
 
   return (
     <>
@@ -177,6 +181,21 @@ function RunSheetContent({
         <div className="mt-8">
           <PhaseRail phase={stream.phase} />
         </div>
+
+        {showDecisionCard && (
+          <section className="mt-10" aria-labelledby="decision-heading">
+            <h2 id="decision-heading" className="font-serif text-2xl font-semibold text-ink">
+              Decision
+            </h2>
+            <div className="mt-6">
+              <VerdictCard
+                synthesisProse={stream.synthesis}
+                structuredSynthesis={stream.structuredSynthesis}
+                verdicts={revealedVerdicts}
+              />
+            </div>
+          </section>
+        )}
 
         {stream.researchFindings && (
           <div className="mt-8">
@@ -258,18 +277,6 @@ function RunSheetContent({
           </h2>
           <div className="mt-6">
             <DebateTranscript turns={stream.debateTurns} currentRound={stream.currentRound} />
-          </div>
-        </section>
-
-        <section
-          className="mt-12 border-t-2 border-rule-soft pt-10"
-          aria-labelledby="synthesis-heading"
-        >
-          <h2 id="synthesis-heading" className="font-serif text-2xl font-semibold text-ink">
-            Final synthesis
-          </h2>
-          <div className="mt-6">
-            <SynthesisBlock content={stream.synthesis} />
           </div>
         </section>
 

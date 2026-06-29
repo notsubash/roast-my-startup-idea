@@ -20,3 +20,4 @@ class DebateState(TypedDict):
     max_rounds: int
     current_speaker_idx: int
     final_synthesis: str | None
+    structured_synthesis: dict | None

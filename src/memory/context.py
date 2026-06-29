@@ -1,4 +1,5 @@
 from idea_context import unwrap_user_idea
+from judges.synthesis import synthesis_compact_summary
 from memory.models import IdeaRecord
 
 
@@ -29,7 +30,7 @@ def build_memory_context(records: list[IdeaRecord], *, max_chars: int = 1800) ->
             f"{verdict.judge.value}: {verdict.key_concern}"
             for verdict in record.roast_panel.verdicts[:3]
         )
-        synthesis = str(record.debate_result.get("final_synthesis") or "")
+        synthesis = synthesis_compact_summary(record.debate_result)
 
         lines.extend(
             [

@@ -114,6 +114,12 @@ export function JudgeColumn({
         <span className="font-semibold text-ink">Key concern:</span> {verdict.key_concern}
       </p>
 
+      {verdict.recommended_fix && (
+        <p className="mt-3 font-sans text-sm text-ink-muted">
+          <span className="font-semibold text-ink">Recommended fix:</span> {verdict.recommended_fix}
+        </p>
+      )}
+
       <div className="mt-6">
         <VerdictStamp verdict={verdict.verdict} animate={animateStamp} />
       </div>

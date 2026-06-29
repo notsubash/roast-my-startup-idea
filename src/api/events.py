@@ -75,6 +75,7 @@ def pipeline_event_payload(event: PipelineEvent) -> dict[str, Any]:
         return {
             "debate_messages": event.debate_messages,
             "final_synthesis": event.final_synthesis,
+            "structured_synthesis": event.structured_synthesis,
         }
     if isinstance(event, PipelineCompleted):
         return {
