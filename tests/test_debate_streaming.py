@@ -224,6 +224,30 @@ class TestDebateStreaming(unittest.TestCase):
             completed.revised_verdicts[1]["score"],
         )
 
+    def test_revote_events_stream_before_debate_completed(self):
+        from events import RevoteJudgeCompleted, RevoteStarted
+
+        model = InvokeOnlyModel()
+        events = list(
+            stream_debate(
+                model,
+                "AI tool that summarizes privacy policies.",
+                _panel(),
+                max_rounds=1,
+            )
+        )
+        revote_started = [e for e in events if isinstance(e, RevoteStarted)]
+        revote_judges = [e for e in events if isinstance(e, RevoteJudgeCompleted)]
+        completed_idx = events.index(next(e for e in events if isinstance(e, DebateCompleted)))
+        self.assertEqual(len(revote_started), 1)
+        self.assertEqual(revote_started[0].total, 5)
+        self.assertEqual(len(revote_judges), 5)
+        self.assertLess(events.index(revote_started[0]), completed_idx)
+        for event in revote_judges:
+            self.assertLess(events.index(event), completed_idx)
+            if event.verdict.score != event.original_score:
+                self.assertTrue(event.verdict.evidence_to_change_verdict)
+
 
 if __name__ == "__main__":
     unittest.main()

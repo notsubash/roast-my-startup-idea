@@ -2,7 +2,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from judges.schemas import RoastPanel
+from debate.revote import roast_panel_from_state_verdicts, score_change_reason
+from judges.schemas import RoastPanel, Verdict
 from judges.synthesis import parse_structured_synthesis, top_priorities
 from observability.metrics import format_run_metrics_markdown
 
@@ -63,12 +64,18 @@ def export_transcript(
 
     synthesis = debate_result.get("final_synthesis", "")
     structured = parse_structured_synthesis(debate_result)
+    revised_verdicts = debate_result.get("revised_verdicts")
+    effective_panel = (
+        roast_panel_from_state_verdicts(revised_verdicts)
+        if isinstance(revised_verdicts, list) and revised_verdicts
+        else roast_panel
+    )
     if structured is not None:
         lines.extend(["---", "", "## Final Verdict", ""])
         lines.append(f"**Recommendation:** {structured.overall_recommendation.value}")
         lines.append(f"**Confidence:** {structured.confidence.value}")
         lines.append("")
-        priorities = top_priorities(structured, roast_panel)
+        priorities = top_priorities(structured, effective_panel)
         if priorities:
             lines.append("### Top Priorities")
             lines.append("")
@@ -87,14 +94,47 @@ def export_transcript(
     elif synthesis:
         lines.extend(["---", "", "## Final Synthesis", "", synthesis, ""])
 
+    initial_verdicts = debate_result.get("initial_verdicts")
+    if isinstance(initial_verdicts, list) and isinstance(revised_verdicts, list):
+        lines.extend(["---", "", "## Post-Debate Re-Vote", ""])
+        originals = {
+            Verdict.model_validate(item).judge.value: Verdict.model_validate(item)
+            for item in initial_verdicts
+        }
+        for item in revised_verdicts:
+            revised = Verdict.model_validate(item)
+            original = originals.get(revised.judge.value)
+            if original is None:
+                continue
+            delta = revised.score - original.score
+            delta_label = f", {delta:+d}" if delta else ""
+            lines.append(
+                f"#### {revised.judge.value.upper()} — {revised.verdict.value} "
+                f"({revised.score}/10, was {original.score}/10{delta_label})"
+            )
+            lines.append("")
+            reason = score_change_reason(original, revised)
+            if reason:
+                lines.append(f"**Why it moved:** {reason}")
+                lines.append("")
+            lines.append(f"> {revised.roast}")
+            lines.append("")
+            lines.append(f"**Key concern:** {revised.key_concern}")
+            lines.append("")
+
     if appeal_text and revised_panel is not None:
         lines.extend(
             ["---", "", "## Phase 3: Appeal", "", "### Founder Appeal", "", appeal_text, ""]
         )
         lines.extend(["### Revised Verdicts", ""])
+        appeal_baseline = roast_panel
+        if isinstance(revised_verdicts, list) and revised_verdicts:
+            appeal_baseline = RoastPanel(
+                verdicts=[Verdict.model_validate(item) for item in revised_verdicts]
+            )
         for v in revised_panel.verdicts:
             original = next(
-                orig for orig in roast_panel.verdicts if orig.judge.value == v.judge.value
+                orig for orig in appeal_baseline.verdicts if orig.judge.value == v.judge.value
             )
             delta = v.score - original.score
             delta_label = f", {delta:+d}" if delta else ""

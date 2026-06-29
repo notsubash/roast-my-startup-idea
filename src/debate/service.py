@@ -14,8 +14,10 @@ from events import (
     DebateSpeakerThinking,
     DebateSynthesisPublished,
     DebateTokenDelta,
+    RevoteJudgeCompleted,
+    RevoteStarted,
 )
-from judges.schemas import RoastPanel
+from judges.schemas import RoastPanel, Verdict
 from observability import build_run_config, idea_fingerprint, optional_config_kwargs, traceable
 from observability.metrics import RunMetricsCollector
 from run_control import check_abort
@@ -51,6 +53,8 @@ def stream_debate(
     | DebateTokenDelta
     | DebateMessagePublished
     | DebateSynthesisPublished
+    | RevoteStarted
+    | RevoteJudgeCompleted
     | DebateCompleted
 ]:
     """Stream debate graph node updates as frontend-agnostic events."""
@@ -81,17 +85,30 @@ def stream_debate(
         mode, payload = stream_item
 
         if mode == "custom":
-            if payload.get("type") != "debate_token":
+            custom_type = payload.get("type")
+            if custom_type == "debate_token":
+                token_round = payload["round"]
+                if token_round != current_round_displayed:
+                    current_round_displayed = token_round
+                    yield DebateRoundStarted(round=current_round_displayed)
+                yield DebateTokenDelta(
+                    speaker=payload["speaker"],
+                    round=token_round,
+                    delta=payload["delta"],
+                )
                 continue
-            token_round = payload["round"]
-            if token_round != current_round_displayed:
-                current_round_displayed = token_round
-                yield DebateRoundStarted(round=current_round_displayed)
-            yield DebateTokenDelta(
-                speaker=payload["speaker"],
-                round=token_round,
-                delta=payload["delta"],
-            )
+            if custom_type == "revote_started":
+                yield RevoteStarted(total=payload["total"])
+                continue
+            if custom_type == "revote_judge":
+                yield RevoteJudgeCompleted(
+                    judge=payload["judge"],
+                    verdict=Verdict.model_validate(payload["verdict"]),
+                    original_score=payload["original_score"],
+                    completed=payload["completed"],
+                    total=payload["total"],
+                )
+                continue
             continue
 
         state_update = payload

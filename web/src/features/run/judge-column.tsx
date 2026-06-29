@@ -29,12 +29,15 @@ export function JudgeColumn({
   view,
   animateStamp = false,
   scoreDelta,
+  scoreChangeReason,
 }: {
   judgeId: JudgeId;
   view: JudgeView;
   animateStamp?: boolean;
-  /** When set, shows a delta badge beside the score (appeal before/after). */
+  /** When set, shows a delta badge beside the score (appeal or post-debate re-vote). */
   scoreDelta?: number | null;
+  /** One-line justification when a post-debate score moved. */
+  scoreChangeReason?: string | null;
 }) {
   const meta = JUDGE_META[judgeId];
 
@@ -117,6 +120,12 @@ export function JudgeColumn({
       {verdict.recommended_fix && (
         <p className="mt-3 font-sans text-sm text-ink-muted">
           <span className="font-semibold text-ink">Recommended fix:</span> {verdict.recommended_fix}
+        </p>
+      )}
+
+      {scoreChangeReason && (
+        <p className="mt-3 font-sans text-sm text-ink-muted">
+          <span className="font-semibold text-ink">Why it moved:</span> {scoreChangeReason}
         </p>
       )}
 

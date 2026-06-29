@@ -1,6 +1,7 @@
 from pathlib import Path
 import sys
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from debate.revote import (
@@ -133,9 +134,19 @@ class DebateRevoteTest(unittest.TestCase):
         degenerate_panel = RoastPanel(verdicts=[_verdict(judge, score=3) for judge in judges])
         uniform = {judge: [_verdict(judge, score=3), _verdict(judge, score=3)] for judge in judges}
         model = FakeRevoteModel({judge: list(queue) for judge, queue in uniform.items()})
-        with self.assertRaisesRegex(ValueError, "degenerate"):
-            run_revote(model, "AI privacy summarizer.", degenerate_panel, debate_messages)
+        emitted: list[dict] = []
+
+        def capture(event: dict) -> None:
+            emitted.append(event)
+
+        with patch("debate.revote._emit_revote_custom", side_effect=capture):
+            with self.assertRaisesRegex(ValueError, "degenerate"):
+                run_revote(model, "AI privacy summarizer.", degenerate_panel, debate_messages)
         self.assertEqual(model.structured_model.calls, 10)
+        # ponytail: first attempt streams 1 started + 5 judges; retry is silent.
+        self.assertEqual(len(emitted), 6)
+        self.assertEqual(emitted[0]["type"], "revote_started")
+        self.assertTrue(all(item["type"] == "revote_judge" for item in emitted[1:]))
 
     def test_invoke_judge_on_revote_rejects_score_change_without_new_evidence(self):
         debate_messages = [{"speaker": "engineer", "round": 1, "content": "Reliability risk."}]

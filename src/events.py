@@ -64,6 +64,20 @@ class DebateSynthesisPublished:
 
 
 @dataclass(frozen=True)
+class RevoteStarted:
+    total: int
+
+
+@dataclass(frozen=True)
+class RevoteJudgeCompleted:
+    judge: str
+    verdict: Verdict
+    original_score: int
+    completed: int
+    total: int
+
+
+@dataclass(frozen=True)
 class DebateCompleted:
     debate_messages: list[dict]
     final_synthesis: str | None
@@ -116,6 +130,8 @@ PipelineEvent = (
     | DebateTokenDelta
     | DebateMessagePublished
     | DebateSynthesisPublished
+    | RevoteStarted
+    | RevoteJudgeCompleted
     | DebateCompleted
     | RunMetrics
     | PipelineCompleted

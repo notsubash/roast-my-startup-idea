@@ -161,6 +161,37 @@ function reconcileDebateMessages(
   return { ...state, debateTurns };
 }
 
+function applyRevoteFromPanels(
+  state: RunState,
+  initialVerdicts: unknown[],
+  revisedVerdicts: unknown[],
+): RunState {
+  const revoteBaseline = { ...state.revoteBaseline };
+  const revoteChangeReasons = { ...state.revoteChangeReasons };
+  for (const item of initialVerdicts) {
+    const verdict = parseVerdict(item);
+    if (verdict) revoteBaseline[verdict.judge] = verdict;
+  }
+  const judges = { ...state.judges };
+  for (const item of revisedVerdicts) {
+    const revised = parseVerdict(item);
+    const original = parseVerdict(
+      initialVerdicts.find(
+        (row) =>
+          row &&
+          typeof row === "object" &&
+          (row as { judge?: string }).judge === revised?.judge,
+      ),
+    );
+    if (!revised) continue;
+    judges[revised.judge] = { status: "revealed", verdict: revised };
+    if (original && revised.score !== original.score && revised.evidence_to_change_verdict) {
+      revoteChangeReasons[revised.judge] = revised.evidence_to_change_verdict;
+    }
+  }
+  return { ...state, judges, revoteBaseline, revoteChangeReasons };
+}
+
 function terminalStatus(
   state: RunState,
   status: RunState["status"],
@@ -326,6 +357,39 @@ export function runReducer(state: RunState, envelope: ApiEventEnvelope): RunStat
       };
     }
 
+    case "revote_started": {
+      const revoteBaseline = { ...next.revoteBaseline };
+      for (const id of JUDGE_ORDER) {
+        const verdict = next.judges[id].verdict;
+        if (verdict) revoteBaseline[id] = verdict;
+      }
+      return {
+        ...next,
+        revoteBaseline,
+        phase: "debate",
+        status: "running",
+      };
+    }
+
+    case "revote_judge_completed": {
+      const judge = payload.judge;
+      const verdict = parseVerdict(payload.verdict);
+      const changeReason = payload.change_reason;
+      if (typeof judge !== "string" || !isJudgeId(judge) || !verdict) return next;
+      const judges = { ...next.judges, [judge]: { status: "revealed", verdict } };
+      const revoteChangeReasons =
+        typeof changeReason === "string" && changeReason.trim()
+          ? { ...next.revoteChangeReasons, [judge]: changeReason }
+          : next.revoteChangeReasons;
+      return {
+        ...next,
+        judges,
+        revoteChangeReasons,
+        phase: "debate",
+        status: "running",
+      };
+    }
+
     case "debate_completed": {
       const messages = payload.debate_messages;
       const finalSynthesis = payload.final_synthesis;
@@ -342,6 +406,11 @@ export function runReducer(state: RunState, envelope: ApiEventEnvelope): RunStat
           ...next,
           structuredSynthesis: structuredSynthesis as Record<string, unknown>,
         };
+      }
+      const initialVerdicts = payload.initial_verdicts;
+      const revisedVerdicts = payload.revised_verdicts;
+      if (Array.isArray(initialVerdicts) && Array.isArray(revisedVerdicts)) {
+        next = applyRevoteFromPanels(next, initialVerdicts, revisedVerdicts);
       }
       return next;
     }
@@ -360,6 +429,8 @@ export function runReducer(state: RunState, envelope: ApiEventEnvelope): RunStat
             debate_messages?: unknown[];
             final_synthesis?: string;
             structured_synthesis?: Record<string, unknown>;
+            initial_verdicts?: unknown[];
+            revised_verdicts?: unknown[];
           }
         | undefined;
       if (debateResult) {
@@ -374,6 +445,16 @@ export function runReducer(state: RunState, envelope: ApiEventEnvelope): RunStat
         }
         if (debateResult.structured_synthesis) {
           next = { ...next, structuredSynthesis: debateResult.structured_synthesis };
+        }
+        if (
+          Array.isArray(debateResult.initial_verdicts) &&
+          Array.isArray(debateResult.revised_verdicts)
+        ) {
+          next = applyRevoteFromPanels(
+            next,
+            debateResult.initial_verdicts,
+            debateResult.revised_verdicts,
+          );
         }
       }
       return terminalStatus(next, "completed");

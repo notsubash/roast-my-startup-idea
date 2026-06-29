@@ -26,6 +26,8 @@ from events import (
     JudgeVerdictCompleted,
     PhaseStarted,
     PipelineCompleted,
+    RevoteJudgeCompleted,
+    RevoteStarted,
     RoastPanelCompleted,
     RunMetrics,
 )
@@ -189,10 +191,36 @@ class ApiEventSerializationTest(unittest.TestCase):
 
     def test_debate_completed_payload_shape(self):
         payload = pipeline_event_payload(
-            DebateCompleted(debate_messages=[{"speaker": "vc"}], final_synthesis="summary")
+            DebateCompleted(
+                debate_messages=[{"speaker": "vc"}],
+                final_synthesis="summary",
+                initial_verdicts=[{"judge": "vc", "score": 3}],
+                revised_verdicts=[{"judge": "vc", "score": 4}],
+            )
         )
         self.assertEqual(payload["final_synthesis"], "summary")
         self.assertEqual(len(payload["debate_messages"]), 1)
+        self.assertEqual(len(payload["initial_verdicts"]), 1)
+        self.assertEqual(len(payload["revised_verdicts"]), 1)
+
+    def test_revote_judge_completed_payload_includes_change_reason(self):
+        original = _verdict("engineer")
+        revised = original.model_copy(update={"score": 5, "evidence_to_change_verdict": "Debate shifted my view."})
+        payload = pipeline_event_payload(
+            RevoteJudgeCompleted(
+                judge="engineer",
+                verdict=revised,
+                original_score=original.score,
+                completed=2,
+                total=5,
+            )
+        )
+        self.assertEqual(payload["judge"], "engineer")
+        self.assertEqual(payload["original_score"], 3)
+        self.assertEqual(payload["change_reason"], "Debate shifted my view.")
+
+    def test_revote_started_event_type(self):
+        self.assertEqual(pipeline_event_type(RevoteStarted(total=5)), "revote_started")
 
     def test_run_failed_envelope_shape(self):
         envelope = run_failed_envelope(

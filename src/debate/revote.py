@@ -7,6 +7,7 @@ import concurrent.futures
 
 from jinja2 import Environment, FileSystemLoader
 from langchain_core.messages import HumanMessage, SystemMessage
+from langgraph.config import get_stream_writer
 
 from config import JUDGE_ORDER, PROMPTS_DIR
 from idea_context import wrap_untrusted, wrap_user_idea
@@ -22,6 +23,13 @@ from observability.metrics import RunMetricsCollector
 from run_control import check_abort
 
 template_env = Environment(loader=FileSystemLoader(PROMPTS_DIR))
+
+
+def score_change_reason(original: Verdict, revised: Verdict) -> str | None:
+    """One-line debate justification when a judge moved their score."""
+    if original.score == revised.score:
+        return None
+    return (revised.evidence_to_change_verdict or "").strip() or None
 
 
 def _original_verdict(roast_panel: RoastPanel, judge: str) -> Verdict:
@@ -86,6 +94,16 @@ def invoke_judge_on_revote(
     )
 
 
+def _emit_revote_custom(event: dict) -> None:
+    try:
+        writer = get_stream_writer()
+    except RuntimeError:
+        # ponytail: direct run_revote() calls (tests, CLI) have no graph stream writer.
+        return
+    if writer:
+        writer(event)
+
+
 def _run_revote_panel(
     model,
     startup_idea: str,
@@ -96,8 +114,14 @@ def _run_revote_panel(
     system_suffix: str | None = None,
     metrics: RunMetricsCollector | None = None,
     abort_check: Callable[[], str | None] | None = None,
+    emit_events: bool = True,
 ) -> dict[str, Verdict]:
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(JUDGE_ORDER)) as pool:
+    total = len(JUDGE_ORDER)
+    originals = {judge: _original_verdict(roast_panel, judge) for judge in JUDGE_ORDER}
+    if emit_events:
+        _emit_revote_custom({"type": "revote_started", "total": total})
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=total) as pool:
         future_to_judge = {
             pool.submit(
                 invoke_judge_on_revote,
@@ -113,10 +137,26 @@ def _run_revote_panel(
             for judge in JUDGE_ORDER
         }
         results: dict[str, Verdict] = {}
+        completed = 0
         for future in concurrent.futures.as_completed(future_to_judge):
             check_abort(abort_check)
             judge = future_to_judge[future]
-            results[judge] = future.result()
+            verdict = future.result()
+            results[judge] = verdict
+            completed += 1
+            original = originals[judge]
+            if emit_events:
+                _emit_revote_custom(
+                    {
+                        "type": "revote_judge",
+                        "judge": judge,
+                        "verdict": verdict.model_dump(),
+                        "original_score": original.score,
+                        "completed": completed,
+                        "total": total,
+                        "change_reason": score_change_reason(original, verdict),
+                    }
+                )
     return results
 
 
@@ -162,6 +202,7 @@ def run_revote(
             system_suffix=DEGENERATE_PANEL_RETRY_SUFFIX,
             metrics=metrics,
             abort_check=abort_check,
+            emit_events=False,
         )
         verdicts = [results[judge] for judge in JUDGE_ORDER]
         if is_degenerate_panel(verdicts):

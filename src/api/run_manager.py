@@ -86,6 +86,13 @@ def _summary_for_completed_run(store: RunStore, run_id: str) -> VerdictSummary |
     completed = store.get_latest_event(run_id, "run_completed")
     if completed is None:
         return None
+    debate_result = completed.payload.get("debate_result")
+    if isinstance(debate_result, dict):
+        revised = debate_result.get("revised_verdicts")
+        if isinstance(revised, list) and revised:
+            summary = _verdict_summary_from_panel({"verdicts": revised})
+            if summary is not None:
+                return summary
     roast_panel = completed.payload.get("roast_panel")
     if isinstance(roast_panel, dict):
         return _verdict_summary_from_panel(roast_panel)

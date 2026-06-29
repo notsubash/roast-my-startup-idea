@@ -111,6 +111,26 @@ class TranscriptExporterTest(unittest.TestCase):
             self.assertIn("### Appeal Synthesis", content)
             self.assertIn("did not remove sales-cycle risk", content)
 
+    def test_export_includes_post_debate_revote_section(self):
+        initial = _panel(3, "No urgent buyer.")
+        revised = _panel(5, "Pilot conversion still uncertain.")
+        debate_result = {
+            "final_synthesis": "Mixed after debate.",
+            "debate_messages": [],
+            "initial_verdicts": [v.model_dump() for v in initial.verdicts],
+            "revised_verdicts": [v.model_dump() for v in revised.verdicts],
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = export_transcript(
+                "AI calendar for founders",
+                initial,
+                debate_result,
+                output_dir=Path(tmpdir),
+            )
+            content = path.read_text(encoding="utf-8")
+            self.assertIn("## Post-Debate Re-Vote", content)
+            self.assertIn("(5/10, was 3/10, +2)", content)
+
 
 if __name__ == "__main__":
     unittest.main()
