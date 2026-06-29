@@ -1,18 +1,22 @@
 """Single-judge evaluation — no UI, no orchestration."""
 
+from collections.abc import Callable
 import json
 import time
+from typing import Literal
 
 from jinja2 import Environment, FileSystemLoader
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import ValidationError
 
-from config import PROMPTS_DIR
+from config import PROMPTS_DIR, get_settings
 from idea_context import UNTRUSTED_DATA_INSTRUCTION, wrap_untrusted, wrap_user_idea
 from judges.guardrails import GuardrailError, validate_structured_verdict
 from judges.schemas import Verdict
 from observability import build_run_config, idea_fingerprint, optional_config_kwargs
 from observability.metrics import RunMetricsCollector
+
+MetricsPhase = Literal["roast", "debate"]
 
 template_env = Environment(loader=FileSystemLoader(PROMPTS_DIR))
 JUDGE_MAX_ATTEMPTS = 3
@@ -22,6 +26,12 @@ INJECTION_DEFENSE = UNTRUSTED_DATA_INSTRUCTION
 DEGENERATE_PANEL_RETRY_SUFFIX = (
     "IMPORTANT: The prior panel returned identical scores from every judge, which is "
     "suspicious. Score independently from your rubric; do not copy other judges."
+)
+
+REVOTE_ANTI_HERD_SUFFIX = (
+    "Re-vote from your role's rubric only. Do not herd to the loudest debate voice or "
+    "parrot another judge's catchphrase unless it genuinely changed your assessment. "
+    "There is no live founder in the debate — never cite founder non-responsiveness as evidence."
 )
 
 JUDGE_TEMPLATES = {
@@ -78,6 +88,8 @@ def invoke_structured_verdict(
     label: str = "judge",
     metrics: RunMetricsCollector | None = None,
     started_at: float | None = None,
+    post_validate: Callable[[Verdict], None] | None = None,
+    metrics_phase: MetricsPhase = "roast",
 ) -> Verdict:
     prompt_text = _message_text(messages)
     output_parts: list[str] = []
@@ -94,17 +106,41 @@ def invoke_structured_verdict(
         try:
             verdict = Verdict.model_validate(result)
             validate_structured_verdict(verdict, judge=judge)
+            if post_validate is not None:
+                post_validate(verdict)
             if metrics is not None:
-                metrics.record_judge(
-                    judge,
-                    seconds=time.perf_counter() - attempt_started,
-                    prompt_text=prompt_text,
-                    output_text="\n".join(output_parts),
-                )
+                elapsed = time.perf_counter() - attempt_started
+                if metrics_phase == "debate":
+                    metrics.record_debate(
+                        f"revote-{judge}",
+                        seconds=elapsed,
+                        response=result,
+                        prompt_text=prompt_text,
+                        output_text="\n".join(output_parts),
+                    )
+                else:
+                    metrics.record_judge(
+                        judge,
+                        seconds=elapsed,
+                        response=result,
+                        prompt_text=prompt_text,
+                        output_text="\n".join(output_parts),
+                    )
             return verdict
         except (ValidationError, GuardrailError) as exc:
             last_error = exc
             if attempt + 1 < JUDGE_MAX_ATTEMPTS:
+                evidence_hint = (
+                    "evidence_to_change_verdict must cite what in the debate changed your score."
+                    if label == "revote judge"
+                    else "evidence_to_change_verdict must name verifiable "
+                    "proof that would change your score."
+                )
+                bounds_hint = (
+                    f" Score may move at most {get_settings().max_revote_score_delta} points per re-vote."
+                    if label == "revote judge"
+                    else ""
+                )
                 messages = [
                     *messages,
                     HumanMessage(
@@ -112,8 +148,7 @@ def invoke_structured_verdict(
                             f"Your previous structured verdict was rejected: {exc}. "
                             "Return a corrected complete Verdict JSON. "
                             "recommended_fix must prescribe a concrete next action beyond "
-                            "key_concern. evidence_to_change_verdict must name verifiable "
-                            "proof that would change your score."
+                            f"key_concern. {evidence_hint}{bounds_hint}"
                         )
                     ),
                 ]

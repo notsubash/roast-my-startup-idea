@@ -6,7 +6,7 @@ import {
   parseStructuredSynthesis,
   topPriorities,
 } from "../src/features/run/structured-synthesis.ts";
-import { assessVerdictOutputQuality } from "../src/features/run/verdict-quality.ts";
+import { assessRevoteOutputQuality, assessVerdictOutputQuality } from "../src/features/run/verdict-quality.ts";
 
 const STRUCTURED = {
   overall_recommendation: "ITERATE",
@@ -69,4 +69,66 @@ test("assessVerdictOutputQuality flags prose-only synthesis fallback", () => {
   const quality = assessVerdictOutputQuality([], parsed, true);
   assert.equal(quality.lowConfidence, true);
   assert.match(quality.reasons.join(" "), /free-text synthesis/);
+});
+
+test("assessVerdictOutputQuality accepts numbered prose fallback shape", () => {
+  const prose =
+    "**1. Overall verdict:** FAIL\n\n**2. Final score from 1-10:** 2.0\n\n**3. Consensus points**\n- Scope is too broad.";
+  const quality = assessVerdictOutputQuality([], null, false);
+  assert.equal(quality.lowConfidence, false);
+  assert.equal(quality.reasons.length, 0);
+});
+
+function verdict(judge, score) {
+  return {
+    judge,
+    verdict: "CONDITIONAL",
+    roast: "Needs work.",
+    score,
+    key_concern: "Gap.",
+    recommended_fix: `Fix for ${judge}.`,
+  };
+}
+
+test("assessRevoteOutputQuality treats varied same-direction moves as convergence", () => {
+  const baseline = {
+    vc: verdict("vc", 7),
+    pm: verdict("pm", 7),
+    customer: verdict("customer", 6),
+    competitor: verdict("competitor", 5),
+    engineer: verdict("engineer", 6),
+  };
+  const current = [
+    verdict("vc", 5),
+    verdict("pm", 6),
+    verdict("customer", 5),
+    verdict("competitor", 3),
+    verdict("engineer", 6),
+  ];
+  const quality = assessRevoteOutputQuality(baseline, current);
+  assert.equal(quality.panelConverged, true);
+  assert.equal(quality.lowConfidence, false);
+  assert.match(quality.convergenceNote ?? "", /converged on shared concerns/);
+});
+
+test("assessRevoteOutputQuality flags identical deltas as suspicious", () => {
+  const baseline = {
+    vc: verdict("vc", 7),
+    pm: verdict("pm", 7),
+    customer: verdict("customer", 7),
+    competitor: verdict("competitor", 7),
+    engineer: verdict("engineer", 7),
+  };
+  const current = [
+    verdict("vc", 5),
+    verdict("pm", 5),
+    verdict("customer", 5),
+    verdict("competitor", 5),
+    verdict("engineer", 7),
+  ];
+  const quality = assessRevoteOutputQuality(baseline, current);
+  assert.equal(quality.herdedDeltas, true);
+  assert.equal(quality.lowConfidence, true);
+  assert.equal(quality.panelConverged, false);
+  assert.match(quality.reasons.join(" "), /herded/);
 });

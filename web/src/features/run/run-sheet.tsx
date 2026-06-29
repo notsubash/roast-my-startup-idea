@@ -27,6 +27,7 @@ import { SourcesPanel } from "./sources-panel";
 import { ScoreRadar } from "./score-radar";
 import { VerdictCard } from "./verdict-card";
 import { VerdictTallyBar } from "./verdict-tally";
+import { assessRevoteOutputQuality } from "./verdict-quality";
 
 function isTerminalStatus(status: RunStatus): boolean {
   return status === "completed" || status === "failed" || status === "cancelled";
@@ -132,6 +133,13 @@ function RunSheetContent({
   const revealedVerdicts = JUDGE_ORDER.map((id) => stream.judges[id].verdict).filter(
     (verdict): verdict is Verdict => verdict !== undefined,
   );
+  const hasRevote = Object.keys(stream.revoteBaseline).length > 0;
+  const revoteQuality = hasRevote
+    ? assessRevoteOutputQuality(
+        stream.revoteBaseline,
+        revealedVerdicts,
+      )
+    : null;
   const showDecisionCard = Boolean(stream.synthesis || stream.structuredSynthesis);
 
   return (
@@ -213,15 +221,44 @@ function RunSheetContent({
           <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {showJudgeSkeletons
               ? JUDGE_ORDER.map((id) => <JudgeColumnSkeleton key={id} />)
-              : JUDGE_ORDER.map((id) => (
-                  <JudgeColumn
-                    key={id}
-                    judgeId={id}
-                    view={stream.judges[id]}
-                    animateStamp={stream.judges[id].status === "revealed"}
-                  />
-                ))}
+              : JUDGE_ORDER.map((id) => {
+                  const baseline = stream.revoteBaseline[id];
+                  const current = stream.judges[id].verdict;
+                  const scoreDelta =
+                    baseline && current ? current.score - baseline.score : undefined;
+                  return (
+                    <JudgeColumn
+                      key={id}
+                      judgeId={id}
+                      view={stream.judges[id]}
+                      animateStamp={stream.judges[id].status === "revealed"}
+                      scoreDelta={scoreDelta}
+                      scoreChangeReason={stream.revoteChangeReasons[id]}
+                    />
+                  );
+                })}
           </div>
+          {hasRevote && (
+            <p className="mt-4 max-w-prose font-sans text-sm text-ink-muted">
+              Delta badges compare each judge&apos;s current score to their initial roast verdict
+              after the post-debate re-vote.
+            </p>
+          )}
+          {revoteQuality?.convergenceNote && !revoteQuality.lowConfidence && (
+            <p className="mt-3 max-w-prose rounded-md border border-rule-soft bg-paper-2 px-4 py-3 font-sans text-sm text-ink-muted">
+              {revoteQuality.convergenceNote}
+            </p>
+          )}
+          {revoteQuality?.lowConfidence && (
+            <p className="mt-3 max-w-prose rounded-md border border-amber-200 bg-amber-50 px-4 py-3 font-sans text-sm text-amber-950">
+              {revoteQuality.reasons.join(" ")}
+            </p>
+          )}
+          {!revoteQuality?.scoresMoved && hasRevote && (
+            <p className="mt-3 max-w-prose font-sans text-sm text-ink-muted">
+              No judge changed their score after the debate.
+            </p>
+          )}
         </section>
 
         <section className="mt-12 border-t-2 border-rule-soft pt-10" aria-labelledby="scores-heading">

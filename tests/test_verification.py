@@ -7,12 +7,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from judges.schemas import Verdict, VerdictLabel, judgeLabel
 import tests  # noqa: F401
 from verification import (
+    assess_revote_quality,
     fix_fields_missing_judges,
     is_degenerate_fixes,
     is_degenerate_panel,
     score_verdict_mismatches,
     verify_verdict_invariants,
 )
+from verification.invariants import check_score_change_bounded
 
 SAMPLE_FIX = "Interview ten target buyers and document their top workflow pain before building."
 SAMPLE_EVIDENCE = "Three signed LOIs from target buyers would change this verdict."
@@ -94,6 +96,62 @@ class VerificationPanelTest(unittest.TestCase):
             ]
         )
         self.assertEqual(missing, ["pm"])
+
+    def test_check_score_change_bounded_rejects_large_swings(self):
+        original = _verdict("vc", score=3)
+        revised = _verdict("vc", score=8, evidence_to_change_verdict="Debate changed my view.")
+        check = check_score_change_bounded(original, revised, max_delta=3)
+        self.assertIsNotNone(check)
+        self.assertIn("max 3", check.message)
+
+    def test_assess_revote_quality_flags_unexplained_and_herded(self):
+        initial = [
+            _verdict("vc", score=5),
+            _verdict("engineer", score=5),
+            _verdict("pm", score=5),
+            _verdict("customer", score=5),
+            _verdict("competitor", score=5),
+        ]
+        revised = [
+            _verdict("vc", score=3, evidence_to_change_verdict=SAMPLE_EVIDENCE),
+            _verdict("engineer", score=3, evidence_to_change_verdict="Round 2 engineer argument."),
+            _verdict("pm", score=3, evidence_to_change_verdict="Round 2 pm argument."),
+            _verdict("customer", score=3, evidence_to_change_verdict="Round 2 customer argument."),
+            _verdict(
+                "competitor", score=3, evidence_to_change_verdict="Round 2 competitor argument."
+            ),
+        ]
+        quality = assess_revote_quality(
+            [v.model_dump() for v in initial],
+            [v.model_dump() for v in revised],
+            max_delta=3,
+        )
+        self.assertTrue(quality["revote_present"])
+        self.assertIn("vc", quality["revote_unexplained_changes"])
+        self.assertTrue(quality["revote_herded_deltas"])
+        self.assertFalse(quality["revote_passed"])
+
+    def test_assess_revote_quality_flags_directional_pile_on(self):
+        initial = [
+            _verdict("vc", score=5),
+            _verdict("engineer", score=5),
+            _verdict("pm", score=5),
+            _verdict("customer", score=4),
+            _verdict("competitor", score=3),
+        ]
+        revised = [
+            _verdict("vc", score=3, evidence_to_change_verdict="Round 2 customer argument."),
+            _verdict("engineer", score=5),
+            _verdict("pm", score=2, evidence_to_change_verdict="Round 3 pm argument."),
+            _verdict("customer", score=1, evidence_to_change_verdict="Round 2 customer argument."),
+            _verdict("competitor", score=3),
+        ]
+        quality = assess_revote_quality(
+            [v.model_dump() for v in initial],
+            [v.model_dump() for v in revised],
+        )
+        self.assertTrue(quality["revote_directional_pile_on"])
+        self.assertEqual(quality["revote_pile_on_direction"], "down")
 
 
 if __name__ == "__main__":

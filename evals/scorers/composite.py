@@ -25,9 +25,15 @@ def score_idea_result(
     )
 
     legacy_output = reliability.get("fix_fields_legacy") or reliability.get("synthesis_legacy")
+    revote_legacy = reliability.get("revote_legacy", True)
     fix_ok = reliability.get("fix_fields_complete", False)
     synthesis_ok = reliability.get("synthesis_parses", False)
     fixes_ok = fix_ok and not reliability.get("panel_fixes_degenerate", False)
+    revote_ok = (
+        reliability.get("revote_passed", True)
+        if revote_legacy
+        else reliability.get("revote_passed", False)
+    )
 
     passed = (
         reliability.get("judge_parse_success_rate", 0) >= 0.95
@@ -36,6 +42,7 @@ def score_idea_result(
         and reliability.get("debate_structure_ok", False)
         and reliability.get("passed", False)
         and (legacy_output or (fixes_ok and synthesis_ok))
+        and revote_ok
     )
 
     return {

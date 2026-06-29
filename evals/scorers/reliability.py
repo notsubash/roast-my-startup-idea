@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from config import get_settings
 from judges.synthesis import Synthesis
 from verification import (
+    assess_revote_quality,
     fix_fields_missing_judges,
     is_degenerate_fixes,
     score_verdict_mismatches,
@@ -77,6 +79,16 @@ def score_synthesis_structure(debate_result: dict[str, Any] | None) -> dict[str,
         }
 
 
+def score_revote_quality(debate_result: dict[str, Any] | None) -> dict[str, Any]:
+    if not debate_result:
+        return {"revote_present": False, "revote_legacy": True, "revote_passed": True}
+    return assess_revote_quality(
+        debate_result.get("initial_verdicts"),
+        debate_result.get("revised_verdicts"),
+        max_delta=get_settings().max_revote_score_delta,
+    )
+
+
 def score_reliability(
     *,
     judge_attempts: list[dict[str, Any]],
@@ -103,6 +115,7 @@ def score_reliability(
     consistency = score_verdict_score_consistency(verdicts)
     fix_fields = score_fix_fields(verdicts)
     synthesis_structure = score_synthesis_structure(debate_result)
+    revote_quality = score_revote_quality(debate_result)
 
     return {
         "judge_parse_success_rate": parse_rate,
@@ -118,4 +131,5 @@ def score_reliability(
         **consistency,
         **fix_fields,
         **synthesis_structure,
+        **revote_quality,
     }

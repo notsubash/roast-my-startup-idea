@@ -4,9 +4,45 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from debate.service import stream_debate
-from events import DebateMessagePublished, DebateRoundStarted, DebateTokenDelta
+from events import DebateCompleted, DebateMessagePublished, DebateRoundStarted, DebateTokenDelta
 from judges.schemas import RoastPanel, Verdict
 import tests  # noqa: F401
+
+SAMPLE_FIX = "Interview ten target buyers and document their top workflow pain before building."
+SAMPLE_EVIDENCE = "Three signed LOIs from target buyers would change this verdict."
+
+
+def _revote_verdict(judge: str) -> Verdict:
+    scores = {"vc": 3, "engineer": 5, "pm": 4, "customer": 2, "competitor": 2}
+    score = scores[judge]
+    label = "FAIL" if score <= 3 else "CONDITIONAL" if score <= 6 else "PASS"
+    return Verdict(
+        judge=judge,
+        verdict=label,
+        roast=f"The {judge} judge still sees execution risk after the debate.",
+        score=score,
+        key_concern=f"The {judge} concern remains unresolved.",
+        recommended_fix=SAMPLE_FIX,
+        evidence_to_change_verdict=SAMPLE_EVIDENCE,
+    )
+
+
+class FakeStructuredModel:
+    def invoke(self, messages, **_kwargs):
+        parts = []
+        for message in messages:
+            content = getattr(message, "content", message)
+            parts.append(content if isinstance(content, str) else str(content))
+        prompt = "\n".join(parts)
+        judge = "vc"
+        for candidate in ["vc", "engineer", "pm", "customer", "competitor"]:
+            if (
+                f'"{candidate}"' in prompt
+                or f"judge field must be exactly {candidate}" in prompt.lower()
+            ):
+                judge = candidate
+                break
+        return _revote_verdict(judge)
 
 
 class FakeChunk:
@@ -36,6 +72,9 @@ class StreamingFakeModel:
     def invoke(self, messages, **_kwargs):
         return FakeChunk("Moderator synthesis.")
 
+    def with_structured_output(self, schema):
+        return FakeStructuredModel()
+
 
 class InvokeOnlyModel:
     def __init__(self):
@@ -44,6 +83,35 @@ class InvokeOnlyModel:
     def invoke(self, messages, **_kwargs):
         self.calls += 1
         return FakeChunk(f"Reply {self.calls}")
+
+    def with_structured_output(self, schema):
+        return FakeStructuredModel()
+
+
+class FlakyStreamModel:
+    """Fails once mid-stream on the engineer turn, then succeeds on retry."""
+
+    def __init__(self):
+        self.stream_calls = 0
+        self.invoke_calls = 0
+
+    def stream(self, messages, **_kwargs):
+        self.stream_calls += 1
+        if self.stream_calls == 2:
+            yield FakeChunk("partial ")
+            raise RemoteProtocolError("peer closed connection without complete body")
+        yield FakeChunk(f"Reply {self.stream_calls}.")
+
+    def invoke(self, messages, **_kwargs):
+        self.invoke_calls += 1
+        return FakeChunk("Invoke fallback.")
+
+    def with_structured_output(self, schema):
+        return FakeStructuredModel()
+
+
+class RemoteProtocolError(RuntimeError):
+    pass
 
 
 def _panel() -> RoastPanel:
@@ -161,6 +229,66 @@ class TestDebateStreaming(unittest.TestCase):
         )
         self.assertEqual(by_turn[("vc", 1)], ["Reply 1"])
         self.assertEqual(vc_message.content, "Reply 1")
+
+    def test_debate_completed_includes_initial_and_revised_verdicts(self):
+        model = InvokeOnlyModel()
+        events = list(
+            stream_debate(
+                model,
+                "AI tool that summarizes privacy policies.",
+                _panel(),
+                max_rounds=1,
+            )
+        )
+        completed = next(e for e in events if isinstance(e, DebateCompleted))
+        self.assertIsNotNone(completed.initial_verdicts)
+        self.assertEqual(len(completed.initial_verdicts), 5)
+        self.assertIsNotNone(completed.revised_verdicts)
+        self.assertEqual(len(completed.revised_verdicts), 5)
+        self.assertNotEqual(
+            completed.initial_verdicts[1]["score"],
+            completed.revised_verdicts[1]["score"],
+        )
+
+    def test_revote_events_stream_before_debate_completed(self):
+        from events import RevoteJudgeCompleted, RevoteStarted
+
+        model = InvokeOnlyModel()
+        events = list(
+            stream_debate(
+                model,
+                "AI tool that summarizes privacy policies.",
+                _panel(),
+                max_rounds=1,
+            )
+        )
+        revote_started = [e for e in events if isinstance(e, RevoteStarted)]
+        revote_judges = [e for e in events if isinstance(e, RevoteJudgeCompleted)]
+        completed_idx = events.index(next(e for e in events if isinstance(e, DebateCompleted)))
+        self.assertEqual(len(revote_started), 1)
+        self.assertEqual(revote_started[0].total, 5)
+        self.assertEqual(len(revote_judges), 5)
+        self.assertLess(events.index(revote_started[0]), completed_idx)
+        for event in revote_judges:
+            self.assertLess(events.index(event), completed_idx)
+            if event.verdict.score != event.original_score:
+                self.assertTrue(event.verdict.evidence_to_change_verdict)
+
+    def test_stream_recovers_from_transient_provider_disconnect(self):
+        model = FlakyStreamModel()
+        events = list(
+            stream_debate(
+                model,
+                "AI tool that summarizes privacy policies.",
+                _panel(),
+                max_rounds=1,
+            )
+        )
+        engineer_message = next(
+            e for e in events if isinstance(e, DebateMessagePublished) and e.speaker == "engineer"
+        )
+        self.assertEqual(engineer_message.content, "Reply 3.")
+        self.assertGreaterEqual(model.stream_calls, 3)
 
 
 if __name__ == "__main__":

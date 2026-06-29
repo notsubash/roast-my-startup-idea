@@ -16,6 +16,8 @@ from events import (
     PhaseStarted,
     PipelineCompleted,
     PipelineEvent,
+    RevoteJudgeCompleted,
+    RevoteStarted,
     RoastPanelCompleted,
     RunMetrics,
 )
@@ -71,11 +73,28 @@ def pipeline_event_payload(event: PipelineEvent) -> dict[str, Any]:
         }
     if isinstance(event, DebateSynthesisPublished):
         return {"content": event.content}
+    if isinstance(event, RevoteStarted):
+        return {"total": event.total}
+    if isinstance(event, RevoteJudgeCompleted):
+        payload: dict[str, Any] = {
+            "judge": event.judge,
+            "verdict": event.verdict.model_dump(mode="json"),
+            "original_score": event.original_score,
+            "completed": event.completed,
+            "total": event.total,
+        }
+        if event.verdict.score != event.original_score:
+            reason = (event.verdict.evidence_to_change_verdict or "").strip()
+            if reason:
+                payload["change_reason"] = reason
+        return payload
     if isinstance(event, DebateCompleted):
         return {
             "debate_messages": event.debate_messages,
             "final_synthesis": event.final_synthesis,
             "structured_synthesis": event.structured_synthesis,
+            "initial_verdicts": event.initial_verdicts,
+            "revised_verdicts": event.revised_verdicts,
         }
     if isinstance(event, PipelineCompleted):
         return {

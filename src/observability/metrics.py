@@ -194,18 +194,25 @@ class RunMetricsCollector:
 
         roast_calls = [call.as_dict() for call in calls if call.phase == "roast"]
         debate_calls = [call.as_dict() for call in calls if call.phase == "debate"]
+        revote_calls = [call for call in debate_calls if call["label"].startswith("revote-")]
+        debate_calls_ex_revote = [
+            call for call in debate_calls if not call["label"].startswith("revote-")
+        ]
+        revote_seconds = round(sum(call["seconds"] for call in revote_calls), 2)
 
         return {
             "roast_seconds": round(roast_seconds, 2),
             "debate_seconds": round(debate_seconds, 2),
             "total_seconds": round(total_seconds, 2),
+            "revote_seconds": revote_seconds,
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
             "total_tokens": total_tokens,
             "estimated_cost_usd": estimated_cost_usd,
             "model_runtime": self.model_runtime,
             "judge_calls": roast_calls,
-            "debate_calls": debate_calls,
+            "debate_calls": debate_calls_ex_revote,
+            "revote_calls": revote_calls,
         }
 
 
@@ -225,9 +232,13 @@ def format_run_metrics_footer(metrics: dict[str, Any]) -> str:
     else:
         cost_label = "~$0.00"
 
+    revote_seconds = float(metrics.get("revote_seconds") or 0)
+    revote_label = f" · Re-vote {revote_seconds:.1f}s" if revote_seconds > 0 else ""
+
     return (
         f"Roast {metrics['roast_seconds']:.1f}s · "
-        f"Debate {metrics['debate_seconds']:.1f}s · "
+        f"Debate {metrics['debate_seconds']:.1f}s"
+        f"{revote_label} · "
         f"{tokens_label} · "
         f"{cost_label}"
     )
@@ -238,21 +249,29 @@ def format_run_metrics_markdown(metrics: dict[str, Any] | None) -> list[str]:
     if not metrics:
         return []
 
-    return [
+    revote_seconds = float(metrics.get("revote_seconds") or 0)
+    lines = [
         "## Run Metrics",
         "",
         f"**Summary:** {format_run_metrics_footer(metrics)}",
         "",
         f"- **Roast phase:** {metrics['roast_seconds']:.1f}s wall-clock",
         f"- **Debate phase:** {metrics['debate_seconds']:.1f}s wall-clock",
-        f"- **Total time:** {metrics['total_seconds']:.1f}s",
-        (
-            f"- **Tokens:** {metrics['input_tokens']:,} input / "
-            f"{metrics['output_tokens']:,} output ({metrics['total_tokens']:,} total)"
-        ),
-        f"- **Estimated cost:** ${metrics['estimated_cost_usd']:.4f} ({metrics['model_runtime']})",
-        "",
     ]
+    if revote_seconds > 0:
+        lines.append(f"- **Re-vote phase:** {revote_seconds:.1f}s wall-clock (included in debate)")
+    lines.extend(
+        [
+            f"- **Total time:** {metrics['total_seconds']:.1f}s",
+            (
+                f"- **Tokens:** {metrics['input_tokens']:,} input / "
+                f"{metrics['output_tokens']:,} output ({metrics['total_tokens']:,} total)"
+            ),
+            f"- **Estimated cost:** ${metrics['estimated_cost_usd']:.4f} ({metrics['model_runtime']})",
+            "",
+        ]
+    )
+    return lines
 
 
 def log_run_metrics(metrics: dict[str, Any], *, run_id: str | None = None) -> None:

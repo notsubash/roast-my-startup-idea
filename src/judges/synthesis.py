@@ -1,6 +1,7 @@
 """Structured moderator synthesis — parse, format, and compact summaries."""
 
 from enum import StrEnum
+import re
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -10,6 +11,12 @@ from verification import is_degenerate_fixes
 
 SYNTHESIS_ITEM_MAX_LENGTH = 300
 BIGGEST_DISAGREEMENT_MAX_LENGTH = 400
+_NUMBERED_PROSE_SYNTHESIS = re.compile(r"\*\*1\.\s*Overall verdict:\*\*", re.I)
+
+
+def is_numbered_prose_synthesis(text: str | None) -> bool:
+    """True when moderator prose fallback matches the expected five-section shape."""
+    return bool(text and _NUMBERED_PROSE_SYNTHESIS.search(text))
 
 
 class OverallRecommendation(StrEnum):
@@ -141,7 +148,12 @@ def assess_verdict_output_quality(
     if verdicts and is_degenerate_fixes(verdicts):
         reasons.append("Judges returned near-identical recommended fixes.")
 
-    if structured is None and (debate_result or {}).get("final_synthesis"):
+    final_synthesis = str((debate_result or {}).get("final_synthesis") or "")
+    if (
+        structured is None
+        and final_synthesis.strip()
+        and not is_numbered_prose_synthesis(final_synthesis)
+    ):
         reasons.append("Moderator fell back to free-text synthesis.")
 
     if structured is not None and structured.confidence == ConfidenceLevel.LOW:

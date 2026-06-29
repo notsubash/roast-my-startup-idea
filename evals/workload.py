@@ -13,7 +13,10 @@ def estimate_llm_calls(
 ) -> dict[str, int | float]:
     """Return per-idea and total LLM call counts for a local eval run."""
     roast_calls = JUDGE_COUNT
-    debate_calls = max_debate_rounds * JUDGE_COUNT + 1  # speakers + moderator
+    revote_calls = JUDGE_COUNT
+    debate_calls = (
+        max_debate_rounds * JUDGE_COUNT + 1 + revote_calls
+    )  # speakers + moderator + re-vote
 
     appeal_cases = 2 if include_appeals else 0
     appeal_judge_calls = appeal_cases * JUDGE_COUNT
@@ -21,11 +24,12 @@ def estimate_llm_calls(
     appeal_calls = appeal_judge_calls + appeal_synthesis_calls
 
     per_idea = roast_calls + debate_calls + appeal_calls
-    # Roast and appeal judges run in parallel; debate speakers and synthesis are sequential.
+    # Roast and appeal judges run in parallel; debate speakers, re-vote, and synthesis are sequential.
     per_idea_sequential = debate_calls + appeal_synthesis_calls
 
     return {
         "roast_calls_per_idea": roast_calls,
+        "revote_calls_per_idea": revote_calls,
         "debate_calls_per_idea": debate_calls,
         "appeal_calls_per_idea": appeal_calls,
         "llm_calls_per_idea": per_idea,

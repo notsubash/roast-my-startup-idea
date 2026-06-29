@@ -1,4 +1,5 @@
 import json
+import logging
 import time
 from typing import Any
 
@@ -7,11 +8,14 @@ from langchain_core.messages import AIMessage
 from langgraph.config import get_stream_writer
 
 from config import DEBATE_PERSONAS, JUDGE_ORDER, PROMPTS_DIR
+from debate.revote import roast_panel_from_state_verdicts, run_revote
 from idea_context import wrap_user_idea
 from judges.synthesis import Synthesis, synthesis_to_prose
+from llm_resilience import call_with_llm_retry, is_transient_llm_error
 from observability.metrics import RunMetricsCollector
 
 template_env = Environment(loader=FileSystemLoader(PROMPTS_DIR))
+logger = logging.getLogger(__name__)
 
 
 def _response_text(response: Any) -> str:
@@ -36,6 +40,36 @@ def _chunk_delta(chunk: Any) -> str:
     return str(content) if content else ""
 
 
+def _collect_stream_chunks(stream, messages: list[dict]) -> tuple[str, Any | None, list[str]]:
+    """Buffer a model stream; only emit after the full response arrives."""
+    parts: list[str] = []
+    last_chunk: Any | None = None
+    for chunk in stream(messages):
+        last_chunk = chunk
+        delta = _chunk_delta(chunk)
+        if delta:
+            parts.append(delta)
+    return "".join(parts).strip(), last_chunk, parts
+
+
+def _emit_debate_tokens(
+    writer,
+    *,
+    speaker: str,
+    round_num: int | None,
+    parts: list[str],
+) -> None:
+    for delta in parts:
+        writer(
+            {
+                "type": "debate_token",
+                "speaker": speaker,
+                "round": round_num,
+                "delta": delta,
+            }
+        )
+
+
 def _stream_model_text(
     model: Any,
     messages: list[dict],
@@ -49,11 +83,59 @@ def _stream_model_text(
     started_at = time.perf_counter()
     prompt_text = messages[0]["content"] if messages else ""
     label = call_label or speaker or "debate"
+    retry_label = f"debate {label}"
+    writer = get_stream_writer()
     stream = getattr(model, "stream", None)
-    if stream is None:
+
+    def _record(response: Any | None, output_text: str) -> str:
+        if metrics is not None:
+            metrics.record_debate(
+                label,
+                seconds=time.perf_counter() - started_at,
+                response=response,
+                prompt_text=prompt_text,
+                output_text=output_text,
+            )
+        return output_text
+
+    if stream is not None:
+        last_error: BaseException | None = None
+        for attempt in range(3):
+            try:
+                text, last_chunk, parts = _collect_stream_chunks(stream, messages)
+                if writer and speaker is not None and parts:
+                    _emit_debate_tokens(
+                        writer,
+                        speaker=speaker,
+                        round_num=round_num,
+                        parts=parts,
+                    )
+                return _record(last_chunk, text)
+            except Exception as exc:
+                if not is_transient_llm_error(exc):
+                    raise
+                last_error = exc
+                if attempt + 1 >= 3:
+                    break
+                delay = 0.5 * (attempt + 1)
+                logger.warning(
+                    "%s stream failed (%s); retrying in %.1fs (%d/3)",
+                    retry_label,
+                    exc,
+                    delay,
+                    attempt + 2,
+                )
+                time.sleep(delay)
+
+        logger.warning(
+            "%s stream failed after retries (%s); falling back to invoke",
+            retry_label,
+            last_error,
+        )
+
+    def _invoke_once() -> str:
         response = model.invoke(messages)
         text = _response_text(response)
-        writer = get_stream_writer()
         if writer and speaker is not None and text:
             writer(
                 {
@@ -63,44 +145,9 @@ def _stream_model_text(
                     "delta": text,
                 }
             )
-        if metrics is not None:
-            metrics.record_debate(
-                label,
-                seconds=time.perf_counter() - started_at,
-                response=response,
-                prompt_text=prompt_text,
-                output_text=text,
-            )
-        return text
+        return _record(response, text)
 
-    writer = get_stream_writer()
-    parts: list[str] = []
-    last_chunk: Any = None
-    for chunk in stream(messages):
-        last_chunk = chunk
-        delta = _chunk_delta(chunk)
-        if not delta:
-            continue
-        parts.append(delta)
-        if writer and speaker is not None:
-            writer(
-                {
-                    "type": "debate_token",
-                    "speaker": speaker,
-                    "round": round_num,
-                    "delta": delta,
-                }
-            )
-    text = "".join(parts).strip()
-    if metrics is not None:
-        metrics.record_debate(
-            label,
-            seconds=time.perf_counter() - started_at,
-            response=last_chunk,
-            prompt_text=prompt_text,
-            output_text=text,
-        )
-    return text
+    return call_with_llm_retry(_invoke_once, label=f"{retry_label} invoke")
 
 
 def _own_verdict(state: dict, judge: str) -> dict | None:
@@ -110,14 +157,13 @@ def _own_verdict(state: dict, judge: str) -> dict | None:
     return None
 
 
-def _recent_transcript(state: dict, limit: int = 8) -> str:
-    recent_messages = state["debate_messages"][-limit:]
-    if not recent_messages:
+def _debate_transcript_for_speaker(state: dict) -> str:
+    """Round 1 sees recent context; later rounds see full transcript to curb repetition."""
+    messages = state["debate_messages"]
+    if not messages:
         return "No debate messages yet."
-
-    return "\n".join(
-        f"Round {msg['round']}: {msg['speaker']}: {msg['content']}" for msg in recent_messages
-    )
+    pool = messages if state["round"] >= 2 else messages[-8:]
+    return "\n".join(f"Round {msg['round']}: {msg['speaker']}: {msg['content']}" for msg in pool)
 
 
 def make_speaker_node(judge: str, model: Any, metrics: RunMetricsCollector | None = None):
@@ -136,7 +182,9 @@ def make_speaker_node(judge: str, model: Any, metrics: RunMetricsCollector | Non
                         startup_idea=wrap_user_idea(state["startup_idea"]),
                         own_verdict=json.dumps(_own_verdict(state, judge), indent=2),
                         other_verdicts=json.dumps(state["verdicts"], indent=2),
-                        recent_transcript=_recent_transcript(state),
+                        recent_transcript=_debate_transcript_for_speaker(state),
+                        round=state["round"],
+                        max_rounds=state["max_rounds"],
                     ),
                 }
             ],
@@ -164,8 +212,11 @@ def _format_verdicts_readable(verdicts: list[dict]) -> str:
 
 
 def _invoke_plain_synthesis(model: Any, prompt: str) -> tuple[str, Any]:
-    response = model.invoke([{"role": "user", "content": prompt}])
-    return _response_text(response), response
+    def _invoke_once() -> tuple[str, Any]:
+        response = model.invoke([{"role": "user", "content": prompt}])
+        return _response_text(response), response
+
+    return call_with_llm_retry(_invoke_once, label="moderator synthesis")
 
 
 def _invoke_structured_synthesis(model: Any, prompt: str) -> tuple[Synthesis | None, Any | None]:
@@ -238,3 +289,23 @@ def make_moderator_node(model: Any, metrics: RunMetricsCollector | None = None):
         }
 
     return moderator_node
+
+
+def make_revote_node(
+    model: Any,
+    metrics: RunMetricsCollector | None = None,
+    abort_check=None,
+):
+    def revote_node(state: dict) -> dict:
+        roast_panel = roast_panel_from_state_verdicts(state["initial_verdicts"])
+        revised_panel = run_revote(
+            model,
+            state["startup_idea"],
+            roast_panel,
+            state["debate_messages"],
+            metrics=metrics,
+            abort_check=abort_check,
+        )
+        return {"verdicts": [v.model_dump() for v in revised_panel.verdicts]}
+
+    return revote_node

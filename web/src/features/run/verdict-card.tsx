@@ -12,6 +12,7 @@ import {
   type StructuredSynthesis,
 } from "./structured-synthesis";
 import { assessVerdictOutputQuality } from "./verdict-quality";
+import { parseSynthesis } from "./synthesis-format";
 import { SynthesisBlock } from "./synthesis-block";
 
 const RECOMMENDATION_LABEL: Record<StructuredSynthesis["overall_recommendation"], string> = {
@@ -55,6 +56,8 @@ export function VerdictCard({
   className?: string;
 }) {
   const structuredFromPayload = parseStructuredSynthesis(structuredSynthesis);
+  const numberedProse =
+    !structuredFromPayload && synthesisProse ? parseSynthesis(synthesisProse) : null;
   const structuredFromProse =
     !structuredFromPayload && synthesisProse
       ? parseDecisionVerdictProse(synthesisProse)
@@ -63,7 +66,7 @@ export function VerdictCard({
   const quality = assessVerdictOutputQuality(
     verdicts,
     structured,
-    Boolean(synthesisProse) && !structuredFromPayload,
+    Boolean(synthesisProse) && !structuredFromPayload && !numberedProse,
   );
 
   if (!structured) {

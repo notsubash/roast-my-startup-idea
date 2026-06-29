@@ -10,6 +10,11 @@ import streamlit as st
 
 from appeal.service import run_appeal
 from config import get_settings
+from debate.revote import (
+    appeal_baseline_panel,
+    roast_panel_from_state_verdicts,
+    score_change_reason,
+)
 from idea_context import build_startup_idea_context, idea_display_summary
 from judges.synthesis import assess_verdict_output_quality, parse_structured_synthesis
 from memory.context import build_memory_context
@@ -39,6 +44,7 @@ from ui.text_display import (
 )
 from utils.scoring_chart import generate_radar_chart
 from utils.transcript_exporter import export_transcript
+from verification import assess_revote_quality
 from version import get_version
 
 get_settings()
@@ -291,7 +297,12 @@ if run_clicked and idea_text.strip():
                 )
                 with st.status("Phase 2: Judges are debating...", expanded=True) as debate_status:
                     debate_result = run_debate_in_container(
-                        model, startup_idea, roast_panel, max_rounds, debate_container
+                        model,
+                        startup_idea,
+                        roast_panel,
+                        max_rounds,
+                        debate_container,
+                        status=debate_status,
                     )
                     debate_status.update(
                         label="\u2705 Phase 2 complete — debate concluded!", state="complete"
@@ -337,6 +348,12 @@ roast_panel = st.session_state.roast_panel
 debate_result = st.session_state.debate_result
 revised_panel = st.session_state.revised_panel
 revised_synthesis = st.session_state.revised_synthesis
+post_debate_panel = (
+    roast_panel_from_state_verdicts(debate_result["revised_verdicts"])
+    if debate_result and debate_result.get("revised_verdicts")
+    else None
+)
+effective_panel = post_debate_panel or roast_panel
 structured_synthesis = (
     parse_structured_synthesis(debate_result) if debate_result is not None else None
 )
@@ -344,13 +361,13 @@ structured_synthesis = (
 if roast_panel is not None:
     if structured_synthesis is not None:
         st.subheader("\U0001f3af Verdict")
-        quality = assess_verdict_output_quality(roast_panel, debate_result)
-        write_verdict_card(structured_synthesis, roast_panel, quality=quality)
+        quality = assess_verdict_output_quality(effective_panel, debate_result)
+        write_verdict_card(structured_synthesis, effective_panel, quality=quality)
         st.divider()
     elif debate_result is not None:
         synthesis = debate_result.get("final_synthesis", "No synthesis produced.")
         if synthesis and synthesis != "No synthesis produced.":
-            quality = assess_verdict_output_quality(roast_panel, debate_result)
+            quality = assess_verdict_output_quality(effective_panel, debate_result)
             st.subheader("\U0001f3af Final Synthesis")
             if quality.get("low_confidence"):
                 st.warning(
@@ -380,7 +397,7 @@ if roast_panel is not None:
     # ── Radar chart ──
 
     chart_path = Path("roast_radar.png")
-    generate_radar_chart(roast_panel, output_path=chart_path)
+    generate_radar_chart(effective_panel, output_path=chart_path)
 
     col_chart, col_summary = st.columns([1, 1])
     with col_chart:
@@ -391,10 +408,10 @@ if roast_panel is not None:
             unsafe_allow_html=True,
         )
     with col_summary:
-        avg = sum(v.score for v in roast_panel.verdicts) / len(roast_panel.verdicts)
-        pass_count = sum(1 for v in roast_panel.verdicts if v.verdict.value == "PASS")
-        fail_count = sum(1 for v in roast_panel.verdicts if v.verdict.value == "FAIL")
-        cond_count = sum(1 for v in roast_panel.verdicts if v.verdict.value == "CONDITIONAL")
+        avg = sum(v.score for v in effective_panel.verdicts) / len(effective_panel.verdicts)
+        pass_count = sum(1 for v in effective_panel.verdicts if v.verdict.value == "PASS")
+        fail_count = sum(1 for v in effective_panel.verdicts if v.verdict.value == "FAIL")
+        cond_count = sum(1 for v in effective_panel.verdicts if v.verdict.value == "CONDITIONAL")
 
         st.metric("Average Score", f"{avg:.1f} / 10")
         st.markdown(
@@ -403,6 +420,50 @@ if roast_panel is not None:
             f"\U0001f534 **{fail_count}** Fail"
         )
 
+    st.divider()
+
+if post_debate_panel is not None and roast_panel is not None:
+    st.subheader("Post-Debate Re-Vote")
+    st.caption("Scores after the panel heard the full debate. Deltas compare to the initial roast.")
+    revote_quality = assess_revote_quality(
+        debate_result.get("initial_verdicts") if debate_result else None,
+        debate_result.get("revised_verdicts") if debate_result else None,
+        max_delta=get_settings().max_revote_score_delta,
+    )
+    if revote_quality.get("revote_directional_pile_on"):
+        direction = revote_quality.get("revote_pile_on_direction", "down")
+        st.warning(
+            f"Possible debate pile-on — three or more judges moved scores {direction} after the debate. "
+            "Treat deltas as discussion-driven, not independent re-scoring."
+        )
+    if revote_quality.get("revote_herded_deltas"):
+        st.warning(
+            "Possible score herding — four or more judges moved by the same amount. "
+            "Treat deltas as discussion-driven, not independent re-scoring."
+        )
+    if revote_quality.get("revote_degenerate_panel"):
+        st.warning(
+            "Revised panel scores are suspiciously uniform. Re-vote output may not reflect "
+            "independent judge perspectives."
+        )
+    if not revote_quality.get("revote_scores_moved"):
+        st.info("No judge changed their score after the debate.")
+    revote_cols = st.columns(5)
+    for i, revised in enumerate(post_debate_panel.verdicts):
+        original = next(v for v in roast_panel.verdicts if v.judge.value == revised.judge.value)
+        delta = revised.score - original.score
+        delta_label = f"{delta:+d}" if delta else "0"
+        with revote_cols[i]:
+            st.metric(
+                label=revised.judge.value.upper(),
+                value=f"{revised.score}/10",
+                delta=delta_label,
+            )
+            st.caption(f"was {original.score}/10 · {revised.verdict.value}")
+            reason = score_change_reason(original, revised)
+            if reason and delta:
+                write_labelled_plain("Why it moved:", reason)
+            write_roast_quote(revised.roast)
     st.divider()
 
 if debate_result is not None:
@@ -474,10 +535,11 @@ if debate_result is not None:
             try:
                 with st.status("Appeal mode: judges are re-evaluating...", expanded=True) as status:
                     status.write("Sending your appeal to all five judges...")
+                    appeal_baseline = appeal_baseline_panel(roast_panel, debate_result)
                     appeal_result = run_appeal(
                         model=model,
                         startup_idea=st.session_state.startup_idea_used or "",
-                        roast_panel=roast_panel,
+                        roast_panel=appeal_baseline,
                         debate_result=debate_result,
                         appeal_text=appeal_text,
                         memory_context=build_memory_context(prior_records),
@@ -508,11 +570,12 @@ if debate_result is not None:
 
     if revised_panel is not None:
         st.markdown("#### Revised Verdicts")
+        appeal_baseline = appeal_baseline_panel(roast_panel, debate_result)
         revised_cols = st.columns(5)
         for i, v in enumerate(revised_panel.verdicts):
             original = next(
                 original_v
-                for original_v in roast_panel.verdicts
+                for original_v in appeal_baseline.verdicts
                 if original_v.judge.value == v.judge.value
             )
             delta = v.score - original.score

@@ -181,6 +181,21 @@ class VerdictOutputQualityTest(unittest.TestCase):
         self.assertTrue(quality["low_confidence"])
         self.assertFalse(quality["structured_synthesis"])
 
+    def test_assess_accepts_numbered_prose_fallback(self):
+        quality = assess_verdict_output_quality(
+            _panel(),
+            {
+                "final_synthesis": (
+                    "**1. Overall verdict:** FAIL\n"
+                    "**2. Final score from 1-10:** 2\n"
+                    "**3. Consensus points**\n"
+                    "- Buyers are unconvinced."
+                ),
+            },
+        )
+        self.assertFalse(quality["low_confidence"])
+        self.assertFalse(quality["structured_synthesis"])
+
     def test_assess_accepts_distinct_actionable_fixes(self):
         quality = assess_verdict_output_quality(_panel(), _structured_debate_result())
         self.assertFalse(quality["low_confidence"])

@@ -43,6 +43,8 @@ class Settings:
     rate_limit_appeal_burst: int = 2
     rate_limit_appeal_window_seconds: float = 60.0
     max_run_seconds: int = 600
+    enable_revote: bool = True
+    max_revote_score_delta: int = 3
     list_runs_default_limit: int = 20
     list_runs_max_limit: int = 100
     trust_proxy: bool = False
@@ -80,6 +82,8 @@ def get_settings() -> Settings:
         rate_limit_appeal_burst=int(os.getenv("RATE_LIMIT_APPEAL_BURST", "2")),
         rate_limit_appeal_window_seconds=float(os.getenv("RATE_LIMIT_APPEAL_WINDOW_SECONDS", "60")),
         max_run_seconds=int(os.getenv("MAX_RUN_SECONDS", "600")),
+        enable_revote=_read_bool("ENABLE_REVOTE", True),
+        max_revote_score_delta=int(os.getenv("MAX_REVOTE_SCORE_DELTA", "3")),
         list_runs_default_limit=int(os.getenv("LIST_RUNS_DEFAULT_LIMIT", "20")),
         list_runs_max_limit=int(os.getenv("LIST_RUNS_MAX_LIMIT", "100")),
         trust_proxy=_read_bool("TRUST_PROXY", False),

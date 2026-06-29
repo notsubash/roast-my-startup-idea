@@ -64,7 +64,12 @@ class TavilyHttpClient:
         try:
             with request.urlopen(req, timeout=15) as resp:
                 body = resp.read().decode("utf-8")
-        except (HTTPError, URLError) as exc:
+        except HTTPError as exc:
+            if exc.code == 401:
+                # ponytail: invalid/expired key — skip research instead of failing the roast run.
+                return []
+            raise RuntimeError(f"Tavily search failed: {exc}") from exc
+        except URLError as exc:
             raise RuntimeError(f"Tavily search failed: {exc}") from exc
 
         parsed = json.loads(body)

@@ -119,6 +119,22 @@ class RunMetricsCollectorTest(unittest.TestCase):
         self.assertEqual(snapshot["debate_calls"][0]["label"], "engineer")
         self.assertGreater(snapshot["estimated_cost_usd"], 0.0)
 
+    def test_snapshot_splits_revote_calls(self):
+        collector = RunMetricsCollector(model_runtime="local")
+        collector.record_debate("engineer", seconds=2.0, prompt_text="debate", output_text="msg")
+        collector.record_debate(
+            "revote-vc", seconds=1.5, prompt_text="revote", output_text="verdict"
+        )
+
+        snapshot = collector.snapshot(roast_seconds=0.0, debate_seconds=3.5, total_seconds=3.5)
+
+        self.assertEqual(len(snapshot["debate_calls"]), 1)
+        self.assertEqual(snapshot["debate_calls"][0]["label"], "engineer")
+        self.assertEqual(len(snapshot["revote_calls"]), 1)
+        self.assertEqual(snapshot["revote_calls"][0]["label"], "revote-vc")
+        self.assertEqual(snapshot["revote_seconds"], 1.5)
+        self.assertIn("Re-vote 1.5s", format_run_metrics_footer(snapshot))
+
 
 class PhaseTimerTest(unittest.TestCase):
     def test_tracks_roast_and_debate_seconds(self):
@@ -182,6 +198,62 @@ class PipelineRunMetricsTest(unittest.TestCase):
         self.assertEqual(metrics_event.total_tokens, 185)
         self.assertEqual(metrics_event.model_runtime, "deepseek")
         self.assertGreater(metrics_event.estimated_cost_usd, 0.0)
+
+    def test_stream_pipeline_revote_events_precede_run_metrics(self):
+        from events import (
+            DebateCompleted,
+            DebateSynthesisPublished,
+            RevoteJudgeCompleted,
+            RevoteStarted,
+            RunMetrics,
+        )
+
+        panel = RoastPanel(verdicts=[_verdict(judge) for judge in JUDGE_ORDER])
+        initial = [v.model_dump() for v in panel.verdicts]
+        revised = [v.model_copy(update={"score": v.score + 1}).model_dump() for v in panel.verdicts]
+
+        def fake_stream_roast_panel(_model, _idea, *_args, **_kwargs):
+            from events import RoastPanelCompleted
+
+            yield RoastPanelCompleted(panel=panel)
+
+        def fake_stream_debate(_model, _idea, _panel, *_args, **_kwargs):
+            yield RevoteStarted(total=5)
+            yield RevoteJudgeCompleted(
+                judge="vc",
+                verdict=panel.verdicts[0].model_copy(update={"score": 4}),
+                original_score=3,
+                completed=1,
+                total=5,
+            )
+            yield DebateSynthesisPublished(content="summary")
+            yield DebateCompleted(
+                debate_messages=[],
+                final_synthesis="summary",
+                initial_verdicts=initial,
+                revised_verdicts=revised,
+            )
+
+        with (
+            patch("pipeline.stream_roast_panel", side_effect=fake_stream_roast_panel),
+            patch("pipeline.stream_debate", side_effect=fake_stream_debate),
+        ):
+            events = list(
+                stream_pipeline(
+                    object(),
+                    "An AI journal for startup founders with daily reflection prompts.",
+                    max_debate_rounds=1,
+                    model_runtime="deepseek",
+                )
+            )
+
+        revote_idx = next(i for i, event in enumerate(events) if isinstance(event, RevoteStarted))
+        metrics_idx = next(i for i, event in enumerate(events) if isinstance(event, RunMetrics))
+        self.assertLess(revote_idx, metrics_idx)
+        synthesis_idx = next(
+            i for i, event in enumerate(events) if isinstance(event, DebateSynthesisPublished)
+        )
+        self.assertLess(revote_idx, synthesis_idx)
 
     def test_stream_pipeline_save_uses_idea_id(self):
         from pathlib import Path

@@ -15,6 +15,7 @@ class DebateState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
     startup_idea: str
     verdicts: list[dict]
+    initial_verdicts: list[dict]
     debate_messages: Annotated[list[DebateMessage], operator.add]
     round: int
     max_rounds: int

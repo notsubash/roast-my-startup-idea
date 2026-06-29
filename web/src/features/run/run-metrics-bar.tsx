@@ -21,12 +21,31 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/ui/badge";
 
 function allCalls(metrics: RunMetrics): CallMetric[] {
-  return [...metrics.judge_calls, ...metrics.debate_calls];
+  return [
+    ...metrics.judge_calls,
+    ...metrics.debate_calls,
+    ...(metrics.revote_calls ?? []),
+  ];
+}
+
+/** Stable React keys and chart labels when the same judge speaks across debate rounds. */
+function indexedCalls(calls: CallMetric[]) {
+  const seen = new Map<string, number>();
+  return calls.map((call, index) => {
+    const group = `${call.phase}-${call.label}`;
+    const occurrence = (seen.get(group) ?? 0) + 1;
+    seen.set(group, occurrence);
+    return {
+      call,
+      key: `${group}-${index}`,
+      chartLabel: occurrence === 1 ? call.label : `${call.label} (${occurrence})`,
+    };
+  });
 }
 
 function chartRows(metrics: RunMetrics) {
-  return allCalls(metrics).map((call) => ({
-    label: call.label,
+  return indexedCalls(allCalls(metrics)).map(({ call, chartLabel }) => ({
+    label: chartLabel,
     seconds: call.seconds,
     tokens: call.total_tokens,
     phase: call.phase,
@@ -86,7 +105,7 @@ export function RunMetricsBar({
     );
   }
 
-  const calls = allCalls(metrics);
+  const calls = indexedCalls(allCalls(metrics));
   const rows = chartRows(metrics);
   const chartSummary = rows
     .map((row) => `${row.label} ${row.seconds.toFixed(1)} seconds`)
@@ -166,10 +185,10 @@ export function RunMetricsBar({
                   </tr>
                 </thead>
                 <tbody>
-                  {calls.map((call) => (
-                    <tr key={`${call.phase}-${call.label}`} className="border-b border-rule-soft last:border-b-0">
+                  {calls.map(({ call, key, chartLabel }) => (
+                    <tr key={key} className="border-b border-rule-soft last:border-b-0">
                       <th scope="row" className="px-3 py-2 font-medium text-ink">
-                        {call.label}
+                        {chartLabel}
                       </th>
                       <td className="px-3 py-2 capitalize text-ink-muted">{call.phase}</td>
                       <td className="px-3 py-2 font-mono tabular-nums">{call.seconds.toFixed(1)}s</td>

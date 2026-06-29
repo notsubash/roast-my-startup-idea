@@ -15,9 +15,10 @@ class EvalWorkloadTest(unittest.TestCase):
             max_debate_rounds=3,
             include_appeals=True,
         )
-        self.assertEqual(stats["llm_calls_per_idea"], 33)
-        self.assertEqual(stats["llm_calls_total"], 99)
-        self.assertEqual(stats["sequential_steps_per_idea"], 18)
+        self.assertEqual(stats["llm_calls_per_idea"], 38)
+        self.assertEqual(stats["llm_calls_total"], 114)
+        self.assertEqual(stats["sequential_steps_per_idea"], 23)
+        self.assertEqual(stats["revote_calls_per_idea"], 5)
 
     def test_estimate_without_appeals(self):
         stats = estimate_llm_calls(
@@ -25,8 +26,8 @@ class EvalWorkloadTest(unittest.TestCase):
             max_debate_rounds=3,
             include_appeals=False,
         )
-        self.assertEqual(stats["llm_calls_per_idea"], 21)
-        self.assertEqual(stats["llm_calls_total"], 252)
+        self.assertEqual(stats["llm_calls_per_idea"], 26)
+        self.assertEqual(stats["llm_calls_total"], 312)
 
 
 if __name__ == "__main__":

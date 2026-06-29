@@ -35,6 +35,10 @@ test("formatRunMetricsFooter matches backend example", () => {
     formatRunMetricsFooter({ ...metrics, estimated_cost_usd: 0 }),
     "Roast 4.2s · Debate 11.8s · ~3.1k tokens · ~$0.00",
   );
+  assert.equal(
+    formatRunMetricsFooter({ ...metrics, revote_seconds: 8.3 }),
+    "Roast 4.2s · Debate 11.8s · Re-vote 8.3s · ~3.1k tokens · ~$0.004",
+  );
 });
 
 test("export date and filename stamps mirror backend", () => {

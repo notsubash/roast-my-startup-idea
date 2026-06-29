@@ -4,7 +4,7 @@ Any UI (Streamlit, React, CLI) should consume these events rather than
 calling LangChain / LangGraph APIs directly.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 
 from judges.schemas import RoastPanel, Verdict
@@ -64,10 +64,26 @@ class DebateSynthesisPublished:
 
 
 @dataclass(frozen=True)
+class RevoteStarted:
+    total: int
+
+
+@dataclass(frozen=True)
+class RevoteJudgeCompleted:
+    judge: str
+    verdict: Verdict
+    original_score: int
+    completed: int
+    total: int
+
+
+@dataclass(frozen=True)
 class DebateCompleted:
     debate_messages: list[dict]
     final_synthesis: str | None
     structured_synthesis: dict | None = None
+    initial_verdicts: list[dict] | None = None
+    revised_verdicts: list[dict] | None = None
 
 
 @dataclass(frozen=True)
@@ -88,12 +104,15 @@ class RunMetrics:
     model_runtime: str
     judge_calls: list[dict]
     debate_calls: list[dict]
+    revote_seconds: float = 0.0
+    revote_calls: list[dict] = field(default_factory=list)
 
     def as_dict(self) -> dict:
         return {
             "roast_seconds": self.roast_seconds,
             "debate_seconds": self.debate_seconds,
             "total_seconds": self.total_seconds,
+            "revote_seconds": self.revote_seconds,
             "input_tokens": self.input_tokens,
             "output_tokens": self.output_tokens,
             "total_tokens": self.total_tokens,
@@ -101,6 +120,7 @@ class RunMetrics:
             "model_runtime": self.model_runtime,
             "judge_calls": self.judge_calls,
             "debate_calls": self.debate_calls,
+            "revote_calls": self.revote_calls,
         }
 
 
@@ -114,6 +134,8 @@ PipelineEvent = (
     | DebateTokenDelta
     | DebateMessagePublished
     | DebateSynthesisPublished
+    | RevoteStarted
+    | RevoteJudgeCompleted
     | DebateCompleted
     | RunMetrics
     | PipelineCompleted

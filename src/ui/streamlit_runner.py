@@ -14,6 +14,8 @@ from events import (
     JudgeVerdictCompleted,
     PhaseStarted,
     PipelineCompleted,
+    RevoteJudgeCompleted,
+    RevoteStarted,
     RoastPanelCompleted,
     RunMetrics,
 )
@@ -33,6 +35,21 @@ JUDGE_AVATARS = {
     "customer": "\U0001f464",
     "competitor": "\U0001f3af",
 }
+
+
+def _write_revote_progress(status, event: RevoteStarted | RevoteJudgeCompleted) -> None:
+    if isinstance(event, RevoteStarted):
+        status.write(f"Re-vote: {event.total} judges revising scores after the debate...")
+        return
+    icon = VERDICT_ICONS.get(event.verdict.verdict.value, "\u26aa")
+    delta = event.verdict.score - event.original_score
+    delta_note = f" ({delta:+d})" if delta else ""
+    status.write(
+        f"{icon} **{event.judge.upper()}** — "
+        f"{event.original_score} → {event.verdict.score}/10{delta_note}"
+    )
+    if delta and event.verdict.evidence_to_change_verdict:
+        status.caption(event.verdict.evidence_to_change_verdict)
 
 
 def run_roast_panel_in_status(
@@ -111,6 +128,7 @@ def run_debate_in_container(
     roast_panel: RoastPanel,
     max_rounds: int,
     container,
+    status=None,
 ) -> dict:
     """Consume debate events and render messages inside a Streamlit container."""
     thinking_placeholder = container.empty()
@@ -157,12 +175,19 @@ def run_debate_in_container(
         elif isinstance(event, DebateSynthesisPublished):
             thinking_placeholder.empty()
 
+        elif isinstance(event, (RevoteStarted, RevoteJudgeCompleted)):
+            thinking_placeholder.empty()
+            if status is not None:
+                _write_revote_progress(status, event)
+
         elif isinstance(event, DebateCompleted):
             thinking_placeholder.empty()
             result = {
                 "debate_messages": event.debate_messages,
                 "final_synthesis": event.final_synthesis,
                 "structured_synthesis": event.structured_synthesis,
+                "initial_verdicts": event.initial_verdicts,
+                "revised_verdicts": event.revised_verdicts,
             }
 
     return result
@@ -266,6 +291,11 @@ def run_deterministic_pipeline_in_ui(
             thinking_placeholder.empty()
             continue
 
+        if isinstance(event, (RevoteStarted, RevoteJudgeCompleted)):
+            thinking_placeholder.empty()
+            _write_revote_progress(status, event)
+            continue
+
         if isinstance(event, RunMetrics):
             run_metrics = event.as_dict()
             continue
@@ -280,6 +310,8 @@ def run_deterministic_pipeline_in_ui(
                 "debate_messages": event.debate_messages,
                 "final_synthesis": event.final_synthesis,
                 "structured_synthesis": event.structured_synthesis,
+                "initial_verdicts": event.initial_verdicts,
+                "revised_verdicts": event.revised_verdicts,
             }
 
     if roast_panel is None or debate_result is None:

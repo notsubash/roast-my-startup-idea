@@ -178,3 +178,89 @@ test("appeal_completed restores appeal state from replay", () => {
   assert.equal(state.appeal?.revisedByJudge.vc.score, 6);
   assert.equal(state.appeal?.revisedSynthesis, "Revised synthesis after appeal.");
 });
+
+test("revote events update judges and preserve baseline for deltas", () => {
+  const revised = {
+    ...VERDICT,
+    score: 5,
+    evidence_to_change_verdict: "The engineer changed my view in round 1.",
+  };
+  const events = [
+    env(0, "stream_connected", { status: "connected" }),
+    env(1, "judge_verdict_completed", {
+      judge: "vc",
+      verdict: VERDICT,
+      completed: 1,
+      total: 5,
+    }),
+    env(2, "revote_started", { total: 5 }),
+    env(3, "revote_judge_completed", {
+      judge: "vc",
+      verdict: revised,
+      original_score: 3,
+      completed: 1,
+      total: 5,
+      change_reason: "The engineer changed my view in round 1.",
+    }),
+  ];
+  const state = reduceEnvelopes(events);
+  assert.equal(state.judges.vc.verdict?.score, 5);
+  assert.equal(state.revoteBaseline.vc?.score, 3);
+  assert.equal(
+    state.revoteChangeReasons.vc,
+    "The engineer changed my view in round 1.",
+  );
+});
+
+test("revote_judge_completed clears change reason when score is unchanged", () => {
+  const events = [
+    env(0, "stream_connected", { status: "connected" }),
+    env(1, "judge_verdict_completed", {
+      judge: "engineer",
+      verdict: { ...VERDICT, judge: "engineer", score: 5 },
+      completed: 1,
+      total: 5,
+    }),
+    env(2, "revote_started", { total: 5 }),
+    env(3, "revote_judge_completed", {
+      judge: "engineer",
+      verdict: {
+        ...VERDICT,
+        judge: "engineer",
+        score: 5,
+        evidence_to_change_verdict: "Would need a signed pilot contract.",
+      },
+      original_score: 5,
+      completed: 1,
+      total: 5,
+    }),
+  ];
+  const state = reduceEnvelopes(events);
+  assert.equal(state.judges.engineer.verdict?.score, 5);
+  assert.equal(state.revoteChangeReasons.engineer, undefined);
+});
+
+test("debate_completed replay restores revote state without live revote events", () => {
+  const initial = { ...VERDICT };
+  const revised = {
+    ...VERDICT,
+    score: 5,
+    evidence_to_change_verdict: "Round 1 engineer argument was persuasive.",
+  };
+  const events = [
+    env(0, "stream_connected", { status: "connected" }),
+    env(1, "debate_completed", {
+      debate_messages: [{ speaker: "vc", round: 1, content: "Still weak." }],
+      final_synthesis: "Not convinced.",
+      initial_verdicts: [initial],
+      revised_verdicts: [revised],
+    }),
+  ];
+  const state = reduceEnvelopes(events);
+  assert.equal(state.judges.vc.verdict?.score, 5);
+  assert.equal(state.revoteBaseline.vc?.score, 3);
+  assert.equal(
+    state.revoteChangeReasons.vc,
+    "Round 1 engineer argument was persuasive.",
+  );
+});

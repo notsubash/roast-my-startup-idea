@@ -57,6 +57,8 @@ export interface RunMetrics {
   model_runtime: "local" | "deepseek";
   judge_calls: CallMetric[];
   debate_calls: CallMetric[];
+  revote_seconds?: number;
+  revote_calls?: CallMetric[];
 }
 
 export interface CallMetric {
@@ -98,6 +100,9 @@ export interface RunState {
   judges: Record<JudgeId, JudgeView>;
   judgesDispatched: boolean;
   roastPanelComplete: boolean;
+  /** Initial roast scores preserved for post-debate delta badges. */
+  revoteBaseline: Partial<Record<JudgeId, Verdict>>;
+  revoteChangeReasons: Partial<Record<JudgeId, string>>;
   currentRound: number | null;
   activeSpeaker: SpeakerId | null;
   debateTurns: DebateTurnView[];
@@ -137,6 +142,8 @@ export function initialRunState(
     judges,
     judgesDispatched: false,
     roastPanelComplete: false,
+    revoteBaseline: {},
+    revoteChangeReasons: {},
     currentRound: null,
     activeSpeaker: null,
     debateTurns: [],

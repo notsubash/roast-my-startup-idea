@@ -6,7 +6,7 @@ from verification.invariants import (
     score_verdict_mismatches,
     verify_verdict_invariants,
 )
-from verification.panel import is_degenerate_fixes, is_degenerate_panel
+from verification.panel import assess_revote_quality, is_degenerate_fixes, is_degenerate_panel
 from verification.result import Check, VerificationResult
 
 __all__ = [
@@ -14,6 +14,7 @@ __all__ = [
     "VerificationResult",
     "expected_verdict_for_score",
     "fix_fields_missing_judges",
+    "assess_revote_quality",
     "is_degenerate_fixes",
     "is_degenerate_panel",
     "score_verdict_mismatches",

@@ -1,9 +1,13 @@
+from io import BytesIO
 from pathlib import Path
 import sys
 import unittest
+from unittest.mock import patch
+from urllib.error import HTTPError
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from research.service import (
+    TavilyHttpClient,
     WebSearchDecision,
     build_research_context,
     decide_web_search_usage,
@@ -149,6 +153,18 @@ class ResearchServiceTest(unittest.TestCase):
         )
         self.assertEqual(len(payload["findings"]), 2)
         self.assertTrue(all("snippet" in row for row in payload["findings"]))
+
+    def test_tavily_unauthorized_returns_empty_results(self):
+        client = TavilyHttpClient("bad-key")
+        with patch("research.service.request.urlopen") as urlopen:
+            urlopen.side_effect = HTTPError(
+                url="https://api.tavily.com/search",
+                code=401,
+                msg="Unauthorized",
+                hdrs=None,
+                fp=BytesIO(b""),
+            )
+            self.assertEqual(client.search("competitors", max_results=3), [])
 
 
 if __name__ == "__main__":

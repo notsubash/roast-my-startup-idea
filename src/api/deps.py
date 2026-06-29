@@ -94,8 +94,8 @@ def build_research_context_for_run(
             enabled=True,
             decision=search_decision,
         )
-    except Exception:
-        logger.exception("Web research failed for API run")
+    except Exception as exc:
+        logger.warning("Web research skipped for API run: %s", exc)
         return None
 
 
