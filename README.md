@@ -125,15 +125,19 @@ Each judge returns structured output: score, pass/fail/conditional label, roast,
 
 | Individual verdicts | Judge scores radar |
 | --- | --- |
-| ![Judge verdicts](images/Judge%20Verdicts.png) | ![Judge scores radar](images/roast_radar.png) |
+| ![Judge verdicts](images/Judge%20Verdicts.png) | ![Judge scores panel](images/roast_radar.png) |
 
-| Debate round 1 | Debate round 2 | Debate round 3 |
-| --- | --- | --- |
-| ![Debate round 1](images/Debate%20Round%201.png) | ![Debate round 2](images/Debate%20Round%202.png) | ![Debate round 3](images/Debate%20Round%203.png) |
+| Debate transcript | Structured synthesis |
+| --- | --- |
+| ![Debate transcript](images/Debate%20Transcript.png) | ![Final synthesis](images/Final%20Synthesis.png) |
 
-| Final synthesis | Appeal mode | After appeal synthesis |
-| --- | --- | --- |
-| ![Final synthesis](images/Final%20Synthesis.png) | ![Appeal mode](images/Appeal%20Mode.png) | ![After appeal synthesis](images/After%20Appeal%20Synthesis.png) |
+| Verdict sheet | Appeal mode |
+| --- | --- |
+| ![Verdict sheet](images/Decision.png) | ![Appeal mode](images/Appeal%20Mode.png) |
+
+| Run archive |
+| --- | --- |
+| ![Past roasts](images/Past%20Ideas.png) | |
 
 ## Architecture
 
@@ -300,8 +304,6 @@ docs/                            Architecture and feature specs (see docs/archit
 tests/                           Unit tests (unittest, fake models, no Ollama required)
 evals/                           Regression evals and monthly audit (see evals/README.md)
 ```
-
-**Documentation:** [docs/architecture.md](docs/architecture.md) (system diagrams and module map) · [docs/feature-spec.md](docs/feature-spec.md) (product audit and feature rationale) · [docs/specs/backend-spec.md](docs/specs/backend-spec.md) · [docs/specs/frontend-spec.md](docs/specs/frontend-spec.md)
 
 ## Development
 
