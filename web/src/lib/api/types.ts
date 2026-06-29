@@ -39,6 +39,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/runs/{run_id}/panel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Run Panel */
+        get: operations["get_run_panel_api_runs__run_id__panel_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/runs/{run_id}": {
         parameters: {
             query?: never;
@@ -188,6 +205,10 @@ export interface components {
              * @default false
              */
             enable_web_search: boolean;
+            /** @default null */
+            parent_run_id?: string | null;
+            /** @default 1 */
+            version?: number;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -222,8 +243,10 @@ export interface components {
              */
             created_at: string;
             verdict_summary?: components["schemas"]["VerdictSummary"] | null;
+            parent_run_id?: string | null;
+            /** @default 1 */
+            version?: number;
         };
-        /** RunListResponse */
         RunListResponse: {
             /** Runs */
             runs: components["schemas"]["RunListItem"][];
@@ -252,8 +275,16 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            parent_run_id?: string | null;
+            /** @default 1 */
+            version?: number;
         };
-        /** SimilarRunItem */
+        /** RunPanelResponse */
+        RunPanelResponse: {
+            verdicts: {
+                [key: string]: unknown;
+            }[];
+        };
         SimilarRunItem: {
             /** Run Id */
             run_id: string;
@@ -389,6 +420,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SimilarRunsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_run_panel_api_runs__run_id__panel_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunPanelResponse"];
                 };
             };
             /** @description Validation Error */

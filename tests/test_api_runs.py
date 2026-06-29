@@ -205,6 +205,26 @@ class ApiRunsTest(unittest.TestCase):
         self.assertEqual(payload["status"], "created")
         self.assertTrue(payload["run_id"])
 
+    def test_create_refined_run_links_parent_and_increments_version(self):
+        parent = self.client.post("/api/runs", json={"idea": IDEA})
+        parent_id = parent.json()["run_id"]
+        child = self.client.post(
+            "/api/runs", json={"idea": IDEA + " v2", "parent_run_id": parent_id}
+        )
+        self.assertEqual(child.status_code, 200)
+        child_id = child.json()["run_id"]
+
+        status = self.client.get(f"/api/runs/{child_id}").json()
+        self.assertEqual(status["parent_run_id"], parent_id)
+        self.assertEqual(status["version"], 2)
+
+    def test_create_run_rejects_missing_parent(self):
+        response = self.client.post(
+            "/api/runs",
+            json={"idea": IDEA, "parent_run_id": "does-not-exist"},
+        )
+        self.assertEqual(response.status_code, 422)
+
     def test_create_run_rejects_missing_idea(self):
         response = self.client.post("/api/runs", json={})
         self.assertEqual(response.status_code, 422)
@@ -227,6 +247,8 @@ class ApiRunsTest(unittest.TestCase):
         self.assertEqual(payload["status"], "created")
         self.assertEqual(payload["idea"], IDEA)
         self.assertIn("journal", payload["idea_preview"])
+        self.assertEqual(payload["version"], 1)
+        self.assertIsNone(payload.get("parent_run_id"))
 
     def test_get_unknown_run_returns_404(self):
         response = self.client.get("/api/runs/missing-run")

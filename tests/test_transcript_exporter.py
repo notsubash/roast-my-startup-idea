@@ -131,6 +131,20 @@ class TranscriptExporterTest(unittest.TestCase):
             self.assertIn("## Post-Debate Re-Vote", content)
             self.assertIn("(5/10, was 3/10, +2)", content)
 
+    def test_export_includes_version_and_parent_when_provided(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = export_transcript(
+                "AI calendar for founders",
+                _panel(3, "No urgent buyer."),
+                {"final_synthesis": "Too vague to fund.", "debate_messages": []},
+                output_dir=Path(tmpdir),
+                version=2,
+                parent_id="parent-abc-123",
+            )
+            content = path.read_text(encoding="utf-8")
+            self.assertIn("**Version:** v2", content)
+            self.assertIn("**Refines:** parent-abc-123", content)
+
 
 if __name__ == "__main__":
     unittest.main()

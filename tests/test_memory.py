@@ -8,10 +8,18 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from judges.schemas import RoastPanel, Verdict
+from judges.schemas import RoastPanel, Verdict, VerdictLabel
 from memory.context import build_memory_context
 from memory.factory import build_idea_store
 from memory.identity import get_local_user_id
+from memory.lineage import (
+    concern_addressed_status,
+    fix_status_label,
+    group_by_lineage,
+    lineage_root_id,
+    recommended_fix_status,
+    sidebar_lineage_versions,
+)
 from memory.models import IdeaRecord
 from memory.retrieval import records_for_memory
 from memory.store import IdeaStore
@@ -450,6 +458,281 @@ class MemoryTest(unittest.TestCase):
         record = IdeaRecord.model_validate_json(legacy_json)
         self.assertIsNone(record.roast_panel.verdicts[0].recommended_fix)
         self.assertIsNone(record.roast_panel.verdicts[0].evidence_to_change_verdict)
+
+    def test_legacy_idea_record_json_without_version_fields_loads(self):
+        legacy_json = (
+            '{"id":"legacy-2","user_id":"user-1","idea_text":"AI calendar for founders",'
+            '"created_at":"2026-01-01T00:00:00+00:00",'
+            '"roast_panel":{"verdicts":[{"judge":"vc","verdict":"FAIL",'
+            '"roast":"Distribution is expensive and the market does not look venture scale.",'
+            '"score":3,"key_concern":"No urgent buyer."},'
+            '{"judge":"engineer","verdict":"CONDITIONAL",'
+            '"roast":"The build is feasible, but reliability will be harder than the demo suggests.",'
+            '"score":5,"key_concern":"Reliability risk."},'
+            '{"judge":"pm","verdict":"FAIL",'
+            '"roast":"The target user is too broad, so the product will struggle to find a repeatable wedge.",'
+            '"score":4,"key_concern":"Unclear ICP."},'
+            '{"judge":"customer","verdict":"FAIL",'
+            '"roast":"I would not change my workflow unless this saves obvious time immediately.",'
+            '"score":3,"key_concern":"Weak switching incentive."},'
+            '{"judge":"competitor","verdict":"FAIL",'
+            '"roast":"This is easy for incumbents to copy once they see any traction.",'
+            '"score":2,"key_concern":"Easy replication."}]},'
+            '"debate_result":{"final_synthesis":"Too vague to fund."}}'
+        )
+        record = IdeaRecord.model_validate_json(legacy_json)
+        self.assertIsNone(record.parent_id)
+        self.assertEqual(record.version, 1)
+
+    def test_direct_submission_is_standalone_v1(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with IdeaStore(Path(tmpdir) / "ideas.db") as store:
+                record = IdeaRecord(
+                    user_id="user-1",
+                    idea_text="First pitch",
+                    roast_panel=_panel(4, "Needs clearer buyer."),
+                    debate_result={"final_synthesis": "Needs work."},
+                )
+                store.save(record)
+                loaded = store.list_recent("user-1", limit=1)[0]
+
+        self.assertIsNone(loaded.parent_id)
+        self.assertEqual(loaded.version, 1)
+
+    def test_refine_child_links_to_parent_with_incremented_version(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with IdeaStore(Path(tmpdir) / "ideas.db") as store:
+                parent = IdeaRecord(
+                    user_id="user-1",
+                    idea_text="Original pitch",
+                    roast_panel=_panel(4, "Needs clearer buyer."),
+                    debate_result={"final_synthesis": "Needs work."},
+                )
+                store.save(parent)
+                child = IdeaRecord(
+                    user_id="user-1",
+                    idea_text="Refined pitch with pricing",
+                    roast_panel=_panel(6, "Sales cycle still long."),
+                    debate_result={"final_synthesis": "Improved wedge."},
+                    parent_id=parent.id,
+                    version=parent.version + 1,
+                )
+                store.save(child)
+                records = {record.id: record for record in store.list_recent("user-1", limit=10)}
+
+        self.assertEqual(records[child.id].parent_id, parent.id)
+        self.assertEqual(records[child.id].version, 2)
+        self.assertIsNone(records[parent.id].parent_id)
+        self.assertEqual(records[parent.id].version, 1)
+
+    def test_refine_from_v2_produces_v3(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with IdeaStore(Path(tmpdir) / "ideas.db") as store:
+                root = IdeaRecord(
+                    user_id="user-1",
+                    idea_text="v1 pitch",
+                    roast_panel=_panel(3, "Too vague."),
+                    debate_result={"final_synthesis": "Pass."},
+                )
+                store.save(root)
+                v2 = IdeaRecord(
+                    user_id="user-1",
+                    idea_text="v2 pitch",
+                    roast_panel=_panel(5, "Better wedge."),
+                    debate_result={"final_synthesis": "Maybe."},
+                    parent_id=root.id,
+                    version=2,
+                )
+                store.save(v2)
+                v3 = IdeaRecord(
+                    user_id="user-1",
+                    idea_text="v3 pitch",
+                    roast_panel=_panel(6, "Traction shown."),
+                    debate_result={"final_synthesis": "Stronger."},
+                    parent_id=v2.id,
+                    version=v2.version + 1,
+                )
+                store.save(v3)
+                records = {record.id: record for record in store.list_recent("user-1", limit=10)}
+
+        self.assertEqual(records[v3.id].parent_id, v2.id)
+        self.assertEqual(records[v3.id].version, 3)
+
+    def test_store_get_returns_record_by_id(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with IdeaStore(Path(tmpdir) / "ideas.db") as store:
+                record = IdeaRecord(
+                    user_id="user-1",
+                    idea_text="Lookup me",
+                    roast_panel=_panel(4, "Needs clearer buyer."),
+                    debate_result={"final_synthesis": "Needs work."},
+                )
+                store.save(record)
+                loaded = store.get(record.id)
+                missing = store.get("does-not-exist")
+
+        self.assertIsNotNone(loaded)
+        assert loaded is not None
+        self.assertEqual(loaded.id, record.id)
+        self.assertIsNone(missing)
+
+    def test_group_by_lineage_clusters_versions_and_sorts_by_latest(self):
+        root = IdeaRecord(
+            user_id="user-1",
+            idea_text="Pitch A v1",
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+            roast_panel=_panel(3, "Too vague."),
+            debate_result={"final_synthesis": "Pass."},
+        )
+        child = IdeaRecord(
+            user_id="user-1",
+            idea_text="Pitch A v2",
+            created_at=datetime(2026, 1, 3, tzinfo=UTC),
+            roast_panel=_panel(5, "Better wedge."),
+            debate_result={"final_synthesis": "Maybe."},
+            parent_id=root.id,
+            version=2,
+        )
+        standalone = IdeaRecord(
+            user_id="user-1",
+            idea_text="Unrelated pitch",
+            created_at=datetime(2026, 1, 2, tzinfo=UTC),
+            roast_panel=_panel(4, "Different concern."),
+            debate_result={"final_synthesis": "Other."},
+        )
+        records = [root, child, standalone]
+        grouped = group_by_lineage(records)
+
+        self.assertEqual(len(grouped), 2)
+        self.assertEqual([item.version for item in grouped[0]], [1, 2])
+        self.assertEqual(grouped[0][0].idea_text, "Pitch A v1")
+        self.assertEqual(grouped[1][0].idea_text, "Unrelated pitch")
+        self.assertEqual(lineage_root_id(child, {r.id: r for r in records}), root.id)
+
+    def test_concern_addressed_status_uses_score_and_concern_heuristics(self):
+        prior = Verdict(
+            judge="vc",
+            verdict="FAIL",
+            roast="Distribution is expensive and the market does not look venture scale.",
+            score=3,
+            key_concern="No urgent buyer.",
+        )
+        improved = prior.model_copy(update={"score": 5, "key_concern": "Still unclear ICP."})
+        unchanged = prior.model_copy(update={"key_concern": "No urgent buyer."})
+        shifted = prior.model_copy(update={"key_concern": "Pricing still unproven."})
+
+        self.assertEqual(concern_addressed_status(prior, improved), "Likely addressed")
+        self.assertEqual(concern_addressed_status(prior, unchanged), "Still open")
+        self.assertEqual(concern_addressed_status(prior, shifted), "Concern shifted")
+
+    def test_concern_addressed_status_score_decrease_is_still_open(self):
+        prior = Verdict(
+            judge="vc",
+            verdict="CONDITIONAL",
+            roast="The build is feasible, but reliability will be harder than the demo suggests.",
+            score=6,
+            key_concern="Pricing still unproven.",
+        )
+        regressed = prior.model_copy(update={"score": 4, "key_concern": "Buyer still unclear."})
+
+        self.assertEqual(concern_addressed_status(prior, regressed), "Still open")
+
+    def test_concern_addressed_status_verdict_rank_improvement_without_score_change(self):
+        prior = Verdict(
+            judge="vc",
+            verdict="FAIL",
+            roast="Distribution is expensive and the market does not look venture scale.",
+            score=4,
+            key_concern="No urgent buyer.",
+        )
+        improved_verdict = prior.model_copy(
+            update={"verdict": VerdictLabel.CONDITIONAL, "key_concern": "ICP still fuzzy."}
+        )
+
+        self.assertEqual(concern_addressed_status(prior, improved_verdict), "Likely addressed")
+
+    def test_recommended_fix_status_still_open_and_shifted(self):
+        prior = Verdict(
+            judge="vc",
+            verdict="FAIL",
+            roast="Distribution is expensive and the market does not look venture scale.",
+            score=5,
+            key_concern="No urgent buyer.",
+            recommended_fix="Run five buyer interviews this week.",
+        )
+        regressed = prior.model_copy(update={"score": 3})
+        shifted = prior.model_copy(update={"key_concern": "Pricing still unproven."})
+
+        self.assertEqual(recommended_fix_status(prior, regressed), "Still open")
+        self.assertEqual(recommended_fix_status(prior, shifted), "Concern shifted")
+
+    def test_fix_status_label_neutralizes_shifted_copy(self):
+        self.assertEqual(fix_status_label("Likely addressed"), "Likely addressed")
+        self.assertEqual(fix_status_label("Still open"), "Still open")
+        self.assertEqual(fix_status_label("Concern shifted"), "Status unclear")
+
+    def test_recommended_fix_status_none_when_prior_has_no_fix(self):
+        prior = Verdict(
+            judge="vc",
+            verdict="FAIL",
+            roast="Distribution is expensive and the market does not look venture scale.",
+            score=3,
+            key_concern="No urgent buyer.",
+        )
+        current = prior.model_copy(update={"score": 5})
+
+        self.assertIsNone(recommended_fix_status(prior, current))
+
+    def test_recommended_fix_status_reuses_concern_heuristics(self):
+        prior = Verdict(
+            judge="vc",
+            verdict="FAIL",
+            roast="Distribution is expensive and the market does not look venture scale.",
+            score=3,
+            key_concern="No urgent buyer.",
+            recommended_fix="Run five buyer interviews this week.",
+        )
+        improved = prior.model_copy(update={"score": 5, "key_concern": "Still unclear ICP."})
+
+        self.assertEqual(recommended_fix_status(prior, improved), "Likely addressed")
+
+    def test_sidebar_lineage_versions_shows_tail_and_hides_older(self):
+        records = [
+            IdeaRecord(
+                user_id="user-1",
+                idea_text=f"v{i}",
+                version=i,
+                roast_panel=_panel(i, "concern"),
+                debate_result={"final_synthesis": "ok"},
+            )
+            for i in range(1, 6)
+        ]
+        visible, hidden = sidebar_lineage_versions(records)
+
+        self.assertEqual([r.version for r in visible], [4, 5])
+        self.assertEqual([r.version for r in hidden], [1, 2, 3])
+
+    def test_sidebar_lineage_versions_keeps_short_chains_intact(self):
+        records = [
+            IdeaRecord(
+                user_id="user-1",
+                idea_text="v1",
+                version=1,
+                roast_panel=_panel(3, "concern"),
+                debate_result={"final_synthesis": "ok"},
+            ),
+            IdeaRecord(
+                user_id="user-1",
+                idea_text="v2",
+                version=2,
+                roast_panel=_panel(4, "concern"),
+                debate_result={"final_synthesis": "ok"},
+            ),
+        ]
+        visible, hidden = sidebar_lineage_versions(records)
+
+        self.assertEqual(len(visible), 2)
+        self.assertEqual(hidden, [])
 
 
 if __name__ == "__main__":

@@ -18,6 +18,7 @@ from api.schemas import (
     RunCreatedResponse,
     RunListItem,
     RunListResponse,
+    RunPanelResponse,
     RunStatusResponse,
     SimilarRunsResponse,
 )
@@ -56,12 +57,27 @@ def _format_sse(envelope: ApiEventEnvelope) -> str:
     return f"id: {envelope.sequence}\ndata: {payload}\n\n"
 
 
+def _run_status_response(record) -> RunStatusResponse:
+    return RunStatusResponse(
+        run_id=record.run_id,
+        status=record.status,
+        idea=record.request.idea,
+        idea_preview=build_idea_preview(record.request.idea),
+        created_at=record.created_at,
+        parent_run_id=record.request.parent_run_id,
+        version=record.request.version,
+    )
+
+
 @router.post("/runs", response_model=RunCreatedResponse)
 def create_run(
     request: CreateRunRequest,
     manager: Annotated[RunManager, Depends(get_run_manager)],
 ) -> RunCreatedResponse:
-    record = manager.create(request)
+    try:
+        record = manager.create(request)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return RunCreatedResponse(run_id=record.run_id)
 
 
@@ -90,6 +106,8 @@ def list_runs(
                 idea_preview=build_idea_preview(record.request.idea),
                 created_at=record.created_at,
                 verdict_summary=summary,
+                parent_run_id=record.request.parent_run_id,
+                version=record.request.version,
             )
             for record, summary in items
         ],
@@ -116,6 +134,23 @@ def list_similar_runs(
     return SimilarRunsResponse(runs=items)
 
 
+@router.get("/runs/{run_id}/panel", response_model=RunPanelResponse)
+def get_run_panel(
+    run_id: str,
+    manager: Annotated[RunManager, Depends(get_run_manager)],
+) -> RunPanelResponse:
+    record = manager.get(run_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Run not found")
+    panel = manager.get_effective_panel(run_id)
+    if panel is None:
+        raise HTTPException(status_code=409, detail="Run has no completed panel yet")
+    verdicts = panel.get("verdicts")
+    if not isinstance(verdicts, list):
+        raise HTTPException(status_code=409, detail="Run has no completed panel yet")
+    return RunPanelResponse(verdicts=verdicts)
+
+
 @router.get("/runs/{run_id}", response_model=RunStatusResponse)
 def get_run_status(
     run_id: str,
@@ -124,13 +159,7 @@ def get_run_status(
     record = manager.get(run_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Run not found")
-    return RunStatusResponse(
-        run_id=record.run_id,
-        status=record.status,
-        idea=record.request.idea,
-        idea_preview=build_idea_preview(record.request.idea),
-        created_at=record.created_at,
-    )
+    return _run_status_response(record)
 
 
 @router.post("/runs/{run_id}/cancel", response_model=RunStatusResponse)
@@ -145,13 +174,7 @@ def cancel_run(
         record = manager.cancel(run_id)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-    return RunStatusResponse(
-        run_id=record.run_id,
-        status=record.status,
-        idea=record.request.idea,
-        idea_preview=build_idea_preview(record.request.idea),
-        created_at=record.created_at,
-    )
+    return _run_status_response(record)
 
 
 @router.post("/runs/{run_id}/appeal", response_model=AppealResponse)

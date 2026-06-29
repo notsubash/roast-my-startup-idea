@@ -133,7 +133,20 @@ class IdeaStore:
             record = IdeaRecord.model_validate_json(payload)
             self.save(record.model_copy(update={"user_id": user_id}))
 
+    def get(self, record_id: str) -> IdeaRecord | None:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT payload FROM ideas WHERE id = ?",
+                (record_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return IdeaRecord.model_validate_json(row[0])
+
     def list_recent(self, user_id: str, limit: int = 3) -> list[IdeaRecord]:
+        return self.list_all(user_id, limit=limit)
+
+    def list_all(self, user_id: str, *, limit: int = 50) -> list[IdeaRecord]:
         with self._lock:
             rows = self._conn.execute(
                 """

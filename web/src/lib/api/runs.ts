@@ -5,6 +5,7 @@ import type {
   CreateRunRequest,
   RunCreatedResponse,
   RunListResponse,
+  RunPanelResponse,
   RunStatusResponse,
   SimilarRunsResponse,
 } from "./types-helpers";
@@ -45,6 +46,10 @@ export async function submitAppeal(
     method: "POST",
     body: JSON.stringify(body),
   });
+}
+
+export async function getRunPanel(runId: string): Promise<RunPanelResponse> {
+  return apiClient<RunPanelResponse>(`/api/runs/${runId}/panel`);
 }
 
 export async function getSimilarRuns(

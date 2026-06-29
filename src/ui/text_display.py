@@ -46,6 +46,15 @@ def write_labelled_plain(label: str, text: str) -> None:
     )
 
 
+def write_status_badge(status: str, *, tone: str = "neutral") -> None:
+    """Compact colored status pill for iteration comparison."""
+    safe = html.escape(status)
+    st.markdown(
+        f'<span class="iteration-status iteration-status-{tone}">{safe}</span>',
+        unsafe_allow_html=True,
+    )
+
+
 def write_synthesis(text: str) -> None:
     """Display synthesis in a bordered container with markdown formatting."""
     with st.container(border=True):

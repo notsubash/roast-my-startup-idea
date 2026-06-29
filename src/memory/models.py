@@ -20,3 +20,5 @@ class IdeaRecord(BaseModel):
     appeal_text: str | None = None
     revised_panel: RoastPanel | None = None
     revised_synthesis: str | None = None
+    parent_id: str | None = None
+    version: int = 1
