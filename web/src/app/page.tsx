@@ -1,7 +1,12 @@
 import { EditorialContainer } from "@/components/app-shell";
 import { IdeaForm } from "@/features/submit/idea-form";
 
-export default function Home() {
+type HomeProps = {
+  searchParams: Promise<{ refine?: string }>;
+};
+
+export default async function Home({ searchParams }: HomeProps) {
+  const params = await searchParams;
   return (
     <EditorialContainer className="py-16 md:py-24 lg:py-32">
       <div className="col-span-12 lg:col-span-10 lg:col-start-2">
@@ -16,7 +21,7 @@ export default function Home() {
           Submit your pitch. Watch five distinct critics score, roast, and argue in
           real time.
         </p>
-        <IdeaForm />
+        <IdeaForm refineRunId={params.refine ?? null} />
       </div>
     </EditorialContainer>
   );

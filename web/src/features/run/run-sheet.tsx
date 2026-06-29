@@ -17,6 +17,7 @@ import { Skeleton } from "@/ui/skeleton";
 
 import { DebateTranscript } from "./debate-transcript";
 import { AppealSection } from "../appeal/appeal-section";
+import { VersionBadge, VersionComparison } from "../iteration/version-comparison";
 import { RelatedRoasts } from "./related-roasts";
 import { JudgeColumn, JudgeColumnSkeleton } from "./judge-column";
 import { PhaseRail } from "./phase-rail";
@@ -106,12 +107,16 @@ function RunSheetContent({
   idea,
   restStatus,
   refetchStatus,
+  version,
+  parentRunId,
 }: {
   runId: string;
   ideaPreview: string;
   idea: string;
   restStatus: RunStatus;
   refetchStatus: () => void;
+  version: number;
+  parentRunId?: string | null;
 }) {
   const stream = useRunStream(runId, {
     initialStatus:
@@ -156,8 +161,11 @@ function RunSheetContent({
             <p className="mt-4 max-w-prose font-sans text-ink-muted">
               <span className="font-semibold text-ink">Idea:</span> {ideaPreview}
             </p>
-            <p className="mt-2 font-mono text-xs text-ink-subtle">Run {runId}</p>
-            <div className="mt-6">
+            <p className="mt-2 font-mono text-xs text-ink-subtle">
+              Run {runId}
+              <VersionBadge version={version} parentRunId={parentRunId} className="ml-2" />
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
               <RunControls
                 runId={runId}
                 status={status}
@@ -171,6 +179,14 @@ function RunSheetContent({
                   metrics: stream.metrics,
                 }}
               />
+              {status === "completed" && (
+                <Link
+                  href={`/?refine=${runId}`}
+                  className="inline-flex min-h-11 items-center border-2 border-ink bg-card px-4 font-sans text-sm font-semibold text-ink shadow-soft transition-colors hover:bg-paper-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-heat"
+                >
+                  Refine this idea
+                </Link>
+              )}
             </div>
           </div>
           <div className="mt-8 lg:col-span-3 lg:mt-0">
@@ -204,6 +220,13 @@ function RunSheetContent({
             </div>
           </section>
         )}
+
+        <VersionComparison
+          version={version}
+          parentRunId={parentRunId}
+          currentVerdicts={revealedVerdicts}
+          completed={status === "completed"}
+        />
 
         {stream.researchFindings && (
           <div className="mt-8">
@@ -377,7 +400,8 @@ export function RunSheet({ runId }: { runId: string }) {
     return null;
   }
 
-  const { idea_preview: ideaPreview, idea, status: restStatus } = statusQuery.data;
+  const { idea_preview: ideaPreview, idea, status: restStatus, version = 1, parent_run_id: parentRunId } =
+    statusQuery.data;
 
   return (
     <EditorialContainer className="py-12 md:py-16 lg:py-24">
@@ -388,6 +412,8 @@ export function RunSheet({ runId }: { runId: string }) {
         idea={idea}
         restStatus={restStatus}
         refetchStatus={() => void statusQuery.refetch()}
+        version={version}
+        parentRunId={parentRunId}
       />
     </EditorialContainer>
   );

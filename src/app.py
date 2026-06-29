@@ -20,8 +20,14 @@ from judges.synthesis import assess_verdict_output_quality, parse_structured_syn
 from memory.context import build_memory_context
 from memory.factory import build_idea_store
 from memory.identity import get_local_user_id
+from memory.lineage import (
+    concern_addressed_status,
+    fix_status_label,
+    group_by_lineage,
+    recommended_fix_status,
+    sidebar_lineage_versions,
+)
 from memory.models import IdeaRecord
-from memory.lineage import concern_addressed_status, group_by_lineage
 from memory.retrieval import records_for_memory
 from modeling import build_chat_model
 from research.service import (
@@ -150,7 +156,20 @@ with st.sidebar:
                     f"**{summary}**  \n"
                     f"_{len(lineage)} versions · latest v{latest.version} ({latest_avg:.1f}/10)_"
                 )
-                for record in lineage:
+                visible, hidden = sidebar_lineage_versions(lineage)
+                if hidden:
+                    with st.expander(
+                        f"{len(hidden)} older version{'s' if len(hidden) != 1 else ''}"
+                    ):
+                        for record in hidden:
+                            avg = sum(v.score for v in record.roast_panel.verdicts) / len(
+                                record.roast_panel.verdicts
+                            )
+                            st.markdown(
+                                f"&nbsp;&nbsp;v{record.version} · "
+                                f"{record.created_at.date()} · {avg:.1f}/10"
+                            )
+                for record in visible:
                     avg = sum(v.score for v in record.roast_panel.verdicts) / len(
                         record.roast_panel.verdicts
                     )
@@ -405,16 +424,19 @@ if roast_panel is not None:
     )
     if prior_record is not None and current_record is not None:
         st.subheader("Version Comparison")
+        chain_note = (
+            f" · {current_record.version} versions in this chain"
+            if current_record.version > 2
+            else ""
+        )
         st.caption(
             f"Comparing v{current_record.version} to v{prior_record.version} "
-            "(consecutive versions of the same pitch)."
+            f"(consecutive versions of the same pitch{chain_note})."
         )
         prior_avg = sum(v.score for v in prior_record.roast_panel.verdicts) / len(
             prior_record.roast_panel.verdicts
         )
-        current_avg = sum(v.score for v in effective_panel.verdicts) / len(
-            effective_panel.verdicts
-        )
+        current_avg = sum(v.score for v in effective_panel.verdicts) / len(effective_panel.verdicts)
         avg_delta = current_avg - prior_avg
         st.metric(
             "Average score",
@@ -424,7 +446,9 @@ if roast_panel is not None:
         version_cols = st.columns(5)
         for i, current_v in enumerate(effective_panel.verdicts):
             prior_v = next(
-                v for v in prior_record.roast_panel.verdicts if v.judge.value == current_v.judge.value
+                v
+                for v in prior_record.roast_panel.verdicts
+                if v.judge.value == current_v.judge.value
             )
             delta = current_v.score - prior_v.score
             status = concern_addressed_status(prior_v, current_v)
@@ -436,6 +460,22 @@ if roast_panel is not None:
                 )
                 st.caption(f"was {prior_v.score}/10 · {status}")
                 write_labelled_plain("Prior concern:", prior_v.key_concern)
+                prior_fix = (prior_v.recommended_fix or "").strip()
+                if prior_fix:
+                    fix_status = recommended_fix_status(prior_v, current_v)
+                    write_labelled_plain(
+                        f"Prior fix ({fix_status_label(fix_status)}):",
+                        prior_fix,
+                    )
+        st.divider()
+    elif current_record is not None and current_record.parent_id and prior_record is None:
+        st.warning("Prior version could not be loaded — comparison is unavailable for this run.")
+        st.divider()
+    elif current_record is not None and current_record.version == 1:
+        st.info(
+            "No prior version to compare yet. Use **Refine this idea** after you update "
+            "the pitch to see per-judge score deltas."
+        )
         st.divider()
 
     if structured_synthesis is not None:
@@ -501,7 +541,10 @@ if roast_panel is not None:
 
     if current_record is not None:
         version_label = f"v{current_record.version}"
-        st.caption(f"Saved as {version_label}" + (f" · refines prior run" if current_record.parent_id else ""))
+        st.caption(
+            f"Saved as {version_label}"
+            + (" · refines prior run" if current_record.parent_id else "")
+        )
         if st.button(
             "Refine this idea",
             help="Pre-fill the form with this pitch and save the next roast as the next version.",
@@ -695,7 +738,9 @@ if debate_result is not None:
         revised_panel=revised_panel,
         revised_synthesis=revised_synthesis,
         run_metrics=st.session_state.get("run_metrics"),
-        version=st.session_state.current_record.version if st.session_state.current_record else None,
+        version=st.session_state.current_record.version
+        if st.session_state.current_record
+        else None,
         parent_id=(
             st.session_state.current_record.parent_id if st.session_state.current_record else None
         ),

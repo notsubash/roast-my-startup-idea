@@ -10,7 +10,9 @@ import { heatCtaClass } from "@/lib/cta-classes";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/ui/skeleton";
 
-import { RunHistoryItem } from "./run-history-item";
+import { groupByLineage } from "@/lib/lineage/lineage";
+
+import { LineageHistoryGroup } from "./lineage-history-group";
 
 function HistorySkeleton() {
   return (
@@ -75,8 +77,8 @@ export function RunHistoryList() {
 
         {query.isSuccess && query.data.runs.length > 0 && (
           <ul className="space-y-4">
-            {query.data.runs.map((item) => (
-              <RunHistoryItem key={item.run_id} item={item} />
+            {groupByLineage(query.data.runs).map((lineage) => (
+              <LineageHistoryGroup key={lineage[0]!.run_id} lineage={lineage} />
             ))}
           </ul>
         )}

@@ -8,12 +8,19 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from judges.schemas import RoastPanel, Verdict
+from judges.schemas import RoastPanel, Verdict, VerdictLabel
 from memory.context import build_memory_context
 from memory.factory import build_idea_store
 from memory.identity import get_local_user_id
+from memory.lineage import (
+    concern_addressed_status,
+    fix_status_label,
+    group_by_lineage,
+    lineage_root_id,
+    recommended_fix_status,
+    sidebar_lineage_versions,
+)
 from memory.models import IdeaRecord
-from memory.lineage import concern_addressed_status, group_by_lineage, lineage_root_id
 from memory.retrieval import records_for_memory
 from memory.store import IdeaStore
 import tests  # noqa: F401
@@ -617,6 +624,115 @@ class MemoryTest(unittest.TestCase):
         self.assertEqual(concern_addressed_status(prior, improved), "Likely addressed")
         self.assertEqual(concern_addressed_status(prior, unchanged), "Still open")
         self.assertEqual(concern_addressed_status(prior, shifted), "Concern shifted")
+
+    def test_concern_addressed_status_score_decrease_is_still_open(self):
+        prior = Verdict(
+            judge="vc",
+            verdict="CONDITIONAL",
+            roast="The build is feasible, but reliability will be harder than the demo suggests.",
+            score=6,
+            key_concern="Pricing still unproven.",
+        )
+        regressed = prior.model_copy(update={"score": 4, "key_concern": "Buyer still unclear."})
+
+        self.assertEqual(concern_addressed_status(prior, regressed), "Still open")
+
+    def test_concern_addressed_status_verdict_rank_improvement_without_score_change(self):
+        prior = Verdict(
+            judge="vc",
+            verdict="FAIL",
+            roast="Distribution is expensive and the market does not look venture scale.",
+            score=4,
+            key_concern="No urgent buyer.",
+        )
+        improved_verdict = prior.model_copy(
+            update={"verdict": VerdictLabel.CONDITIONAL, "key_concern": "ICP still fuzzy."}
+        )
+
+        self.assertEqual(concern_addressed_status(prior, improved_verdict), "Likely addressed")
+
+    def test_recommended_fix_status_still_open_and_shifted(self):
+        prior = Verdict(
+            judge="vc",
+            verdict="FAIL",
+            roast="Distribution is expensive and the market does not look venture scale.",
+            score=5,
+            key_concern="No urgent buyer.",
+            recommended_fix="Run five buyer interviews this week.",
+        )
+        regressed = prior.model_copy(update={"score": 3})
+        shifted = prior.model_copy(update={"key_concern": "Pricing still unproven."})
+
+        self.assertEqual(recommended_fix_status(prior, regressed), "Still open")
+        self.assertEqual(recommended_fix_status(prior, shifted), "Concern shifted")
+
+    def test_fix_status_label_neutralizes_shifted_copy(self):
+        self.assertEqual(fix_status_label("Likely addressed"), "Likely addressed")
+        self.assertEqual(fix_status_label("Still open"), "Still open")
+        self.assertEqual(fix_status_label("Concern shifted"), "Status unclear")
+
+    def test_recommended_fix_status_none_when_prior_has_no_fix(self):
+        prior = Verdict(
+            judge="vc",
+            verdict="FAIL",
+            roast="Distribution is expensive and the market does not look venture scale.",
+            score=3,
+            key_concern="No urgent buyer.",
+        )
+        current = prior.model_copy(update={"score": 5})
+
+        self.assertIsNone(recommended_fix_status(prior, current))
+
+    def test_recommended_fix_status_reuses_concern_heuristics(self):
+        prior = Verdict(
+            judge="vc",
+            verdict="FAIL",
+            roast="Distribution is expensive and the market does not look venture scale.",
+            score=3,
+            key_concern="No urgent buyer.",
+            recommended_fix="Run five buyer interviews this week.",
+        )
+        improved = prior.model_copy(update={"score": 5, "key_concern": "Still unclear ICP."})
+
+        self.assertEqual(recommended_fix_status(prior, improved), "Likely addressed")
+
+    def test_sidebar_lineage_versions_shows_tail_and_hides_older(self):
+        records = [
+            IdeaRecord(
+                user_id="user-1",
+                idea_text=f"v{i}",
+                version=i,
+                roast_panel=_panel(i, "concern"),
+                debate_result={"final_synthesis": "ok"},
+            )
+            for i in range(1, 6)
+        ]
+        visible, hidden = sidebar_lineage_versions(records)
+
+        self.assertEqual([r.version for r in visible], [4, 5])
+        self.assertEqual([r.version for r in hidden], [1, 2, 3])
+
+    def test_sidebar_lineage_versions_keeps_short_chains_intact(self):
+        records = [
+            IdeaRecord(
+                user_id="user-1",
+                idea_text="v1",
+                version=1,
+                roast_panel=_panel(3, "concern"),
+                debate_result={"final_synthesis": "ok"},
+            ),
+            IdeaRecord(
+                user_id="user-1",
+                idea_text="v2",
+                version=2,
+                roast_panel=_panel(4, "concern"),
+                debate_result={"final_synthesis": "ok"},
+            ),
+        ]
+        visible, hidden = sidebar_lineage_versions(records)
+
+        self.assertEqual(len(visible), 2)
+        self.assertEqual(hidden, [])
 
 
 if __name__ == "__main__":

@@ -25,6 +25,8 @@ class CreateRunRequest(BaseModel):
     execution_flow: Literal["deterministic", "deepagents"] = "deterministic"
     max_debate_rounds: int = Field(default=3, ge=1, le=5)
     enable_web_search: bool = False
+    parent_run_id: str | None = None
+    version: int = Field(default=1, ge=1)
 
     @model_validator(mode="after")
     def reject_unsupported_execution_flow(self) -> "CreateRunRequest":
@@ -47,6 +49,12 @@ class RunStatusResponse(BaseModel):
     idea: str
     idea_preview: str
     created_at: datetime
+    parent_run_id: str | None = None
+    version: int = 1
+
+
+class RunPanelResponse(BaseModel):
+    verdicts: list[dict[str, Any]]
 
 
 class ApiEventEnvelope(BaseModel):
@@ -92,6 +100,8 @@ class RunListItem(BaseModel):
     idea_preview: str
     created_at: datetime
     verdict_summary: VerdictSummary | None = None
+    parent_run_id: str | None = None
+    version: int = 1
 
 
 class RunListResponse(BaseModel):

@@ -74,14 +74,12 @@ def _verdict_summary_from_panel(panel: dict) -> VerdictSummary | None:
     )
 
 
-def _summary_for_completed_run(store: RunStore, run_id: str) -> VerdictSummary | None:
+def _effective_panel_for_run(store: RunStore, run_id: str) -> dict | None:
     appeal = store.get_latest_event(run_id, "appeal_completed")
     if appeal is not None:
         revised = appeal.payload.get("revised_panel")
         if isinstance(revised, dict):
-            summary = _verdict_summary_from_panel(revised)
-            if summary is not None:
-                return summary
+            return revised
 
     completed = store.get_latest_event(run_id, "run_completed")
     if completed is None:
@@ -90,13 +88,18 @@ def _summary_for_completed_run(store: RunStore, run_id: str) -> VerdictSummary |
     if isinstance(debate_result, dict):
         revised = debate_result.get("revised_verdicts")
         if isinstance(revised, list) and revised:
-            summary = _verdict_summary_from_panel({"verdicts": revised})
-            if summary is not None:
-                return summary
+            return {"verdicts": revised}
     roast_panel = completed.payload.get("roast_panel")
     if isinstance(roast_panel, dict):
-        return _verdict_summary_from_panel(roast_panel)
+        return roast_panel
     return None
+
+
+def _summary_for_completed_run(store: RunStore, run_id: str) -> VerdictSummary | None:
+    panel = _effective_panel_for_run(store, run_id)
+    if panel is None:
+        return None
+    return _verdict_summary_from_panel(panel)
 
 
 class _RunState:
@@ -174,11 +177,25 @@ class RunManager:
         self._store.close()
 
     def create(self, request: CreateRunRequest) -> RunRecord:
+        version = 1
+        parent_run_id = request.parent_run_id
+        if parent_run_id:
+            parent = self.get(parent_run_id)
+            if parent is None:
+                raise ValueError(f"parent run {parent_run_id!r} not found")
+            version = parent.request.version + 1
+        request = request.model_copy(update={"version": version, "parent_run_id": parent_run_id})
         run_id = str(uuid4())
         record = RunRecord(run_id=run_id, request=request)
         self._store.insert_run(record)
         self._runs[run_id] = _RunState(record, store=self._store)
         return record
+
+    def get_effective_panel(self, run_id: str) -> dict | None:
+        record = self.get(run_id)
+        if record is None or record.status != "completed":
+            return None
+        return _effective_panel_for_run(self._store, run_id)
 
     def get(self, run_id: str) -> RunRecord | None:
         state = self._runs.get(run_id)

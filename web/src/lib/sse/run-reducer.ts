@@ -33,11 +33,11 @@ function parseVerdict(raw: unknown): Verdict | null {
       score: v.score,
       key_concern: v.key_concern,
       recommended_fix:
-        typeof v.recommended_fix === "string" ? v.recommended_fix : v.recommended_fix ?? null,
+        typeof v.recommended_fix === "string" ? v.recommended_fix : null,
       evidence_to_change_verdict:
         typeof v.evidence_to_change_verdict === "string"
           ? v.evidence_to_change_verdict
-          : v.evidence_to_change_verdict ?? null,
+          : null,
     };
   }
   return null;
