@@ -10,6 +10,7 @@ import streamlit as st
 
 from appeal.service import run_appeal
 from config import get_settings
+from debate.revote import appeal_baseline_panel
 from idea_context import build_startup_idea_context, idea_display_summary
 from judges.synthesis import assess_verdict_output_quality, parse_structured_synthesis
 from memory.context import build_memory_context
@@ -474,10 +475,11 @@ if debate_result is not None:
             try:
                 with st.status("Appeal mode: judges are re-evaluating...", expanded=True) as status:
                     status.write("Sending your appeal to all five judges...")
+                    appeal_baseline = appeal_baseline_panel(roast_panel, debate_result)
                     appeal_result = run_appeal(
                         model=model,
                         startup_idea=st.session_state.startup_idea_used or "",
-                        roast_panel=roast_panel,
+                        roast_panel=appeal_baseline,
                         debate_result=debate_result,
                         appeal_text=appeal_text,
                         memory_context=build_memory_context(prior_records),
@@ -508,11 +510,12 @@ if debate_result is not None:
 
     if revised_panel is not None:
         st.markdown("#### Revised Verdicts")
+        appeal_baseline = appeal_baseline_panel(roast_panel, debate_result)
         revised_cols = st.columns(5)
         for i, v in enumerate(revised_panel.verdicts):
             original = next(
                 original_v
-                for original_v in roast_panel.verdicts
+                for original_v in appeal_baseline.verdicts
                 if original_v.judge.value == v.judge.value
             )
             delta = v.score - original.score

@@ -74,6 +74,33 @@ def check_required_sentence(value: str | None, field_name: str) -> Check | None:
     return None
 
 
+def check_score_change_justification(original: Verdict, revised: Verdict) -> Check | None:
+    if original.score == revised.score:
+        return None
+    missing = check_required_sentence(
+        revised.evidence_to_change_verdict,
+        "evidence_to_change_verdict",
+    )
+    if missing is not None:
+        return Check(
+            code="score_change_missing_justification",
+            message=(
+                "Score changed but evidence_to_change_verdict must cite what in the debate "
+                "changed your mind"
+            ),
+        )
+    if normalize_sentence(revised.evidence_to_change_verdict or "") == normalize_sentence(
+        original.evidence_to_change_verdict or ""
+    ):
+        return Check(
+            code="score_change_unchanged_evidence",
+            message=(
+                "Score changed but evidence_to_change_verdict was not updated to cite the debate"
+            ),
+        )
+    return None
+
+
 def check_not_duplicate(
     left: str | None,
     right: str | None,

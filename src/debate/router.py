@@ -8,7 +8,7 @@ def route_next_speaker(state: dict) -> str:
     if state["round"] < state["max_rounds"]:
         return "advance_round"
 
-    return "moderator"
+    return "revote"
 
 
 def advance_round(state: dict) -> dict:

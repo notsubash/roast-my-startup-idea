@@ -7,6 +7,7 @@ from langchain_core.messages import AIMessage
 from langgraph.config import get_stream_writer
 
 from config import DEBATE_PERSONAS, JUDGE_ORDER, PROMPTS_DIR
+from debate.revote import roast_panel_from_state_verdicts, run_revote
 from idea_context import wrap_user_idea
 from judges.synthesis import Synthesis, synthesis_to_prose
 from observability.metrics import RunMetricsCollector
@@ -238,3 +239,23 @@ def make_moderator_node(model: Any, metrics: RunMetricsCollector | None = None):
         }
 
     return moderator_node
+
+
+def make_revote_node(
+    model: Any,
+    metrics: RunMetricsCollector | None = None,
+    abort_check=None,
+):
+    def revote_node(state: dict) -> dict:
+        roast_panel = roast_panel_from_state_verdicts(state["initial_verdicts"])
+        revised_panel = run_revote(
+            model,
+            state["startup_idea"],
+            roast_panel,
+            state["debate_messages"],
+            metrics=metrics,
+            abort_check=abort_check,
+        )
+        return {"verdicts": [v.model_dump() for v in revised_panel.verdicts]}
+
+    return revote_node

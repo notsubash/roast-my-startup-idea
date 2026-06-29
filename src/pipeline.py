@@ -137,6 +137,8 @@ def stream_pipeline(
                 "debate_messages": event.debate_messages,
                 "final_synthesis": event.final_synthesis,
                 "structured_synthesis": event.structured_synthesis,
+                "initial_verdicts": event.initial_verdicts,
+                "revised_verdicts": event.revised_verdicts,
             }
 
     if debate_result is None:

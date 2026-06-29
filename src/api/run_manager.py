@@ -35,6 +35,7 @@ from api.run_store import RunStore
 from api.schemas import ApiEventEnvelope, CreateRunRequest, SimilarRunItem, VerdictSummary
 from appeal.service import AppealResult, run_appeal
 from config import Settings, get_settings
+from debate.revote import appeal_baseline_panel
 from events import RunMetrics
 from judges.schemas import RoastPanel
 from memory.identity import LOCAL_USER
@@ -239,10 +240,14 @@ class RunManager:
         if completed is None:
             raise ValueError("Run has no completed results to appeal")
 
-        roast_panel = RoastPanel.model_validate(completed.payload["roast_panel"])
         debate_result = completed.payload.get("debate_result")
         if not isinstance(debate_result, dict):
             debate_result = {}
+
+        roast_panel = appeal_baseline_panel(
+            RoastPanel.model_validate(completed.payload["roast_panel"]),
+            debate_result,
+        )
 
         model = build_model_for_run(record.request, settings)
         startup_idea = build_startup_idea_context(record.request)

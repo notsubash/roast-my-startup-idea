@@ -22,10 +22,12 @@ from run_control import check_abort
 
 
 def _initial_state(startup_idea: str, roast_panel: RoastPanel, max_rounds: int) -> dict:
+    verdicts = [v.model_dump() for v in roast_panel.verdicts]
     return {
         "messages": [HumanMessage(content="Begin the debate.")],
         "startup_idea": startup_idea,
-        "verdicts": [v.model_dump() for v in roast_panel.verdicts],
+        "verdicts": verdicts,
+        "initial_verdicts": verdicts,
         "debate_messages": [],
         "round": 1,
         "max_rounds": max_rounds,
@@ -52,7 +54,7 @@ def stream_debate(
     | DebateCompleted
 ]:
     """Stream debate graph node updates as frontend-agnostic events."""
-    debate_graph = build_debate_graph(model, metrics=metrics)
+    debate_graph = build_debate_graph(model, metrics=metrics, abort_check=abort_check)
     initial_state = _initial_state(startup_idea, roast_panel, max_rounds)
     resolved_config = run_config or build_run_config(
         "debate-graph",
@@ -68,6 +70,7 @@ def stream_debate(
     all_debate_messages: list[dict] = []
     final_synthesis: str | None = None
     structured_synthesis: dict | None = None
+    revised_verdicts: list[dict] | None = None
 
     for stream_item in debate_graph.stream(
         initial_state,
@@ -95,6 +98,11 @@ def stream_debate(
         for node_name, node_output in state_update.items():
             if node_name in ("__start__", "advance_round"):
                 continue
+
+            if node_name == "revote":
+                revised = node_output.get("verdicts")
+                if revised is not None:
+                    revised_verdicts = revised
 
             new_messages = node_output.get("debate_messages", [])
             for msg in new_messages:
@@ -132,6 +140,8 @@ def stream_debate(
         debate_messages=all_debate_messages,
         final_synthesis=final_synthesis,
         structured_synthesis=structured_synthesis,
+        initial_verdicts=initial_state["initial_verdicts"],
+        revised_verdicts=revised_verdicts,
     )
 
 
@@ -157,5 +167,7 @@ def run_debate(
                 "debate_messages": event.debate_messages,
                 "final_synthesis": event.final_synthesis,
                 "structured_synthesis": event.structured_synthesis,
+                "initial_verdicts": event.initial_verdicts,
+                "revised_verdicts": event.revised_verdicts,
             }
     return result

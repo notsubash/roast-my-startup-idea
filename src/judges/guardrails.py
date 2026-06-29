@@ -9,6 +9,7 @@ from verification import (
 from verification.invariants import (
     check_not_duplicate,
     check_required_sentence,
+    check_score_change_justification,
     check_score_verdict_alignment,
 )
 
@@ -17,6 +18,7 @@ __all__ = [
     "GuardrailError",
     "expected_verdict_for_score",
     "is_degenerate_panel",
+    "validate_revote_verdict",
     "validate_structured_verdict",
     "validate_verdict_guardrails",
 ]
@@ -45,6 +47,13 @@ def validate_structured_verdict(verdict: Verdict, *, judge: str) -> None:
     _raise_first_failure(
         verify_verdict_invariants(verdict, expected_judge=judge, require_fix_fields=True)
     )
+
+
+def validate_revote_verdict(original: Verdict, revised: Verdict) -> None:
+    validate_structured_verdict(revised, judge=revised.judge.value)
+    check = check_score_change_justification(original, revised)
+    if check is not None:
+        raise GuardrailError(check.message)
 
 
 def validate_recommended_fix(value: str | None, *, key_concern: str) -> None:
