@@ -1,40 +1,88 @@
-"""Post-validation guardrails for judge outputs."""
+"""Post-validation guardrails for judge outputs (runtime adapter over verification)."""
 
-from judges.schemas import Verdict, VerdictLabel
+from judges.schemas import Verdict
+from verification import (
+    expected_verdict_for_score,
+    is_degenerate_panel,
+    verify_verdict_invariants,
+)
+from verification.invariants import (
+    check_not_duplicate,
+    check_required_sentence,
+    check_score_verdict_alignment,
+)
+
+# Re-export panel helper for existing imports.
+__all__ = [
+    "GuardrailError",
+    "expected_verdict_for_score",
+    "is_degenerate_panel",
+    "validate_structured_verdict",
+    "validate_verdict_guardrails",
+]
 
 
 class GuardrailError(ValueError):
     """Verdict failed a consistency or degeneracy check."""
 
 
-def expected_verdict_for_score(score: int) -> VerdictLabel:
-    if score <= 3:
-        return VerdictLabel.FAIL
-    if score <= 6:
-        return VerdictLabel.CONDITIONAL
-    return VerdictLabel.PASS
+def _raise_first_failure(result) -> None:
+    failure = result.first_failure()
+    if failure is not None:
+        raise GuardrailError(failure.message)
 
 
 def validate_verdict_guardrails(verdict: Verdict) -> None:
-    expected = expected_verdict_for_score(verdict.score)
-    if verdict.verdict != expected:
-        raise GuardrailError(
-            f"Score {verdict.score} inconsistent with verdict {verdict.verdict.value} "
-            f"(expected {expected.value})"
-        )
+    check = check_score_verdict_alignment(
+        score=verdict.score,
+        verdict_label=verdict.verdict.value,
+    )
+    if check is not None:
+        raise GuardrailError(check.message)
 
 
 def validate_structured_verdict(verdict: Verdict, *, judge: str) -> None:
-    if verdict.judge.value != judge:
-        raise GuardrailError(f"Expected judge {judge}, got {verdict.judge.value}")
-    validate_verdict_guardrails(verdict)
-
-
-def is_degenerate_panel(verdicts: list[Verdict]) -> bool:
-    if len(verdicts) < 2:
-        return False
-    first = verdicts[0]
-    return all(
-        verdict.score == first.score and verdict.verdict == first.verdict
-        for verdict in verdicts[1:]
+    _raise_first_failure(
+        verify_verdict_invariants(verdict, expected_judge=judge, require_fix_fields=True)
     )
+
+
+def validate_recommended_fix(value: str | None, *, key_concern: str) -> None:
+    missing = check_required_sentence(value, "recommended_fix")
+    if missing is not None:
+        raise GuardrailError(missing.message)
+    duplicate = check_not_duplicate(
+        value,
+        key_concern,
+        left_name="recommended_fix",
+        right_name="key_concern",
+    )
+    if duplicate is not None:
+        raise GuardrailError(duplicate.message)
+
+
+def validate_evidence_to_change_verdict(
+    value: str | None,
+    *,
+    key_concern: str,
+    recommended_fix: str | None,
+) -> None:
+    missing = check_required_sentence(value, "evidence_to_change_verdict")
+    if missing is not None:
+        raise GuardrailError(missing.message)
+    for duplicate in (
+        check_not_duplicate(
+            value,
+            key_concern,
+            left_name="evidence_to_change_verdict",
+            right_name="key_concern",
+        ),
+        check_not_duplicate(
+            value,
+            recommended_fix,
+            left_name="evidence_to_change_verdict",
+            right_name="recommended_fix",
+        ),
+    ):
+        if duplicate is not None:
+            raise GuardrailError(duplicate.message)

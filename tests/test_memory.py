@@ -426,6 +426,31 @@ class MemoryTest(unittest.TestCase):
             store.close()
             self.assertEqual(errors, [])
 
+    def test_legacy_idea_record_json_without_fix_fields_loads(self):
+        legacy_json = (
+            '{"id":"legacy-1","user_id":"user-1","idea_text":"AI calendar for founders",'
+            '"created_at":"2026-01-01T00:00:00+00:00",'
+            '"roast_panel":{"verdicts":[{"judge":"vc","verdict":"FAIL",'
+            '"roast":"Distribution is expensive and the market does not look venture scale.",'
+            '"score":3,"key_concern":"No urgent buyer."},'
+            '{"judge":"engineer","verdict":"CONDITIONAL",'
+            '"roast":"The build is feasible, but reliability will be harder than the demo suggests.",'
+            '"score":5,"key_concern":"Reliability risk."},'
+            '{"judge":"pm","verdict":"FAIL",'
+            '"roast":"The target user is too broad, so the product will struggle to find a repeatable wedge.",'
+            '"score":4,"key_concern":"Unclear ICP."},'
+            '{"judge":"customer","verdict":"FAIL",'
+            '"roast":"I would not change my workflow unless this saves obvious time immediately.",'
+            '"score":3,"key_concern":"Weak switching incentive."},'
+            '{"judge":"competitor","verdict":"FAIL",'
+            '"roast":"This is easy for incumbents to copy once they see any traction.",'
+            '"score":2,"key_concern":"Easy replication."}]},'
+            '"debate_result":{"final_synthesis":"Too vague to fund."}}'
+        )
+        record = IdeaRecord.model_validate_json(legacy_json)
+        self.assertIsNone(record.roast_panel.verdicts[0].recommended_fix)
+        self.assertIsNone(record.roast_panel.verdicts[0].evidence_to_change_verdict)
+
 
 if __name__ == "__main__":
     unittest.main()

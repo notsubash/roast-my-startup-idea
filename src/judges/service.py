@@ -83,7 +83,7 @@ def invoke_structured_verdict(
     output_parts: list[str] = []
     attempt_started = started_at if started_at is not None else time.perf_counter()
     last_error: ValidationError | GuardrailError | None = None
-    for _ in range(JUDGE_MAX_ATTEMPTS):
+    for attempt in range(JUDGE_MAX_ATTEMPTS):
         result = structured_model.invoke(messages, **optional_config_kwargs(run_config))
 
         if result is None:
@@ -104,6 +104,19 @@ def invoke_structured_verdict(
             return verdict
         except (ValidationError, GuardrailError) as exc:
             last_error = exc
+            if attempt + 1 < JUDGE_MAX_ATTEMPTS:
+                messages = [
+                    *messages,
+                    HumanMessage(
+                        content=(
+                            f"Your previous structured verdict was rejected: {exc}. "
+                            "Return a corrected complete Verdict JSON. "
+                            "recommended_fix must prescribe a concrete next action beyond "
+                            "key_concern. evidence_to_change_verdict must name verifiable "
+                            "proof that would change your score."
+                        )
+                    ),
+                ]
 
     if last_error is not None:
         raise ValueError(

@@ -30,6 +30,7 @@ def score_idea_result(
         and reliability.get("debate_complete", False)
         and reliability.get("debate_structure_ok", False)
         and reliability.get("passed", False)
+        and reliability.get("fix_fields_complete", False)
     )
 
     return {
