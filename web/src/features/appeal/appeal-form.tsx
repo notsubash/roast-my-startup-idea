@@ -86,7 +86,7 @@ export function AppealForm({
       </h2>
       <p className="mt-2 max-w-prose font-sans text-sm text-ink-muted">
         Push back with new evidence or context. Tag the judges you are addressing so the panel
-        knows what you are trying to prove.
+        knows what you are trying to prove — not which boxes to tick.
       </p>
 
       <AppealCoaching

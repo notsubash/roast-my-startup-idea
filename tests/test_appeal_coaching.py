@@ -9,9 +9,13 @@ from appeal.coaching import (
     appeal_coaching_verdicts,
     appeal_evidence_outcome,
     appeal_judge_outcomes,
+    appeal_score_movement,
+    assess_appeal_coaching,
+    is_degenerate_evidence_asks,
     normalize_target_judges,
 )
 from judges.schemas import RoastPanel, Verdict, VerdictLabel, judgeLabel
+from verification.invariants import is_generic_evidence
 
 SAMPLE_EVIDENCE = "Three signed LOIs from target buyers would change this verdict."
 
@@ -213,6 +217,196 @@ class AppealCoachingPhase2Tests(unittest.TestCase):
         self.assertTrue(vc_outcome.targeted)
         self.assertEqual(vc_outcome.outcome, "Evidence met")
         self.assertEqual(vc_outcome.evidence_ask, SAMPLE_EVIDENCE)
+
+
+class AppealCoachingPhase3Tests(unittest.TestCase):
+    def test_assess_flags_degenerate_asks(self):
+        shared = "Provide more evidence and do more research."
+        panel = RoastPanel(
+            verdicts=[
+                _verdict(
+                    judgeLabel.VC,
+                    verdict=VerdictLabel.FAIL,
+                    score=2,
+                    key_concern="No traction.",
+                    evidence=shared,
+                ),
+                _verdict(
+                    judgeLabel.ENGINEER,
+                    verdict=VerdictLabel.FAIL,
+                    score=2,
+                    key_concern="No moat.",
+                    evidence=shared,
+                ),
+                _verdict(
+                    judgeLabel.PM,
+                    verdict=VerdictLabel.CONDITIONAL,
+                    score=5,
+                    key_concern="Unclear wedge.",
+                    evidence=shared,
+                ),
+                _verdict(
+                    judgeLabel.CUSTOMER,
+                    verdict=VerdictLabel.CONDITIONAL,
+                    score=4,
+                    key_concern="No buyer proof.",
+                    evidence=shared,
+                ),
+                _verdict(
+                    judgeLabel.COMPETITOR,
+                    verdict=VerdictLabel.CONDITIONAL,
+                    score=4,
+                    key_concern="Easy to copy.",
+                    evidence=shared,
+                ),
+            ]
+        )
+        coaching = assess_appeal_coaching(panel)
+        self.assertTrue(coaching["degraded"])
+        self.assertTrue(coaching["degenerate_asks"])
+        self.assertTrue(is_degenerate_evidence_asks(panel.verdicts))
+
+    def test_assess_flags_generic_and_derived_asks(self):
+        panel = RoastPanel(
+            verdicts=[
+                _verdict(
+                    judgeLabel.VC,
+                    verdict=VerdictLabel.FAIL,
+                    score=2,
+                    key_concern="No LOIs yet.",
+                    evidence="Show traction with signed LOIs.",
+                ),
+                _verdict(
+                    judgeLabel.ENGINEER,
+                    verdict=VerdictLabel.FAIL,
+                    score=2,
+                    key_concern="No technical moat.",
+                ),
+                _verdict(
+                    judgeLabel.PM,
+                    verdict=VerdictLabel.CONDITIONAL,
+                    score=5,
+                    key_concern="Unclear wedge.",
+                    evidence="Do more research on the buyer.",
+                ),
+                _verdict(
+                    judgeLabel.CUSTOMER,
+                    verdict=VerdictLabel.CONDITIONAL,
+                    score=4,
+                    key_concern="No buyer proof.",
+                    evidence=SAMPLE_EVIDENCE,
+                ),
+                _verdict(
+                    judgeLabel.COMPETITOR,
+                    verdict=VerdictLabel.CONDITIONAL,
+                    score=4,
+                    key_concern="Easy to copy.",
+                    evidence=SAMPLE_EVIDENCE,
+                ),
+            ]
+        )
+        coaching = assess_appeal_coaching(panel)
+        qualities = {item.judge: item.quality for item in coaching["items"]}
+        self.assertEqual(qualities["vc"], "precise")
+        self.assertEqual(qualities["engineer"], "derived")
+        self.assertEqual(qualities["pm"], "generic")
+        self.assertEqual(qualities["customer"], "duplicate")
+        self.assertTrue(coaching["degraded"])
+        self.assertFalse(is_generic_evidence("Show traction with signed LOIs."))
+        self.assertTrue(is_generic_evidence("Do more research on the buyer."))
+
+    def test_single_derived_ask_does_not_degrade_banner(self):
+        panel = RoastPanel(
+            verdicts=[
+                _verdict(
+                    judgeLabel.VC,
+                    verdict=VerdictLabel.FAIL,
+                    score=2,
+                    key_concern="No LOIs yet.",
+                    evidence=SAMPLE_EVIDENCE,
+                ),
+                _verdict(
+                    judgeLabel.ENGINEER,
+                    verdict=VerdictLabel.FAIL,
+                    score=2,
+                    key_concern="No technical moat.",
+                ),
+                _verdict(
+                    judgeLabel.PM,
+                    verdict=VerdictLabel.CONDITIONAL,
+                    score=5,
+                    key_concern="Unclear wedge.",
+                    evidence="One repeatable channel with conversion data.",
+                ),
+                _verdict(
+                    judgeLabel.CUSTOMER,
+                    verdict=VerdictLabel.CONDITIONAL,
+                    score=4,
+                    key_concern="No buyer proof.",
+                    evidence="Usability test with three successful completions.",
+                ),
+                _verdict(
+                    judgeLabel.COMPETITOR,
+                    verdict=VerdictLabel.CONDITIONAL,
+                    score=4,
+                    key_concern="Easy to copy.",
+                    evidence="Exclusive data partnership blocking replication.",
+                ),
+            ]
+        )
+        coaching = assess_appeal_coaching(panel)
+        self.assertFalse(coaching["degraded"])
+
+    def test_appeal_score_movement_counts_positive_moves(self):
+        baseline = RoastPanel(
+            verdicts=[
+                _verdict(
+                    judgeLabel.VC,
+                    verdict=VerdictLabel.CONDITIONAL,
+                    score=4,
+                    key_concern="No LOIs yet.",
+                    evidence=SAMPLE_EVIDENCE,
+                ),
+                _verdict(
+                    judgeLabel.ENGINEER,
+                    verdict=VerdictLabel.FAIL,
+                    score=2,
+                    key_concern="No technical moat.",
+                ),
+                _verdict(
+                    judgeLabel.PM,
+                    verdict=VerdictLabel.CONDITIONAL,
+                    score=5,
+                    key_concern="Unclear wedge.",
+                ),
+                _verdict(
+                    judgeLabel.CUSTOMER,
+                    verdict=VerdictLabel.FAIL,
+                    score=3,
+                    key_concern="No buyer proof.",
+                ),
+                _verdict(
+                    judgeLabel.COMPETITOR,
+                    verdict=VerdictLabel.CONDITIONAL,
+                    score=4,
+                    key_concern="Easy to copy.",
+                ),
+            ]
+        )
+        revised = baseline.model_copy(
+            update={
+                "verdicts": [
+                    baseline.verdicts[0].model_copy(update={"score": 6}),
+                    baseline.verdicts[1],
+                    baseline.verdicts[2].model_copy(update={"score": 6}),
+                    baseline.verdicts[3],
+                    baseline.verdicts[4],
+                ]
+            }
+        )
+        movement = appeal_score_movement(baseline, revised)
+        self.assertEqual(movement["positive_moves"], 2)
+        self.assertEqual(movement["net_delta"], 3)
 
 
 if __name__ == "__main__":

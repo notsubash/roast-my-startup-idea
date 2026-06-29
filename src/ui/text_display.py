@@ -42,12 +42,21 @@ def write_appeal_coaching_item(
     verdict_label: str,
     score: int,
     hint: str,
+    quality: str | None = None,
 ) -> None:
     """Single appeal coaching checklist row with escaped model text."""
+    quality_note = ""
+    if quality == "derived":
+        quality_note = ' <span style="opacity:0.75;">(inferred from concern)</span>'
+    elif quality == "generic":
+        quality_note = ' <span style="opacity:0.75;">(generic ask)</span>'
+    elif quality == "duplicate":
+        quality_note = ' <span style="opacity:0.75;">(same as another judge)</span>'
     st.markdown(
         f'<p class="llm-plain-text" style="margin:0;">'
         f"- <strong>{icon} {html.escape(judge)}</strong> "
-        f"({html.escape(verdict_label)}, {score}/10): {html.escape(hint or '')}</p>",
+        f"({html.escape(verdict_label)}, {score}/10): {html.escape(hint or '')}"
+        f"{quality_note}</p>",
         unsafe_allow_html=True,
     )
 

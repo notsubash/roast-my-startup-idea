@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from evals.scorers.appeal import score_appeal_discrimination
 from evals.scorers.reliability import score_reliability
 
 
@@ -11,6 +12,7 @@ def score_idea_result(
     result: dict[str, Any],
     *,
     max_debate_rounds: int,
+    expected_delta_direction: dict[str, str] | None = None,
     **_ignored: Any,
 ) -> dict[str, Any]:
     """Score pipeline structural reliability only. Quality is judged in Tier 2."""
@@ -35,6 +37,14 @@ def score_idea_result(
         else reliability.get("revote_passed", False)
     )
 
+    appeal = score_appeal_discrimination(
+        result,
+        expected_delta_direction=expected_delta_direction,
+    )
+    appeal_ok = appeal.get("appeal_discrimination_passed", True)
+    if not result.get("appeal_weak") and not result.get("appeal_strong"):
+        appeal_ok = True
+
     passed = (
         reliability.get("judge_parse_success_rate", 0) >= 0.95
         and reliability.get("panel_complete", False)
@@ -43,9 +53,11 @@ def score_idea_result(
         and reliability.get("passed", False)
         and (legacy_output or (fixes_ok and synthesis_ok))
         and revote_ok
+        and appeal_ok
     )
 
     return {
         "reliability": reliability,
+        "appeal": appeal,
         "passed": passed,
     }

@@ -9,9 +9,8 @@ from pydantic import ValidationError
 import streamlit as st
 
 from appeal.coaching import (
-    appeal_coaching_hint,
-    appeal_coaching_verdicts,
     appeal_judge_outcomes,
+    assess_appeal_coaching,
 )
 from appeal.service import run_appeal
 from config import get_settings
@@ -647,26 +646,35 @@ if debate_result is not None and roast_panel is not None:
     )
 
     appeal_baseline = appeal_baseline_panel(roast_panel, debate_result)
-    st.markdown("#### What would change each judge's mind")
-    st.caption("Check the judges you are addressing, then target FAIL and CONDITIONAL first.")
+    coaching = assess_appeal_coaching(appeal_baseline)
+
+    st.markdown("#### What each judge needs to hear")
+    st.caption(
+        "These are starting points from the panel, not a checklist to game. "
+        "Check the judges you are directly addressing, and prioritize FAIL and CONDITIONAL first."
+    )
+    if coaching["degraded"]:
+        st.warning("Coaching quality is limited for this run — " + " ".join(coaching["reasons"]))
+
     target_judges: list[str] = []
-    for verdict in appeal_coaching_verdicts(appeal_baseline):
+    for item in coaching["items"]:
         col_hint, col_tag = st.columns([5, 1])
         with col_hint:
             write_appeal_coaching_item(
-                icon=VERDICT_ICON.get(verdict.verdict.value, "\u26aa"),
-                judge=verdict.judge.value.upper(),
-                verdict_label=verdict.verdict.value,
-                score=verdict.score,
-                hint=appeal_coaching_hint(verdict),
+                icon=VERDICT_ICON.get(item.verdict, "\u26aa"),
+                judge=item.judge.upper(),
+                verdict_label=item.verdict,
+                score=item.score,
+                hint=item.hint,
+                quality=item.quality,
             )
         with col_tag:
             if st.checkbox(
                 "Target",
-                key=f"appeal_target_{verdict.judge.value}",
+                key=f"appeal_target_{item.judge}",
                 label_visibility="collapsed",
             ):
-                target_judges.append(verdict.judge.value)
+                target_judges.append(item.judge)
 
     appeal_text = st.text_area(
         "Your appeal:",
