@@ -20,18 +20,13 @@ import { Skeleton } from "@/ui/skeleton";
 import { DebateTranscript } from "./debate-transcript";
 import { AppealSection } from "../appeal/appeal-section";
 import { VersionBadge, VersionComparison } from "../iteration/version-comparison";
-import { RelatedRoasts } from "./related-roasts";
 import { JudgeColumn, JudgeColumnSkeleton } from "./judge-column";
 import { PhaseRail } from "./phase-rail";
 import { RunControls } from "./run-controls";
-import { RunMetricsBar } from "./run-metrics-bar";
-import { SourcesPanel } from "./sources-panel";
+import { collapsibleSummaryClass, RunContextGroup } from "./run-context-group";
 import { NextActionsStrip } from "./next-actions-strip";
 import { VerdictCard } from "./verdict-card";
 import { assessRevoteOutputQuality } from "./verdict-quality";
-
-const collapsibleSummaryClass =
-  "flex cursor-pointer list-none items-center gap-2 font-serif text-2xl font-semibold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-heat [&::-webkit-details-marker]:hidden";
 
 function isTerminalStatus(status: RunStatus): boolean {
   return status === "completed" || status === "failed" || status === "cancelled";
@@ -177,48 +172,41 @@ function RunSheetContent({
   return (
     <>
       <header className="col-span-12 lg:col-span-10 lg:col-start-2">
-        <div className="lg:grid lg:grid-cols-10 lg:gap-8">
-          <div className="lg:col-span-7">
-            <p className="font-sans text-sm font-semibold uppercase tracking-widest text-heat-ink">
-              Verdict sheet
-            </p>
-            <h1 className="mt-2 font-serif text-title font-semibold text-ink md:text-display-md">
-              {headlineForStatus(status, stream.phase)}
-            </h1>
-            <p className="mt-4 max-w-prose font-sans text-ink-muted">
-              <span className="font-semibold text-ink">Idea:</span> {ideaPreview}
-            </p>
-            <p className="mt-2 font-mono text-xs text-ink-subtle">
-              Run {runId}
-              <VersionBadge version={version} parentRunId={parentRunId} className="ml-2" />
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <RunControls
-                runId={runId}
-                status={status}
-                onCancelSettled={refetchStatus}
-                exportInput={{
-                  idea: resolveExportIdea(runId, ideaPreview, idea),
-                  runId,
-                  judges: stream.judges,
-                  debateTurns: stream.debateTurns,
-                  synthesis: stream.synthesis,
-                  metrics: stream.metrics,
-                }}
-              />
-              {status === "completed" && (
-                <Link
-                  href={`/?refine=${runId}`}
-                  className="inline-flex min-h-11 items-center border-2 border-ink bg-card px-4 font-sans text-sm font-semibold text-ink shadow-soft transition-colors hover:bg-paper-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-heat"
-                >
-                  Refine this idea
-                </Link>
-              )}
-            </div>
-          </div>
-          <div className="mt-8 lg:col-span-3 lg:mt-0">
-            <RelatedRoasts runId={runId} />
-          </div>
+        <p className="font-sans text-sm font-semibold uppercase tracking-widest text-heat-ink">
+          Verdict sheet
+        </p>
+        <h1 className="mt-2 font-serif text-title font-semibold text-ink md:text-display-md">
+          {headlineForStatus(status, stream.phase)}
+        </h1>
+        <p className="mt-4 max-w-prose font-sans text-ink-muted">
+          <span className="font-semibold text-ink">Idea:</span> {ideaPreview}
+        </p>
+        <p className="mt-2 font-mono text-xs text-ink-subtle">
+          Run {runId}
+          <VersionBadge version={version} parentRunId={parentRunId} className="ml-2" />
+        </p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <RunControls
+            runId={runId}
+            status={status}
+            onCancelSettled={refetchStatus}
+            exportInput={{
+              idea: resolveExportIdea(runId, ideaPreview, idea),
+              runId,
+              judges: stream.judges,
+              debateTurns: stream.debateTurns,
+              synthesis: stream.synthesis,
+              metrics: stream.metrics,
+            }}
+          />
+          {status === "completed" && (
+            <Link
+              href={`/?refine=${runId}`}
+              className="inline-flex min-h-11 items-center border-2 border-ink bg-card px-4 font-sans text-sm font-semibold text-ink shadow-soft transition-colors hover:bg-paper-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-heat"
+            >
+              Refine this idea
+            </Link>
+          )}
         </div>
       </header>
 
@@ -341,39 +329,12 @@ function RunSheetContent({
           </div>
         </details>
 
-        {stream.researchFindings && (
-          <details
-            className="group mt-8 border-t-2 border-rule-soft pt-8"
-            aria-labelledby="sources-heading"
-          >
-            <summary className={collapsibleSummaryClass}>
-              <ChevronDown
-                className="size-5 shrink-0 transition-transform group-open:rotate-180"
-                aria-hidden
-              />
-              <span id="sources-heading">Sources</span>
-            </summary>
-            <div className="mt-6">
-              <SourcesPanel research={stream.researchFindings} />
-            </div>
-          </details>
-        )}
-
-        <details
-          className="group mt-8 border-t-2 border-rule-soft pt-8"
-          aria-labelledby="run-metrics-heading"
-        >
-          <summary className={collapsibleSummaryClass}>
-            <ChevronDown
-              className="size-5 shrink-0 transition-transform group-open:rotate-180"
-              aria-hidden
-            />
-            <span id="run-metrics-heading">Run metrics</span>
-          </summary>
-          <div className="mt-4">
-            <RunMetricsBar metrics={stream.metrics} status={status} className="border-t-0 pt-0" />
-          </div>
-        </details>
+        <RunContextGroup
+          runId={runId}
+          researchFindings={stream.researchFindings}
+          metrics={stream.metrics}
+          status={status}
+        />
       </div>
     </>
   );

@@ -39,7 +39,13 @@ function VerdictHint({ item }: { item: SimilarRunItem }) {
   );
 }
 
-export function RelatedRoasts({ runId }: { runId: string }) {
+export function RelatedRoasts({
+  runId,
+  headingLevel: Heading = "h3",
+}: {
+  runId: string;
+  headingLevel?: "h2" | "h3";
+}) {
   const query = useQuery({
     queryKey: ["run", runId, "similar"],
     queryFn: () => getSimilarRuns(runId),
@@ -80,12 +86,12 @@ export function RelatedRoasts({ runId }: { runId: string }) {
     <aside aria-labelledby="related-roasts-heading">
       <div className="flex items-center gap-2">
         <Sparkles className="size-4 text-heat-ink" aria-hidden />
-        <h2
+        <Heading
           id="related-roasts-heading"
           className="font-sans text-xs font-semibold uppercase tracking-widest text-ink-muted"
         >
           Related past roasts
-        </h2>
+        </Heading>
       </div>
       <ul className="mt-4 space-y-3">
         {query.data.runs.map((item) => (

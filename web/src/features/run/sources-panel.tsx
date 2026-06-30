@@ -14,7 +14,13 @@ function safeHttpUrl(raw: string): string | null {
   return null;
 }
 
-export function SourcesPanel({ research }: { research: ResearchFindings }) {
+export function SourcesPanel({
+  research,
+  headingLevel: Heading = "h2",
+}: {
+  research: ResearchFindings;
+  headingLevel?: "h2" | "h3";
+}) {
   if (research.findings.length === 0) return null;
 
   return (
@@ -25,12 +31,12 @@ export function SourcesPanel({ research }: { research: ResearchFindings }) {
       <div className="flex items-start gap-3">
         <Search className="mt-0.5 size-5 shrink-0 text-heat-ink" aria-hidden />
         <div className="min-w-0 flex-1">
-          <h2
+          <Heading
             id="research-sources-heading"
             className="font-sans text-sm font-semibold uppercase tracking-widest text-ink"
           >
             Web research
-          </h2>
+          </Heading>
           <p className="mt-2 font-mono text-xs text-ink-muted">
             Query: <span className="text-ink">{research.query}</span>
           </p>
