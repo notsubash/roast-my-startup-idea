@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, XCircle } from "lucide-react";
 
 import { EditorialContainer } from "@/components/app-shell";
 import { resolveExportIdea } from "@/lib/format/run-idea";
@@ -23,12 +23,12 @@ import { JudgeColumn, JudgeColumnSkeleton } from "./judge-column";
 import { PhaseRail } from "./phase-rail";
 import { RunControls } from "./run-controls";
 import { RunMetricsBar } from "./run-metrics-bar";
-import { ScoreLollipopStrip } from "./score-lollipop-strip";
 import { SourcesPanel } from "./sources-panel";
-import { ScoreRadar } from "./score-radar";
 import { VerdictCard } from "./verdict-card";
-import { VerdictTallyBar } from "./verdict-tally";
 import { assessRevoteOutputQuality } from "./verdict-quality";
+
+const collapsibleSummaryClass =
+  "flex cursor-pointer list-none items-center gap-2 font-serif text-2xl font-semibold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-heat [&::-webkit-details-marker]:hidden";
 
 function isTerminalStatus(status: RunStatus): boolean {
   return status === "completed" || status === "failed" || status === "cancelled";
@@ -146,6 +146,7 @@ function RunSheetContent({
       )
     : null;
   const showDecisionCard = Boolean(stream.synthesis || stream.structuredSynthesis);
+  const liveDebate = status === "running" && stream.phase === "debate";
 
   return (
     <>
@@ -221,19 +222,6 @@ function RunSheetContent({
           </section>
         )}
 
-        <VersionComparison
-          version={version}
-          parentRunId={parentRunId}
-          currentVerdicts={revealedVerdicts}
-          completed={status === "completed"}
-        />
-
-        {stream.researchFindings && (
-          <div className="mt-8">
-            <SourcesPanel research={stream.researchFindings} />
-          </div>
-        )}
-
         <section className="mt-10" aria-labelledby="roast-panel-heading">
           <h2
             id="roast-panel-heading"
@@ -284,63 +272,12 @@ function RunSheetContent({
           )}
         </section>
 
-        <section className="mt-12 border-t-2 border-rule-soft pt-10" aria-labelledby="scores-heading">
-          <h2 id="scores-heading" className="font-serif text-2xl font-semibold text-ink">
-            Score panel
-          </h2>
-          <p className="mt-2 max-w-prose font-sans text-sm text-ink-muted">
-            The split, the report card, and the radar — three views of the same verdict.
-          </p>
-
-          <div className="mt-6 space-y-8">
-            <div aria-labelledby="verdict-split-heading">
-              <h3
-                id="verdict-split-heading"
-                className="font-sans text-xs font-semibold uppercase tracking-widest text-ink-muted"
-              >
-                The split
-              </h3>
-              <div className="mt-3">
-                <VerdictTallyBar judges={stream.judges} />
-              </div>
-            </div>
-
-            <div aria-labelledby="report-card-heading">
-              <h3
-                id="report-card-heading"
-                className="font-sans text-xs font-semibold uppercase tracking-widest text-ink-muted"
-              >
-                Report card
-              </h3>
-              <div className="mt-3">
-                <ScoreLollipopStrip judges={stream.judges} />
-              </div>
-            </div>
-
-            <div aria-labelledby="radar-heading">
-              <h3
-                id="radar-heading"
-                className="font-sans text-xs font-semibold uppercase tracking-widest text-ink-muted"
-              >
-                Radar
-              </h3>
-              <div className="mt-3">
-                <ScoreRadar judges={stream.judges} />
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="mt-12 border-t-2 border-rule-soft pt-10" aria-labelledby="debate-heading">
-          <h2 id="debate-heading" className="font-serif text-2xl font-semibold text-ink">
-            Debate transcript
-          </h2>
-          <div className="mt-6">
-            <DebateTranscript turns={stream.debateTurns} currentRound={stream.currentRound} />
-          </div>
-        </section>
-
-        <RunMetricsBar metrics={stream.metrics} status={status} className="col-span-12 mt-12" />
+        <VersionComparison
+          version={version}
+          parentRunId={parentRunId}
+          currentVerdicts={revealedVerdicts}
+          completed={status === "completed"}
+        />
 
         <AppealSection
           runId={runId}
@@ -348,6 +285,60 @@ function RunSheetContent({
           baselineVerdicts={revealedVerdicts}
           streamAppeal={stream.appeal}
         />
+
+        <details
+          className="group mt-12 border-t-2 border-rule-soft pt-10"
+          aria-labelledby="debate-transcript-heading"
+          {...(liveDebate ? { open: true } : {})}
+        >
+          <summary className={collapsibleSummaryClass}>
+            <ChevronDown
+              className="size-5 shrink-0 transition-transform group-open:rotate-180"
+              aria-hidden
+            />
+            <span id="debate-transcript-heading">Debate transcript</span>
+            {liveDebate && (
+              <span className="font-sans text-sm font-normal text-heat-ink">(live)</span>
+            )}
+          </summary>
+          <div className="mt-6">
+            <DebateTranscript turns={stream.debateTurns} currentRound={stream.currentRound} />
+          </div>
+        </details>
+
+        {stream.researchFindings && (
+          <details
+            className="group mt-8 border-t-2 border-rule-soft pt-8"
+            aria-labelledby="sources-heading"
+          >
+            <summary className={collapsibleSummaryClass}>
+              <ChevronDown
+                className="size-5 shrink-0 transition-transform group-open:rotate-180"
+                aria-hidden
+              />
+              <span id="sources-heading">Sources</span>
+            </summary>
+            <div className="mt-6">
+              <SourcesPanel research={stream.researchFindings} />
+            </div>
+          </details>
+        )}
+
+        <details
+          className="group mt-8 border-t-2 border-rule-soft pt-8"
+          aria-labelledby="run-metrics-heading"
+        >
+          <summary className={collapsibleSummaryClass}>
+            <ChevronDown
+              className="size-5 shrink-0 transition-transform group-open:rotate-180"
+              aria-hidden
+            />
+            <span id="run-metrics-heading">Run metrics</span>
+          </summary>
+          <div className="mt-4">
+            <RunMetricsBar metrics={stream.metrics} status={status} className="border-t-0 pt-0" />
+          </div>
+        </details>
       </div>
     </>
   );
