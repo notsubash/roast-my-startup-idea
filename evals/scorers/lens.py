@@ -15,8 +15,10 @@ def score_lens_differentiation(verdicts: list[dict[str, Any]]) -> dict[str, Any]
     """
     result = assess_lens_uniqueness(verdicts)
     legacy = result.get("lens_legacy", True)
-    passed = result.get("lens_uniqueness_passed", True) if legacy else result.get(
-        "lens_uniqueness_passed", False
+    passed = (
+        result.get("lens_uniqueness_passed", True)
+        if legacy
+        else result.get("lens_uniqueness_passed", False)
     )
     return {
         **result,

@@ -58,9 +58,7 @@ def summarize_run(payload: dict[str, Any]) -> str:
                 )
             lens = metrics.get("lens", {})
             if lens and not lens.get("lens_legacy", True):
-                lines.append(
-                    f"- Lens differentiation: {lens.get('lens_differentiation_passed')}"
-                )
+                lines.append(f"- Lens differentiation: {lens.get('lens_differentiation_passed')}")
                 if not lens.get("lens_differentiation_passed"):
                     duplicates = lens.get("lens_duplicate_evidence_judges") or []
                     if duplicates:

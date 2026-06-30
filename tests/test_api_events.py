@@ -278,7 +278,9 @@ class ApiEventSerializationTest(unittest.TestCase):
                 debate_result={
                     "debate_messages": [],
                     "final_synthesis": "summary",
-                    "initial_verdicts": [v.model_dump(mode="json") for v in distinct_panel.verdicts],
+                    "initial_verdicts": [
+                        v.model_dump(mode="json") for v in distinct_panel.verdicts
+                    ],
                     "revised_verdicts": revised,
                 },
             )

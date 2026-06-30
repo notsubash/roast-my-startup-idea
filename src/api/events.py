@@ -101,7 +101,9 @@ def pipeline_event_payload(event: PipelineEvent) -> dict[str, Any]:
         debate_result = event.debate_result or {}
         roast_panel = event.roast_panel.model_dump(mode="json")
         revised = debate_result.get("revised_verdicts")
-        verdicts = revised if isinstance(revised, list) and revised else roast_panel.get("verdicts", [])
+        verdicts = (
+            revised if isinstance(revised, list) and revised else roast_panel.get("verdicts", [])
+        )
         return {
             "roast_panel": roast_panel,
             "debate_result": event.debate_result,
