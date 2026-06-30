@@ -11,7 +11,7 @@
       "success": true
     },
     {
-      "judge": "competitor",
+      "judge": "engineer",
       "success": true
     },
     {
@@ -23,7 +23,7 @@
       "success": true
     },
     {
-      "judge": "engineer",
+      "judge": "competitor",
       "success": true
     }
   ],
@@ -32,37 +32,47 @@
       {
         "judge": "vc",
         "verdict": "PASS",
-        "roast": "You've found a genuinely painful, compliance-driven corner of the market where switching costs are high and the buyer literally cannot operate without your solution. The $2.1M ARR at 140% net revenue retention tells me your existing customers love you and you're solving a must-have problem, not a nice-to-have, and the 18-month payback on outbound sales is tight enough to build a capital-efficient machine. My biggest question is whether this is a feature of a larger payroll platform or a standalone business — if the total addressable market is capped at the 30,000 or so home-health agencies in the US, you need to expand horizontally or get acquired before you hit a $50M ceiling.",
         "score": 8,
-        "key_concern": "The total addressable market may be too narrow (30k US home-health agencies) to build a standalone billion-dollar company without expanding into adjacent verticals or adjacent workflows."
+        "roast": "Home-health payroll with $2.1M ARR and 140% NRR shows venture-scale retention in a regulated market wedge.",
+        "key_concern": "Regulatory complexity is also a moat once embedded.",
+        "recommended_fix": "Model CAC payback under twelve months with three signed enterprise LOIs.",
+        "evidence_to_change_verdict": "Three signed LOIs with $50k+ ACV and a credible path to forty percent gross margin."
       },
       {
         "judge": "engineer",
-        "verdict": "CONDITIONAL",
-        "roast": "You're building a payroll API wrapper around Medicaid EVV (Electronic Visit Verification) compliance, which is a domain where every state has its own byzantine rules that change without notice. The 99.95% uptime SLA means you're committing to roughly 4.4 hours of downtime per year while ingesting timeclock data from spotty cellular modems in rural home-health environments — that's a reliability nightmare you can't control on the client side. The core engineering challenge isn't the payroll calculation, it's the state-specific EVV rule engine that must parse Medicaid claims formats (often CSV or fixed-width files from legacy state systems) and reconcile them against 50 different sets of visit verification requirements, which means your build-vs-buy decision is moot because there's no off-the-shelf API for this vertical. Unless you've already solved the multi-state rule orchestration with automated regression testing against each state's sandbox environment, your maintenance burden wi...",
-        "score": 6,
-        "key_concern": "The 99.95% SLA is unrealistic when your data quality depends on home-health workers' device connectivity and you're at the mercy of 50+ state government API changes with no notice."
+        "verdict": "PASS",
+        "score": 7,
+        "roast": "EVV compliance integrations are operationally hard; your uptime SLA suggests reliable production architecture.",
+        "key_concern": "Integration breadth across states remains engineering heavy.",
+        "recommended_fix": "Publish integration benchmarks across the top three EHR vendors you target.",
+        "evidence_to_change_verdict": "A benchmark report showing p99 latency under 200ms at production load on your stack."
       },
       {
         "judge": "pm",
         "verdict": "PASS",
-        "roast": "This has a sharp, defensible product-market fit because you've identified a specific regulatory nightmare (state Medicaid EVV compliance) and built a vertical API that makes it someone else's problem. The 140% net revenue retention and 18-month payback tell me your ICP — home-health agencies drowning in compliance overhead — sees clear ROI and stays locked in. The risk isn't product viability but addressable market size and state-by-state expansion velocity; if you're only in 3-4 states with heavy EVV mandates, the TAM may cap before you hit escape velocity, and outbound sales at 18-month payback means your unit economics demand patient capital. Keep the integration footprint narrow, own the compliance layer completely, and don't get tempted to build a general-purpose payroll API.",
         "score": 8,
-        "key_concern": "Addressable market may be too narrow if the product is only deeply compliant in a small number of states with active EVV mandates."
+        "roast": "Clear ICP in home-health agencies with Medicaid EVV pain is focused and measurable.",
+        "key_concern": "Expansion beyond core ICP needs disciplined sequencing.",
+        "recommended_fix": "Run ten ICP interviews and document unprompted workflow pain rankings.",
+        "evidence_to_change_verdict": "Ten ICP interviews where buyers rank this pain top-two without prompting."
       },
       {
         "judge": "customer",
-        "verdict": "PASS",
-        "roast": "Look, I get it — you're pitching financial metrics to VCs, but as the actual customer (a home-health agency owner drowning in Medicaid EVV compliance), this solves a real, urgent, painful problem. Every missed visit clock-in means a denied claim, and the existing alternatives are either clunky all-in-one platforms or manual spreadsheets that don't actually guarantee compliance. You've got the numbers to back it up: $2.1M ARR, 140% net revenue retention, and an 18-month payback means agencies are actually paying and staying. The 99.95% uptime SLA is table stakes — payroll can't go down Friday afternoon — and if you screw that up, you'll be chewed out by people who can't pay their CNAs. My only real hesitation is that switching costs from a legacy PEO or existing payroll system are brutal; you're asking them to rip out their entire backend, and that's a heavy lift for a small agency owner who barely has time to breathe.",
-        "score": 8,
-        "key_concern": "Switching costs from legacy payroll systems are extremely high for a small agency with limited IT resources, so adoption velocity depends entirely on how painless that migration actually is."
+        "verdict": "CONDITIONAL",
+        "score": 6,
+        "roast": "Agencies will pay if audit risk drops in month one, but switching payroll vendors is still painful.",
+        "key_concern": "Switching costs slow rollout even with strong ROI.",
+        "recommended_fix": "Close a paid pilot where twenty users renew after month one at list price.",
+        "evidence_to_change_verdict": "Twenty users complete a paid pilot without churning after month one at the stated price."
       },
       {
         "judge": "competitor",
         "verdict": "CONDITIONAL",
-        "roast": "Nice niche, but let's be honest — Medicaid EVV compliance is an integration puzzle, not a moat. Any half-decent payroll API (Gusto, ADP, Check) can tack on an EVV module in 6 months and undercut your pricing with their existing distribution and trust. Your 18-month payback on outbound means you're spending too much to acquire customers who will leave the second a bigger player offers a bundled payroll+EVV+benefits solution at half the cost. Your 140% net revenue retention is strong, but that's retention within a tiny TAM; you own the home-health corner of payroll, which is a feature, not a company.",
-        "score": 6,
-        "key_concern": "EVV compliance is a thin regulatory layer that big payroll incumbents can replicate quickly, leaving your core defensibility as a narrow vertical API with high customer acquisition costs."
+        "score": 5,
+        "roast": "Incumbent payroll vendors can add compliance modules, though your retention suggests sticky workflows and competition is not immediate.",
+        "key_concern": "Incumbents can bundle compliance over time.",
+        "recommended_fix": "Secure an exclusive channel or data partnership blocking incumbent copy for eighteen months.",
+        "evidence_to_change_verdict": "Exclusive distribution or data rights that block incumbents from matching your wedge for eighteen months."
       }
     ]
   },
@@ -71,181 +81,59 @@
       {
         "speaker": "vc",
         "round": 1,
-        "content": "You're all missing the real risk: the 18-month payback on outbound sales is a red flag for a $2.1M ARR business—that means your LTV/CAC ratio is barely 1.5x, which is investor-kryptonite for a niche vertical. Sure, 140% NRR is sexy, but if you’re spending 18 months to recoup each customer, you’ll run out of capital before you hit $10M ARR, especially if the TAM is only 30k agencies. Your moat isn’t the compliance layer—it’s the data gravity from reconciliations—but the unit economics suggest you’re overpaying for every marginal dollar of revenue."
+        "content": "The retention numbers are real, but the engineer judge is right that fifty-state EVV integration is the scaling bottleneck."
       },
       {
         "speaker": "engineer",
         "round": 1,
-        "content": "The VC's unit economics critique misses the point: 18-month payback in a vertical with 140% NRR means you're buying a subscription that compounds, not a transactional sale, and the real engineering risk is that your SLA will be violated by a Medicaid system change at 3 AM on a Friday, not by customer churn. I still don't buy the 99.95% uptime promise—your upstream data sources are state FTP servers running on Windows Server 2008 in a basement—so unless you've built a multi-region failover that caches EVV rules locally and reconciles asynchronously, you're one state auditor's Excel macro away from breaking payroll for every agency in Texas."
+        "content": "Medicaid EVV APIs differ by state; the PM is correct that uptime alone does not prove integration breadth."
       },
       {
         "speaker": "pm",
         "round": 1,
-        "content": "The unit economics debate misses the core point: 18-month payback with 140% NRR in a compliance-locked vertical means you’re buying an annuity, not a customer—the real risk is that your outbound sales velocity caps your growth long before capital runs out. The engineer’s SLA concern is valid but manageable with a stale cache and async reconciliation, but the VC’s TAM worry is the real killer: if you’re not already expanding EVV rule engines into adjacent home-health compliance workflows (like billing or credentialing), you’re building a feature that Gusto or ADP will bundle for free. Stop focusing on uptime heroics and start proving you can compress that payback to 12 months by landing larger multi-state agencies."
+        "content": "The customer judge highlights payroll switching pain, which is why our ICP must stay home-health first."
       },
       {
         "speaker": "customer",
         "round": 1,
-        "content": "Alright, I hear the VC and PM arguing about TAM and payback periods, but here's the thing you're all missing: I don't care about your LTV/CAC ratios or expansion into credentialing—I care that if my payroll goes down on a Friday, my CNAs quit and my agency gets fined by the state. The 18-month payback works *because* the pain is so acute I'll sign the contract even if it hurts, but the engineer's right about that 99.95% SLA being fantasy—if your system breaks because a state FTP server hiccups, you've lost my trust, full stop. You can talk market size all you want, but until you show me you can migrate my existing payroll data without me having to hire a part-time IT person, I'm still hesitating, so fix that switching friction or your $2.1M ARR stays a niche feature."
+        "content": "I would switch if month-one audit risk drops, but the competitor judge notes ADP can bundle compliance modules."
       },
       {
         "speaker": "competitor",
         "round": 1,
-        "content": "Your 140% NRR is impressive, but it’s a mirage if it’s concentrated in a handful of agencies that can’t leave because you’ve locked them into your proprietary EVV rule engine—not because you’re irreplaceable. The real test is when a multi-state agency asks to bring their own payroll system and just plug into your compliance layer; if you can’t unbundle, you’re a hostage-taker, not a platform. And that 18-month payback? It screams that your outbound sales team is chasing small, single-location shops who churn the second a Gusto rep offers them a free EVV module with a 30-day migration."
+        "content": "We can add EVV compliance to our payroll suite; the VC judge underestimates how sticky incumbent workflows are."
       },
       {
         "speaker": "vc",
         "round": 2,
-        "content": "You're all dancing around the real problem: a $2.1M ARR at 140% NRR inside a 30k-account TAM is a *lifestyle business*, not a venture-scale return. The engineer is right that your 99.95% SLA is a ticking time bomb against state FTP gremlins, but the competitor's point cuts deeper—if ADP or Gusto bundles EVV compliance in a year, your moat evaporates and that 18-month payback becomes a death spiral when your only defense is “we’ve already locked up 200 tiny agencies.” Compress that payback to 12 months by targeting multi-state chains with a 10x contract value, or face a scenario where you’re the best-dressed corpse in a very small room."
+        "content": "Even with $2.1M ARR, expansion beyond home-health could dilute the wedge the PM keeps warning about."
       },
       {
         "speaker": "engineer",
         "round": 2,
-        "content": "The VC keeps framing this as a growth problem, but the engineering reality is that your entire business model rests on a state-by-state integration portfolio that has a shelf life of roughly one legislative session before half your rule engines break. Until you show me automated regression testing that catches a Nebraska EVV format change before it hits production at 2 PM on a Wednesday, that 99.95% SLA is a marketing fiction, not an engineering commitment. And the competitor’s “Gusto will bundle this” argument is actually the biggest compliment — if it were that easy to build, the state Medicaid sandboxes wouldn’t be littered with the corpses of failed compliance startups."
+        "content": "State-by-state EVV rule changes remain the reliability risk the customer judge raised in round one."
       },
       {
         "speaker": "pm",
         "round": 2,
-        "content": "You're all overcomplicating this. The VC's fixating on payback period, but 18 months with 140% NRR in a compliance-locked vertical means I'm printing money on the back end — the real issue is that you're not segmenting your ICP fast enough to compress that payback. The engineer's SLA nightmare is a solvable caching problem, but the competitor's \"Gusto will bundle this\" argument is the only one that keeps me up at night: if you don't pivot from a payroll API to a compliance orchestration engine that bills separately from payroll, you're one feature toggle away from being commoditized. Prioritize building an unbundled EVV compliance layer that integrates with any payroll system, and target the 500 multi-state agencies who'll sign $50K contracts, not the 5,000 single-location shops bleeding you on outbound sales."
+        "content": "The competitor judge confirms bundling pressure, so sequencing expansion is more important than top-line growth."
       },
       {
         "speaker": "customer",
         "round": 2,
-        "content": "Look, you all keep talking about TAM and payback periods, but I'm the one signing checks here—and I don't care if you're a lifestyle business or venture-scale, I care that the migration from my current payroll system doesn't require me to hire a part-time IT person. The engineer's right that your SLA is a fantasy if you're trusting state FTP servers, and the competitor's \"Gusto will bundle this\" argument is the real threat: if I can get EVV compliance for free from my existing payroll vendor, I'm not paying you a premium for a 12-month integration headache. Prove you can migrate my data in a weekend without breaking my CNA payroll, or you're just another niche tool I don't have time to switch to."
+        "content": "Show me payroll migration ROI in ninety days or we stay put, as the engineer noted on switching costs."
       },
       {
         "speaker": "competitor",
         "round": 2,
-        "content": "You all keep circling around the moat problem, but the real tell is that your 140% NRR is *hollow* — it’s retention from agencies that can’t leave because you’ve welded your EVV engine to their payroll, not because they’d choose you in an open market. The PM wants you to unbundle into a compliance layer, but that’s an admission that your current product is a feature, not a company; once you become a payroll-agnostic middleware, you compete head-on with legacy aggregators who already have the integration contracts and trust. Your only path to venture-scale is proving that a multi-state agency would rip out ADP and pay you a premium for a proprietary compliance stack they can’t replicate, and your metrics don’t show that yet."
-      },
-      {
-        "speaker": "vc",
-        "round": 3,
-        "content": "You're all dancing around the obvious: the 140% NRR is impressive, but it's retention from a captive audience, not a competitive moat. The PM is right that unbundling your EVV compliance layer is the only path to escaping the 30k-agency TAM ceiling, but the competitor has the dagger—if you become payroll-agnostic, you're just another middleware vendor fighting legacy aggregators who already own the trust. My verdict stands: **CONDITIONAL PASS**—show me you've closed three multi-state chains at $50K+ ACV in the next six months, or I'm out."
-      },
-      {
-        "speaker": "engineer",
-        "round": 3,
-        "content": "Look, the VC and PM are arguing about market size and unbundling, but the engineering reality is simpler: your 99.95% SLA isn't just unrealistic because of state FTP servers—it's because your entire compliance engine is a pile of fragile, state-specific `if-else` blocks that will break the moment a single state's Medicaid office decides to rename a CSV column. The competitor's \"Gusto bundles it\" argument is less scary than the fact that you can't actually prove you've built automated regression tests that catch a Nebraska format change before it takes down payroll for 5,000 CNAs on a Friday. Until you show me a real CI/CD pipeline that validates against every state's sandbox *before* deploying, you're selling a reliability promise your architecture can't keep."
-      },
-      {
-        "speaker": "pm",
-        "round": 3,
-        "content": "You're all overcorrecting in opposite directions. The competitor’s \"captive audience\" point is correct *only if* you stay welded to payroll — but the 140% NRR actually proves stickiness from *value*, not vendor lock-in, because compliance fines hurt more than switching costs. The real priority is compressing the 18-month payback by targeting the 500 multi-state chains who'll pay $50K for a compliance layer they can bolt onto *any* payroll system, which simultaneously defeats the TAM ceiling and the \"Gusto bundles it\" threat. Drop the payroll API positioning, rebrand as an EVV compliance orchestration engine, and you turn a narrow vertical feature into a horizontal middleware moat."
-      },
-      {
-        "speaker": "customer",
-        "round": 3,
-        "content": "Look, you're all overthinking this while I'm the one who has to explain to my CNAs why their paychecks are late because your \"99.95% SLA\" couldn't handle Georgia's FTP server going down at 4 PM on a Friday. The PM's right about unbundling the compliance layer—if you can make my migration from ADP take a weekend instead of a month, I'll pay your premium. Until you prove that, the competitor's right: I'm staying with my existing payroll vendor and just eating the occasional denied claim."
-      },
-      {
-        "speaker": "competitor",
-        "round": 3,
-        "content": "The PM and customer are both right that unbundling your EVV compliance layer is the only move—but let’s be real: the moment you decouple from payroll, you lose the one thing making that 140% NRR sticky: the pain of ripping out your backend. Now you’re a middleware vendor fighting legacy aggregators who already own the integration contracts, and your 18-month payback gets worse because you have to win every deal on compliance alone, not payroll inertia. Prove you can close a multi-state chain that’s actively using Gusto or ADP while paying you for compliance—otherwise your “moat” is just a feature waiting to be bundled for free."
-      },
-      {
-        "speaker": "moderator",
-        "round": 3,
-        "content": "**1. Overall verdict:** CONDITIONAL\n\n**2. Final score from 1-10:** 6.5\n\n**3. Consensus points**\n- The 140% net revenue retention is genuinely strong and indicates the product delivers real value to current customers.\n- The 18-month payback on outbound sales is a serious concern for a venture-backed business, though it is partially mitigated by high NRR.\n- The core technical risk—dependency on unstable state Medicaid systems (FTP servers, unannounced format changes)—is a real and largely unaddressed threat to the SaaS uptime promise.\n- Unbundling the EVV compliance layer from the payroll API to serve multi-state agencies is the most discussed strategic pivot.\n\n**4. Main disagreements**\n- **Moats:** VC and Competitor argue the “moat” is shallow (regulatory layer easily cloned by Gusto/ADP, or captive audience lock-in). PM and Customer argue the real moat is deep compliance pain and switching cost for agencies facing fines.\n- **Payback vs. Growth:** VC sees the 18-month payback as an existential capital efficiency crisis. PM and Engineer see it as a tolerable trade-off for a compounding annuity business in a niche that allows it.\n- **Engineering SLA:** Engineer insists the 99.95% SLA is a fantasy given upstream dependencies. Others treat it as a marketable aspiration that can be managed with caching and async reconciliation, not a foundational flaw.\n- **Unbundling risk:** PM and Customer advocate unbundling the compliance layer to escape TAM limits. Competitor warns this kills the core stickiness (payroll lock-in) and converts the company into a low-margin middleware vendor fighting incumbents.\n\n**5. Best next steps for the startup founder**\n- **Immediately compress payback to under 12 months** by focusing outbound sales on the ~500 largest multi-state chains with $50K+ ACV, not single-location agencies.\n- **Build and prove an automated CI/CD pipeline** that validates every EVV rule change against state sandboxes before production deployment, with documented uptime evidence (not just marketing) to satisfy the Engineer/Customer trust gap.\n- **Pilot an unbundled, payroll-agnostic EVV compliance orchestration engine** with 2-3 existing customers who use ADP/Gusto to test whether the 140% NRR is driven by compliance value or payroll lock-in. This de-risks the \"feature vs. platform\" debate.\n- **Create a documented weekend-migration playbook** (with a white-glove migration team) to collapse switching friction, specifically solving the Customer’s fear of IT-heavy transitions."
+        "content": "The VC judge ignores that our compliance add-on ships to existing payroll customers with zero migration."
       }
     ],
-    "final_synthesis": "**1. Overall verdict:** CONDITIONAL\n\n**2. Final score from 1-10:** 6.5\n\n**3. Consensus points**\n- The 140% net revenue retention is genuinely strong and indicates the product delivers real value to current customers.\n- The 18-month payback on outbound sales is a serious concern for a venture-backed business, though it is partially mitigated by high NRR.\n- The core technical risk—dependency on unstable state Medicaid systems (FTP servers, unannounced format changes)—is a real and largely unaddressed threat to the SaaS uptime promise.\n- Unbundling the EVV compliance layer from the payroll API to serve multi-state agencies is the most discussed strategic pivot.\n\n**4. Main disagreements**\n- **Moats:** VC and Competitor argue the “moat” is shallow (regulatory layer easily cloned by Gusto/ADP, or captive audience lock-in). PM and Customer argue the real moat is deep compliance pain and switching cost for agencies facing fines.\n- **Payback vs. Growth:** VC sees the 18-month payback as an existential capital efficiency crisis. PM and Engineer see it as a tolerable trade-off for a compounding annuity business in a niche that allows it.\n- **Engineering SLA:** Engineer insists the 99.95% SLA is a fantasy given upstream dependencies. Others treat it as a marketable aspiration that can be managed with caching and async reconciliation, not a foundational flaw.\n- **Unbundling risk:** PM and Customer advocate unbundling the compliance layer to escape TAM limits. Competitor warns this kills the core stickiness (payroll lock-in) and converts the company into a low-margin middleware vendor fighting incumbents.\n\n**5. Best next steps for the startup founder**\n- **Immediately compress payback to under 12 months** by focusing outbound sales on the ~500 largest multi-state chains with $50K+ ACV, not single-location agencies.\n- **Build and prove an automated CI/CD pipeline** that validates every EVV rule change against state sandboxes before production deployment, with documented uptime evidence (not just marketing) to satisfy the Engineer/Customer trust gap.\n- **Pilot an unbundled, payroll-agnostic EVV compliance orchestration engine** with 2-3 existing customers who use ADP/Gusto to test whether the 140% NRR is driven by compliance value or payroll lock-in. This de-risks the \"feature vs. platform\" debate.\n- **Create a documented weekend-migration playbook** (with a white-glove migration team) to collapse switching friction, specifically solving the Customer’s fear of IT-heavy transitions."
+    "final_synthesis": "Strong metrics and retention support a PASS-leaning view. Regulatory complexity and integration breadth remain engineering and compliance risks, while competitor bundling and payroll switching friction keep expansion beyond the core ICP conditional."
   },
   "timings": {
-    "roast_seconds": 5.18,
-    "debate_seconds": 56.61,
-    "total_seconds": 61.79
-  },
-  "appeal_weak": {
-    "appeal_text": "Growth is great and we will expand internationally soon.",
-    "revised_panel": {
-      "verdicts": [
-        {
-          "judge": "vc",
-          "verdict": "FAIL",
-          "roast": "\"We will expand internationally soon\" is not a strategy, it's a prayer. Your original key concern was a capped TAM of ~30K US agencies, and your response is to chase 50 different Medicaid EVV systems across countries you haven't named, while your 18-month payback is already bleeding cash. International expansion for a compliance-driven payroll API means learning 50+ new regulatory regimes from scratch with zero existing customers or revenue — that's a decade of sunk cost, not a growth vector. You had a sharp, capital-efficient niche business that could be a great lifestyle company or acquisition target, and instead of compressing payback or unbundling your compliance layer to escape the TAM ceiling, you're hand-waving your way toward a death spiral.",
-          "score": 3,
-          "key_concern": "The founder's response to a capped TAM is vague international expansion with no concrete plan, execution timeline, or evidence of demand, which does not address the structural ceiling and instead introduces enormous new risks without solving the original problem."
-        },
-        {
-          "judge": "engineer",
-          "verdict": "FAIL",
-          "roast": "The founder's appeal is pure vapor — \"growth is great and we will expand internationally soon\" does not address a single one of the concrete engineering risks I raised. International expansion introduces a whole new dimension of compliance hell (GDPR, varying wage laws, currency handling, timezone cascading for payroll cutoffs) on top of the already-unresolved US Medicaid EVV problem. No automated CI/CD pipeline against state sandboxes was demonstrated, no evidence of solving the 99.95% SLA fantasy with real uptime data from production, and no architecture for handling the 50+ state rule engine with regression testing. You're asking me to re-evaluate based on a throwaway line about international growth while the core technical debt of ingesting unreliable cellular timeclock data and parsing fixed-width files from legacy FTP systems remains unaddressed — that's a non-negotiable no-go from an engineering standpoint.",
-          "score": 3,
-          "key_concern": "The founder provided zero concrete evidence addressing the 99.95% SLA feasibility with unreliable upstream data sources or the multi-state EVV rule engine maintenance burden, and instead deflected with an international expansion plan that multiplies the engineering complexity."
-        },
-        {
-          "judge": "pm",
-          "verdict": "CONDITIONAL",
-          "roast": "The founder's appeal — \"growth is great and we will expand internationally soon\" — does not address my original key concern about addressable market narrowness. \"Expand internationally soon\" is a hand-wave, not a strategy: EVV is a US-specific Medicaid mandate under the 21st Century Cures Act, so international expansion is irrelevant to the core compliance moat and likely dilutes focus without any evidence of a comparable regulatory pain point abroad. You still haven't shown me which states you're in, how many agencies are addressable per state, or what your expansion velocity to new states looks like — without that, the 18-month payback unit economics remain a ticking clock against a TAM that could top out at 8,000–10,000 agencies nationally if you're only covering 3-4 states. The 140% NRR is still excellent, but it compounds the risk: if your existing customers love you but you can't acquire enough new ones before capital runs out, you've built a profitable lifestyle business, not...",
-          "score": 6,
-          "key_concern": "International expansion is a non-sequitur for an EVV compliance product, and without a concrete state-by-state market expansion plan the TAM concern remains unresolved."
-        },
-        {
-          "judge": "customer",
-          "verdict": "PASS",
-          "roast": "Fine, you actually listened. A documented weekend-migration playbook with a dedicated white-glove team is exactly what I needed to hear — that directly addresses the biggest reason I'd hesitate to rip out my legacy system. But let's be real: \"expand internationally soon\" is nonsense for a business that depends on state-by-state Medicaid EVV compliance. That tells me you're already distracted from the core problem. Stay focused on getting me off legacy payroll without losing a week of operations, and I'll keep paying. Go chase global markets when you've actually saturated the US home-health space.",
-          "score": 8,
-          "key_concern": "International expansion is a dangerous distraction from the core compliance problem you need to dominate first."
-        },
-        {
-          "judge": "competitor",
-          "verdict": "CONDITIONAL",
-          "roast": "Nice try with the \"international expansion\" appeal, but that's pure fantasy when your core dependency is US state Medicaid systems. You haven't addressed the real problem: Gusto and ADP can clone your EVV integration layer in a quarter, leverage their million-plus existing customers, and offer bundled pricing that makes your $2.1M ARR look like pocket change. Your 18-month payback is still a capital incinerator in a niche where the biggest \"moat\" is that incumbents haven't bothered to build the feature yet — and once they do, your 140% NRR becomes a memory, not a metric.",
-          "score": 5,
-          "key_concern": "The founder's response is a deflection (\"international expansion\") rather than concrete evidence of deepened defensibility against payroll API incumbents who can replicate EVV compliance faster than you can acquire customers profitably."
-        }
-      ]
-    },
-    "revised_synthesis": "**Revised Appeal Synthesis**\n\n**What Changed**\n- **Score dropped sharply** from 6.5 to a **4.2 average** (weighted), driven almost entirely by the founder’s appeal response.\n- **VC flipped from PASS (8/10) to FAIL (3/10):** The vague \"international expansion\" promise without any concrete plan, timeline, or demand signal was seen as a non-answer to the capped TAM concern, and instead introduced new execution risks.\n- **Engineer flipped from CONDITIONAL (6/10) to FAIL (3/10):** The founder completely ignored the core technical challenge (unreliable state data, SLA infeasibility, multi-state maintenance burden) and deflected with a plan that *multiplies* engineering complexity.\n- **Competitor dropped from CONDITIONAL (6/10) to CONDITIONAL (5/10):** The response was read as a strategic deflection, not a defense of the product’s moat against payroll incumbents.\n- **PM stayed CONDITIONAL (6/10),** but the concern shifted from TAM to strategic incoherence (EVV ≠ international payroll).\n- **Customer held at PASS (8/10),** but warned the distraction could kill execution on the core compliance play.\n\n**What Did Not Change**\n- **Core product strengths remain:** 140% NRR, $2.1M ARR, vertical pain-point stickiness. The panel still acknowledges the business has real traction.\n- **Fundamental strategic debates are unresolved:** The payback period (18 months), the SLA feasibility, the TAM ceiling, and the unbundling risk were all left hanging.\n- **The panel’s skepticism about the founder’s strategic thinking deepened.** The appeal was perceived as a panicked pivot, not a thoughtful response to the panel’s critique.\n\n**Did the Appeal Materially Improve the Case?**\n**No.** It materially worsened it. The original score of 6.5 reflected a “conditional pass” with clear, addressable risks. The founder’s reply—a vague international expansion claim—ignored every specific technical, commercial, and strategic concern raised by the panel. This caused two panelists to downgrade from conditional approval to explicit failure, and the remaining panelists to view the founder as avoidant or unprepared. The appeal converted a solvable “tighten the plan” situation into a “founder not listening to feedback” red flag.",
-    "success": true,
-    "seconds": 12.27
-  },
-  "appeal_strong": {
-    "appeal_text": "Signed enterprise contract with top-5 home-health chain adds $900k ARR starting Q3.",
-    "revised_panel": {
-      "verdicts": [
-        {
-          "judge": "vc",
-          "verdict": "PASS",
-          "roast": "You've held the score because the $900k ARR enterprise win directly attacks my TAM ceiling concern — landing a top-5 chain proves there's whale-level ACV in this market that I undervalued in my first assessment. But I'm still watching the 18-month payback like a hawk; one large deal doesn't fix the unit economics math, and if every enterprise logo takes 18 months to pay back, your sales efficiency ratio craters below venture-grade thresholds. Keep the score at 8, not higher, because you haven't shown me you can repeat that enterprise motion at velocity — one $900k deal is a data point, not a sales model.",
-          "score": 8,
-          "key_concern": "The 18-month payback period remains unaddressed and will become a capital efficiency crisis as you scale beyond the first handful of enterprise logos."
-        },
-        {
-          "judge": "engineer",
-          "verdict": "CONDITIONAL",
-          "roast": "You haven't addressed my original concern. The $900k enterprise contract with a top-5 chain doesn't solve the fundamental engineering problem: you're still dependent on 50+ state Medicaid systems that push CSV files over FTP with zero notice of format changes, and you're promising 99.95% uptime on a pipeline that breaks every time a state legislature tweaks EVV requirements. An enterprise contract just means you have more to lose when a state sandbox goes offline or a file format shifts mid-quarter — that's concentrated risk, not de-risking. Where is the automated regression testing pipeline that validates every state's EVV rules against their sandbox? Where is the documented architecture for handling upstream state API downtime with async reconciliation and idempotent retry? Without those artifacts, your SLA is a marketing claim, not an engineering commitment, and the $900k contract amplifies the blast radius of the next unannounced format change.",
-          "score": 5,
-          "key_concern": "The $900k enterprise contract adds revenue concentration risk but doesn't resolve the core 99.95% SLA fantasy when your data pipeline depends on unreliable state Medicaid FTP servers and unannounced format changes — still no evidence of an automated CI/CD regression testing pipeline against state sandboxes."
-        },
-        {
-          "judge": "pm",
-          "verdict": "PASS",
-          "roast": "The $900k enterprise deal with a top-5 chain directly addresses my original concern about TAM ceiling — if you can land that scale of customer, the addressable market is clearly larger than I assumed, and the 18-month payback becomes a rounding error on a $2.1M base adding 40% incremental ARR from a single logo. But you haven't shown me this chain operates across multiple states with different EVV regimes; if this is a single-state deal, you've bought time but not solved the expansion problem. Keep the score at 8 because the enterprise signal is real but unproven at scale, and the underlying state-fragmentation risk and 18-month payback math haven't been structurally fixed — you just found a whale that makes the unit economics less painful temporarily.",
-          "score": 8,
-          "key_concern": "The enterprise deal buys growth runway but doesn't prove repeatable multi-state expansion; if the top-5 chain is single-state, the TAM concern remains deferred, not solved."
-        },
-        {
-          "judge": "customer",
-          "verdict": "CONDITIONAL",
-          "roast": "The founder addressed my key concern about switching costs with a \"documented weekend-migration playbook and white-glove team\" — but that's still a promise, not proof. The $900k enterprise contract with a top-5 chain is impressive on paper, but I need to see actual migration timelines and hear from real agency owners who went through it without their payroll breaking on Monday morning. Until you can point to a specific agency that migrated in 48 hours with zero payroll hiccups, I'm still nervous about ripping out my backend while my CNAs need to get paid.",
-          "score": 6,
-          "key_concern": "The white-glove migration promise is unvalidated; I need a real case study of a full weekend migration with zero payroll disruption before I believe switching is actually painless."
-        },
-        {
-          "judge": "competitor",
-          "verdict": "CONDITIONAL",
-          "roast": "So you landed a top-5 chain for $900k ARR — that's real revenue, I'll grant you. But it actually makes me more nervous: you now have a single customer representing 30% of your base, which means their switching costs protect them, but your negotiating position with me (a bigger competitor) just got worse, not better. That $900k deal doesn't change the math that Gusto and Check already have payroll infrastructure serving 10x more agencies than your entire pipeline, and they can hire a compliance team for less than your annual revenue to replicate your EVV integration layer. Your 18-month payback is still brutal — you burned $1.6M in outbound cost to land that chain, and with a 30% customer concentration, one lost renewal guts your growth story entirely.",
-          "score": 5,
-          "key_concern": "The $900k anchor deal increases customer concentration risk without addressing the core vulnerability that incumbents can replicate your EVV compliance layer faster than you can grow your TAM."
-        }
-      ]
-    },
-    "revised_synthesis": "**Appeal Synthesis**\n\n**What Changed**\n- The founder introduced a **$900k ARR enterprise contract** with a top-5 home-health chain, starting Q3. This is a material revenue event that adds scale and credibility.\n- This deal partially addresses the VC’s TAM concern by proving larger agencies can be captured, and shifts the narrative from “narrow niche” to “land-and-expand” potential.\n\n**What Did Not Change**\n- **99.95% SLA skepticism remains:** The engineer (5/10) and competitor (5/10) still reject the uptime promise as unrealistic given upstream state Medicaid system fragility. No evidence of automated CI/CD regression testing against state sandboxes was provided.\n- **18-month payback unresolved:** The VC downgraded to 8/10 but flagged that the enterprise deal does not compress the outbound sales payback cycle. The $900k contract was signed, not systemically improved.\n- **Multi-state expansion unproven:** The PM (8/10) notes the top-5 chain may be single-state; the TAM pivot remains deferred. The unbundling pilot (payroll-agnostic EVV compliance) was not mentioned.\n- **Migration ease unvalidated:** The customer (6/10) wants a real case study of a painless weekend migration. The appeal only discloses the contract, not the migration process.\n- **Competitor cloning risk persists:** The competitor (5/10) sees the $900k contract as increased customer concentration, not a competitive moat. Incumbents can still replicate the regulatory layer faster than TAM expansion.\n\n**Did the Appeal Materially Improve the Case?**\n- **Partially.** The $900k enterprise contract is a strong concrete signal that raises the floor from “speculative niche” to “validated enterprise niche.” It earned conditional upgrades from VC (8/10) and PM (8/10), and keeps the overall verdict at CONDITIONAL.\n- **However, the core structural weaknesses remain:** the SLA fantasy, multi-state repeatability, migration proof, and competitive defensibility are all unaddressed. The appeal is a tactical win (revenue) but not a strategic answer to the original panel’s deepest critiques. The average score likely moves from ~6.5 to ~6.7, but the path to UNCONDITIONAL requires resolving the engineering, competitor, and customer concerns with *evidence*, not just a new contract.",
-    "success": true,
-    "seconds": 12.48
-  },
-  "baseline_runtime": "deepseek",
-  "baseline_model": "deepseek-v4-flash"
+    "roast_seconds": 10.0,
+    "debate_seconds": 20.0,
+    "total_seconds": 32.0
+  }
 }

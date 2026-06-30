@@ -15,6 +15,7 @@ from judges.guardrails import GuardrailError, validate_structured_verdict
 from judges.schemas import Verdict
 from observability import build_run_config, idea_fingerprint, optional_config_kwargs
 from observability.metrics import RunMetricsCollector
+from verification import JUDGE_ROLE_NAMES
 
 MetricsPhase = Literal["roast", "debate"]
 
@@ -26,6 +27,12 @@ INJECTION_DEFENSE = UNTRUSTED_DATA_INSTRUCTION
 DEGENERATE_PANEL_RETRY_SUFFIX = (
     "IMPORTANT: The prior panel returned identical scores from every judge, which is "
     "suspicious. Score independently from your rubric; do not copy other judges."
+)
+
+LENS_OVERLAP_RETRY_SUFFIX = (
+    "IMPORTANT: The prior panel returned overlapping concerns or evidence asks across "
+    "judges. Stay in YOUR lens only — each evidence_to_change_verdict must name proof "
+    "only your role would request, not generic research or another judge's framing."
 )
 
 REVOTE_ANTI_HERD_SUFFIX = (
@@ -45,7 +52,11 @@ JUDGE_TEMPLATES = {
 
 def judge_system_prompt(judge: str, *, suffix: str | None = None) -> str:
     template = template_env.get_template(JUDGE_TEMPLATES[judge]).render()
-    prompt = f"{template}\n\n{INJECTION_DEFENSE}"
+    lens_isolation = template_env.get_template("judge_lens_isolation.jinja2").render(
+        judge=judge,
+        role_name=JUDGE_ROLE_NAMES[judge],
+    )
+    prompt = f"{template}\n\n{lens_isolation}\n\n{INJECTION_DEFENSE}"
     if suffix:
         prompt = f"{prompt}\n\n{suffix}"
     return prompt

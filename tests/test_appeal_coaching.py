@@ -313,6 +313,7 @@ class AppealCoachingPhase3Tests(unittest.TestCase):
         self.assertEqual(qualities["pm"], "generic")
         self.assertEqual(qualities["customer"], "duplicate")
         self.assertTrue(coaching["degraded"])
+        self.assertIn("same proof", coaching["reasons"][0])
         self.assertFalse(is_generic_evidence("Show traction with signed LOIs."))
         self.assertTrue(is_generic_evidence("Do more research on the buyer."))
 

@@ -7,10 +7,15 @@ from config import JUDGE_ORDER
 from events import JudgesDispatched, JudgeVerdictCompleted, RoastPanelCompleted
 from judges.guardrails import is_degenerate_panel
 from judges.schemas import RoastPanel, Verdict
-from judges.service import DEGENERATE_PANEL_RETRY_SUFFIX, invoke_judge
+from judges.service import (
+    DEGENERATE_PANEL_RETRY_SUFFIX,
+    LENS_OVERLAP_RETRY_SUFFIX,
+    invoke_judge,
+)
 from observability import build_run_config, idea_fingerprint, traceable
 from observability.metrics import RunMetricsCollector
 from run_control import check_abort
+from verification import assess_lens_uniqueness
 
 
 def _run_judge_panel(
@@ -80,8 +85,14 @@ def stream_roast_panel(
     )
     check_abort(abort_check)
     verdicts = [results[judge] for judge in JUDGE_ORDER]
+    retry_suffixes: list[str] = []
     if is_degenerate_panel(verdicts):
-        # ponytail: one retry with an anti-collusion suffix; fail closed if still uniform.
+        retry_suffixes.append(DEGENERATE_PANEL_RETRY_SUFFIX)
+    if not assess_lens_uniqueness(verdicts).get("lens_uniqueness_passed", True):
+        retry_suffixes.append(LENS_OVERLAP_RETRY_SUFFIX)
+
+    if retry_suffixes:
+        # ponytail: one retry with anti-collusion / anti-overlap suffix; fail closed if still uniform.
         if metrics is not None:
             metrics.discard_phase("roast")
         results = _run_judge_panel(
@@ -90,7 +101,7 @@ def stream_roast_panel(
             memory_context,
             research_context,
             resolved_config,
-            system_suffix=DEGENERATE_PANEL_RETRY_SUFFIX,
+            system_suffix="\n\n".join(retry_suffixes),
             metrics=metrics,
             abort_check=abort_check,
         )
@@ -99,6 +110,13 @@ def stream_roast_panel(
         if is_degenerate_panel(verdicts):
             raise ValueError(
                 "Roast panel remained degenerate after retry; refusing suspicious uniform scores"
+            )
+        lens_quality = assess_lens_uniqueness(verdicts)
+        if not lens_quality.get("lens_legacy", True) and not lens_quality.get(
+            "lens_uniqueness_passed", True
+        ):
+            raise ValueError(
+                "Roast panel remained overlapping after retry; refusing indistinct lens outputs"
             )
 
     for completed, judge in enumerate(JUDGE_ORDER, start=1):

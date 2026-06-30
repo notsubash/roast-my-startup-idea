@@ -36,6 +36,12 @@ def score_idea_result(
         if revote_legacy
         else reliability.get("revote_passed", False)
     )
+    lens_legacy = reliability.get("lens_legacy", True)
+    lens_ok = (
+        reliability.get("lens_uniqueness_passed", True)
+        if lens_legacy
+        else reliability.get("lens_uniqueness_passed", False)
+    )
 
     appeal = score_appeal_discrimination(
         result,
@@ -53,6 +59,7 @@ def score_idea_result(
         and reliability.get("passed", False)
         and (legacy_output or (fixes_ok and synthesis_ok))
         and revote_ok
+        and lens_ok
         and appeal_ok
     )
 

@@ -7,6 +7,7 @@ from typing import Any
 from config import get_settings
 from judges.synthesis import Synthesis
 from verification import (
+    assess_lens_uniqueness,
     assess_revote_quality,
     fix_fields_missing_judges,
     is_degenerate_fixes,
@@ -116,6 +117,7 @@ def score_reliability(
     fix_fields = score_fix_fields(verdicts)
     synthesis_structure = score_synthesis_structure(debate_result)
     revote_quality = score_revote_quality(debate_result)
+    lens_uniqueness = assess_lens_uniqueness(verdicts)
 
     return {
         "judge_parse_success_rate": parse_rate,
@@ -132,4 +134,5 @@ def score_reliability(
         **fix_fields,
         **synthesis_structure,
         **revote_quality,
+        **lens_uniqueness,
     }

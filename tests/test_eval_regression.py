@@ -37,6 +37,9 @@ class EvalRegressionTest(unittest.TestCase):
             self.assertTrue(metrics["reliability"]["panel_complete"], idea_id)
             self.assertTrue(metrics["reliability"]["debate_complete"], idea_id)
             self.assertTrue(metrics["passed"], idea_id)
+            lens = metrics["reliability"]
+            if not lens.get("lens_legacy", True):
+                self.assertTrue(lens.get("lens_uniqueness_passed"), idea_id)
 
     def test_committed_baseline_files_match_builders(self):
         for idea_id in BASELINE_BUILDERS:

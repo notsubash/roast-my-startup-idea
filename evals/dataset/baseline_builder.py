@@ -7,14 +7,63 @@ from typing import Any
 from evals.dataset.loader import load_golden_ideas
 
 
-def _verdict(judge: str, label: str, score: int, roast: str, concern: str) -> dict[str, Any]:
-    return {
+def _verdict(
+    judge: str,
+    label: str,
+    score: int,
+    roast: str,
+    concern: str,
+    *,
+    recommended_fix: str | None = None,
+    evidence_to_change_verdict: str | None = None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
         "judge": judge,
         "verdict": label,
         "score": score,
         "roast": roast,
         "key_concern": concern,
     }
+    if recommended_fix is not None:
+        payload["recommended_fix"] = recommended_fix
+    if evidence_to_change_verdict is not None:
+        payload["evidence_to_change_verdict"] = evidence_to_change_verdict
+    return payload
+
+
+_LENS_FIXES: dict[str, str] = {
+    "vc": "Model CAC payback under twelve months with three signed enterprise LOIs.",
+    "engineer": "Publish integration benchmarks across the top three EHR vendors you target.",
+    "pm": "Run ten ICP interviews and document unprompted workflow pain rankings.",
+    "customer": "Close a paid pilot where twenty users renew after month one at list price.",
+    "competitor": "Secure an exclusive channel or data partnership blocking incumbent copy for eighteen months.",
+}
+
+_LENS_EVIDENCE: dict[str, str] = {
+    "vc": "Three signed LOIs with $50k+ ACV and a credible path to forty percent gross margin.",
+    "engineer": "A benchmark report showing p99 latency under 200ms at production load on your stack.",
+    "pm": "Ten ICP interviews where buyers rank this pain top-two without prompting.",
+    "customer": "Twenty users complete a paid pilot without churning after month one at the stated price.",
+    "competitor": "Exclusive distribution or data rights that block incumbents from matching your wedge for eighteen months.",
+}
+
+
+def _lens_verdict(
+    judge: str,
+    label: str,
+    score: int,
+    roast: str,
+    concern: str,
+) -> dict[str, Any]:
+    return _verdict(
+        judge,
+        label,
+        score,
+        roast,
+        concern,
+        recommended_fix=_LENS_FIXES[judge],
+        evidence_to_change_verdict=_LENS_EVIDENCE[judge],
+    )
 
 
 def _debate_messages(
@@ -92,35 +141,35 @@ COMPLIANCE_COPILOT_DEBATE = {
 def build_smartpatch_baseline() -> dict[str, Any]:
     idea = next(item for item in load_golden_ideas() if item.id == "smartpatch")
     verdicts = [
-        _verdict(
+        _lens_verdict(
             "vc",
             "FAIL",
             2,
             "The market is niche and CAC for athlete consumables will compress margins before you reach venture scale.",
             "Market size and moat are too weak for venture returns.",
         ),
-        _verdict(
+        _lens_verdict(
             "engineer",
             "FAIL",
             3,
             "Colorimetric microfluidics cannot provide quantitative electrolyte concentration at clinical accuracy without per-user calibration.",
             "Colorimetric calibration accuracy is unproven for quantitative readouts.",
         ),
-        _verdict(
+        _lens_verdict(
             "pm",
             "CONDITIONAL",
             4,
             "Athlete hydration is real pain, but the product claim overshoots what the patch can measure in the field.",
             "Product positioning overclaims measurement precision.",
         ),
-        _verdict(
+        _lens_verdict(
             "customer",
             "FAIL",
             2,
             "I would not pay $10 per patch when my sports drink and scale already tell me enough.",
             "Willingness to pay is weak versus cheap alternatives.",
         ),
-        _verdict(
+        _lens_verdict(
             "competitor",
             "FAIL",
             2,
@@ -168,6 +217,8 @@ def build_smartpatch_baseline() -> dict[str, Any]:
                         v["roast"]
                         + " The new validation data partially addresses calibration risk.",
                         v["key_concern"],
+                        recommended_fix=v.get("recommended_fix"),
+                        evidence_to_change_verdict=v.get("evidence_to_change_verdict"),
                     )
                     for v in verdicts
                 ]
@@ -184,35 +235,35 @@ def build_smartpatch_baseline() -> dict[str, Any]:
 def build_metrics_strong_baseline() -> dict[str, Any]:
     idea = next(item for item in load_golden_ideas() if item.id == "metrics_strong")
     verdicts = [
-        _verdict(
+        _lens_verdict(
             "vc",
             "PASS",
             8,
             "Home-health payroll with $2.1M ARR and 140% NRR shows venture-scale retention in a regulated market wedge.",
             "Regulatory complexity is also a moat once embedded.",
         ),
-        _verdict(
+        _lens_verdict(
             "engineer",
             "PASS",
             7,
             "EVV compliance integrations are operationally hard; your uptime SLA suggests reliable production architecture.",
             "Integration breadth across states remains engineering heavy.",
         ),
-        _verdict(
+        _lens_verdict(
             "pm",
             "PASS",
             8,
             "Clear ICP in home-health agencies with Medicaid EVV pain is focused and measurable.",
             "Expansion beyond core ICP needs disciplined sequencing.",
         ),
-        _verdict(
+        _lens_verdict(
             "customer",
             "CONDITIONAL",
             6,
             "Agencies will pay if audit risk drops in month one, but switching payroll vendors is still painful.",
             "Switching costs slow rollout even with strong ROI.",
         ),
-        _verdict(
+        _lens_verdict(
             "competitor",
             "CONDITIONAL",
             5,
@@ -242,35 +293,35 @@ def build_metrics_strong_baseline() -> dict[str, Any]:
 def build_compliance_copilot_baseline() -> dict[str, Any]:
     idea = next(item for item in load_golden_ideas() if item.id == "compliance_copilot")
     verdicts = [
-        _verdict(
+        _lens_verdict(
             "vc",
             "CONDITIONAL",
             5,
             "Hospital compliance spend is large, but enterprise sales cycles and trust requirements slow venture velocity.",
             "Long hospital sales cycles delay scale.",
         ),
-        _verdict(
+        _lens_verdict(
             "engineer",
             "CONDITIONAL",
             5,
             "Mapping workflows to HIPAA controls is feasible, but EHR integration reliability is the hard part.",
             "EHR integration reliability is unproven at scale.",
         ),
-        _verdict(
+        _lens_verdict(
             "pm",
             "CONDITIONAL",
             6,
             "Audit prep pain is acute, yet buyer urgency depends on upcoming survey timing.",
             "Buyer urgency varies with survey schedules.",
         ),
-        _verdict(
+        _lens_verdict(
             "customer",
             "FAIL",
             3,
             "Compliance VPs will not trust AI audit evidence without proven accuracy in their environment.",
             "Trust and proof in live hospital workflows are missing.",
         ),
-        _verdict(
+        _lens_verdict(
             "competitor",
             "FAIL",
             3,
@@ -284,7 +335,7 @@ def build_compliance_copilot_baseline() -> dict[str, Any]:
         "can add copilot modules if traction appears."
     )
     strong_verdicts = [
-        _verdict(
+        _lens_verdict(
             v["judge"],
             "CONDITIONAL" if v["score"] < 7 else v["verdict"],
             min(10, v["score"] + 2),

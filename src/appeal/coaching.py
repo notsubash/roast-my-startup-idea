@@ -10,6 +10,7 @@ from typing import Literal
 from config import JUDGE_ORDER
 from judges.schemas import RoastPanel, Verdict, VerdictLabel
 from verification.invariants import is_generic_evidence, normalize_sentence
+from verification.lens import DERIVED_HINT_PREFIX, coaching_hint, find_duplicate_evidence_judges
 
 _APPEAL_PRIORITY = {
     VerdictLabel.FAIL: 0,
@@ -17,14 +18,12 @@ _APPEAL_PRIORITY = {
     VerdictLabel.PASS: 2,
 }
 
-_DERIVED_HINT_PREFIX = "Provide concrete evidence that addresses:"
-
 AppealHintQuality = Literal["precise", "derived", "generic", "duplicate"]
 
 
 def is_derived_coaching_hint(hint: str) -> bool:
 
-    return hint.strip().startswith(_DERIVED_HINT_PREFIX)
+    return hint.strip().startswith(DERIVED_HINT_PREFIX)
 
 
 def is_degenerate_evidence_asks(verdicts: list[Verdict]) -> bool:
@@ -66,13 +65,7 @@ def _hint_quality(
 
 
 def appeal_coaching_hint(verdict: Verdict) -> str:
-
-    evidence = (verdict.evidence_to_change_verdict or "").strip()
-
-    if evidence:
-        return evidence
-
-    return f"{_DERIVED_HINT_PREFIX} {verdict.key_concern.strip()}"
+    return coaching_hint(verdict)
 
 
 def appeal_coaching_verdicts(panel: RoastPanel) -> list[Verdict]:
@@ -94,27 +87,6 @@ class AppealCoachingItem:
     score: int
 
     quality: AppealHintQuality
-
-
-def find_duplicate_evidence_judges(verdicts: list[Verdict]) -> set[str]:
-    """Judges whose normalized evidence ask collides with another panel member."""
-
-    duplicate_judges: set[str] = set()
-    seen: dict[str, str] = {}
-
-    for verdict in verdicts:
-        normalized = normalize_sentence(appeal_coaching_hint(verdict))
-        if not normalized:
-            continue
-        judge = verdict.judge.value
-        prior = seen.get(normalized)
-        if prior is not None:
-            duplicate_judges.add(judge)
-            duplicate_judges.add(prior)
-        else:
-            seen[normalized] = judge
-
-    return duplicate_judges
 
 
 def assess_appeal_coaching(panel: RoastPanel) -> dict:
@@ -140,6 +112,9 @@ def assess_appeal_coaching(panel: RoastPanel) -> dict:
 
     if degenerate_asks:
         reasons.append("Judges returned near-identical evidence asks.")
+
+    elif duplicate_judges:
+        reasons.append("Some judges asked for the same proof.")
 
     elif any(item.quality == "generic" for item in items):
         generic_count = sum(1 for item in items if item.quality == "generic")

@@ -69,6 +69,43 @@ test("findDuplicateEvidenceJudges is case-insensitive", () => {
   assert.equal(duplicates.size, 2);
 });
 
+test("findDuplicateEvidenceJudges flags near-paraphrase evidence asks", () => {
+  const leftAsk =
+    "Three signed LOIs from enterprise buyers with fifty thousand ACV";
+  const nearAsk =
+    "Three signed LOIs from enterprise buyers with fifty thousand ACV each";
+  const verdicts = [
+    {
+      judge: "vc",
+      verdict: "CONDITIONAL",
+      roast: "x",
+      score: 4,
+      key_concern: "a",
+      evidence_to_change_verdict: leftAsk,
+    },
+    {
+      judge: "engineer",
+      verdict: "FAIL",
+      roast: "x",
+      score: 3,
+      key_concern: "b",
+      evidence_to_change_verdict: nearAsk,
+    },
+    {
+      judge: "pm",
+      verdict: "PASS",
+      roast: "x",
+      score: 8,
+      key_concern: "c",
+      evidence_to_change_verdict: "Ten ICP interviews naming workflow pain.",
+    },
+  ];
+  const duplicates = findDuplicateEvidenceJudges(verdicts);
+  assert.equal(duplicates.has("vc"), true);
+  assert.equal(duplicates.has("engineer"), true);
+  assert.equal(duplicates.has("pm"), false);
+});
+
 test("findDuplicateEvidenceJudges flags derived-hint collisions", () => {
   const sharedConcern = "No signed LOIs yet.";
   const verdicts = [
