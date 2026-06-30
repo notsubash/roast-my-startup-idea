@@ -6,6 +6,7 @@ import {
   appealJudgeOutcomes,
   appealScoreMovement,
   assessAppealCoaching,
+  findDuplicateEvidenceJudges,
   isGenericEvidence,
   normalizeTargetJudges,
 } from "../src/lib/appeal/coaching.ts";
@@ -63,6 +64,7 @@ test("assessAppealCoaching flags generic and duplicate asks", () => {
   assert.equal(coaching.items.find((item) => item.judge === "engineer")?.quality, "derived");
   assert.equal(coaching.items.find((item) => item.judge === "pm")?.quality, "generic");
   assert.equal(coaching.items.find((item) => item.judge === "customer")?.quality, "duplicate");
+  assert.equal(findDuplicateEvidenceJudges(verdicts).has("competitor"), true);
   assert.equal(isGenericEvidence("Show traction with signed LOIs."), false);
   assert.equal(isGenericEvidence("Do more research on the buyer."), true);
 });

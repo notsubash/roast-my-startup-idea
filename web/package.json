@@ -17,7 +17,9 @@
     "test:structured": "node --experimental-strip-types --test scripts/test-structured-synthesis.mjs",
     "test:format": "node --experimental-strip-types --test scripts/test-format.mjs",
     "test:fold": "node --experimental-strip-types --test scripts/test-run-fold-layout.mjs",
-    "test:settings": "node --experimental-strip-types --test scripts/test-advanced-settings.mjs"
+    "test:settings": "node --experimental-strip-types --test scripts/test-advanced-settings.mjs",
+    "test:judge-proof": "node --experimental-strip-types --test scripts/test-judge-proof.mjs",
+    "test:lens": "node --experimental-strip-types --test scripts/test-lens-quality.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

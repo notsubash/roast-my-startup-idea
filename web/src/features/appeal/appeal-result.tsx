@@ -1,8 +1,11 @@
 "use client";
 
+import { useMemo } from "react";
+
 import { JUDGE_ORDER } from "@/lib/sse/types";
 import type { AppealJudgeOutcome, AppealResult } from "@/lib/sse/types";
 import type { JudgeId } from "@/lib/sse/types";
+import { findDuplicateEvidenceJudges } from "@/lib/appeal/coaching";
 import { Badge } from "@/ui/badge";
 
 import { JudgeColumn } from "../run/judge-column";
@@ -21,6 +24,10 @@ function outcomeVariant(outcome: string): "pass" | "fail" | "conditional" | "def
 export function AppealResultView({ appeal }: { appeal: AppealResult }) {
   const outcomes = new Map(
     (appeal.evidenceOutcomes ?? []).map((item) => [item.judge, item]),
+  );
+  const duplicateEvidenceJudges = useMemo(
+    () => findDuplicateEvidenceJudges(Object.values(appeal.originalByJudge)),
+    [appeal.originalByJudge],
   );
 
   return (
@@ -51,6 +58,7 @@ export function AppealResultView({ appeal }: { appeal: AppealResult }) {
             judgeId={judgeId}
             appeal={appeal}
             outcome={outcomes.get(judgeId)}
+            evidenceAskCollides={duplicateEvidenceJudges.has(judgeId)}
           />
         ))}
       </div>
@@ -71,10 +79,12 @@ function AppealJudgeCard({
   judgeId,
   appeal,
   outcome,
+  evidenceAskCollides,
 }: {
   judgeId: JudgeId;
   appeal: AppealResult;
   outcome?: AppealJudgeOutcome;
+  evidenceAskCollides?: boolean;
 }) {
   const original = appeal.originalByJudge[judgeId];
   const revised = appeal.revisedByJudge[judgeId];
@@ -102,6 +112,7 @@ function AppealJudgeCard({
         view={{ status: "revealed", verdict: revised }}
         animateStamp={false}
         scoreDelta={delta}
+        evidenceAskCollides={evidenceAskCollides}
       />
     </div>
   );

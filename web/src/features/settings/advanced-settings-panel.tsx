@@ -224,7 +224,8 @@ export function AdvancedSettingsPanel() {
           URL override for side-by-side tests: add{" "}
           <span className="font-mono">?fold=a</span> (scores first) or{" "}
           <span className="font-mono">?fold=b</span> (progress first) to any run link. URL wins over
-          this setting.
+          this setting. Lens-quality maintainer badge: add{" "}
+          <span className="font-mono">?debug=1</span> to a completed run.
         </p>
       </SettingsSection>
     </div>

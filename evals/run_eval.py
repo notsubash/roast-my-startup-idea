@@ -40,6 +40,11 @@ def _aggregate_metrics(idea_rows: list[dict]) -> dict:
         for row in idea_rows
         if row["metrics"].get("appeal", {}).get("appeal_weak", {}).get("appeal_present")
     ]
+    lens_scored = [
+        row["metrics"]["lens"]["lens_differentiation_passed"]
+        for row in idea_rows
+        if not row["metrics"].get("lens", {}).get("lens_legacy", True)
+    ]
     return {
         "mean_judge_parse_success_rate": round(sum(reliability_rates) / len(reliability_rates), 3),
         "ideas_passed": passed,
@@ -47,6 +52,9 @@ def _aggregate_metrics(idea_rows: list[dict]) -> dict:
         "pass_rate": round(passed / len(idea_rows), 3),
         "appeal_discrimination_pass_rate": (
             round(sum(appeal_scored) / len(appeal_scored), 3) if appeal_scored else None
+        ),
+        "lens_differentiation_pass_rate": (
+            round(sum(lens_scored) / len(lens_scored), 3) if lens_scored else None
         ),
     }
 

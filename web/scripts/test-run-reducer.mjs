@@ -300,3 +300,27 @@ test("debate_completed replay restores revote state without live revote events",
     "Round 1 engineer argument was persuasive.",
   );
 });
+
+test("run_completed stores panel_quality from SSE payload", () => {
+  const events = [
+    env(0, "stream_connected", { status: "connected" }),
+    env(1, "run_completed", {
+      roast_panel: { verdicts: [VERDICT] },
+      debate_result: { debate_messages: [], final_synthesis: "Done." },
+      panel_quality: {
+        lens_legacy: false,
+        lens_uniqueness_passed: false,
+        lens_duplicate_evidence_judges: ["vc", "customer"],
+        lens_overlapping_concern_pairs: [],
+        lens_overlapping_evidence_pairs: [],
+        lens_generic_evidence_count: 0,
+        lens_generic_evidence_rate: 0,
+      },
+    }),
+  ];
+  const state = reduceEnvelopes(events);
+  assert.equal(state.status, "completed");
+  assert.equal(state.panelQuality?.lensLegacy, false);
+  assert.equal(state.panelQuality?.lensUniquenessPassed, false);
+  assert.deepEqual(state.panelQuality?.duplicateEvidenceJudges, ["vc", "customer"]);
+});

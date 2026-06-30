@@ -56,6 +56,28 @@ def summarize_run(payload: dict[str, Any]) -> str:
                 lines.append(
                     f"- Judge parse success: {reliability.get('judge_parse_success_rate')}"
                 )
+            lens = metrics.get("lens", {})
+            if lens and not lens.get("lens_legacy", True):
+                lines.append(f"- Lens differentiation: {lens.get('lens_differentiation_passed')}")
+                if not lens.get("lens_differentiation_passed"):
+                    duplicates = lens.get("lens_duplicate_evidence_judges") or []
+                    if duplicates:
+                        lines.append(f"- Duplicate evidence judges: {', '.join(duplicates)}")
+                    for pair in lens.get("lens_overlapping_concern_pairs") or []:
+                        if isinstance(pair, dict):
+                            lines.append(
+                                f"- Overlapping concerns: {pair.get('left')}/{pair.get('right')} "
+                                f"(sim {pair.get('similarity')})"
+                            )
+                    for pair in lens.get("lens_overlapping_evidence_pairs") or []:
+                        if isinstance(pair, dict):
+                            lines.append(
+                                f"- Overlapping evidence: {pair.get('left')}/{pair.get('right')} "
+                                f"(sim {pair.get('similarity')})"
+                            )
+                    generic_rate = lens.get("lens_generic_evidence_rate")
+                    if isinstance(generic_rate, int | float) and generic_rate > 0.4:
+                        lines.append(f"- Generic evidence rate: {generic_rate}")
         timings = idea_result.get("timings", {})
         if timings.get("total_seconds") is not None:
             lines.append(f"- Total seconds: {timings.get('total_seconds')}")

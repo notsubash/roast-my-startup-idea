@@ -12,6 +12,9 @@ const APPEAL_PRIORITY: Record<VerdictLabel, number> = {
 
 const DERIVED_HINT_PREFIX = "Provide concrete evidence that addresses:";
 
+// ponytail: Jaccard on word tokens catches near-paraphrase; upgrade path is embedding similarity.
+const LENS_SIMILARITY_THRESHOLD = 0.85;
+
 const GENERIC_EVIDENCE_PHRASES = [
   "do more research",
   "conduct more research",
@@ -50,6 +53,18 @@ const FILLER_AFTER_GENERIC_PHRASE = new Set([
 
 function normalizeSentence(text: string): string {
   return text.toLowerCase().split(/\s+/).filter(Boolean).join(" ");
+}
+
+export function sentenceSimilarity(left: string, right: string): number {
+  const leftTokens = new Set(normalizeSentence(left).split(" "));
+  const rightTokens = new Set(normalizeSentence(right).split(" "));
+  if (!leftTokens.size || !rightTokens.size) return 0;
+  let overlap = 0;
+  for (const token of leftTokens) {
+    if (rightTokens.has(token)) overlap += 1;
+  }
+  const union = new Set([...leftTokens, ...rightTokens]).size;
+  return union ? overlap / union : 0;
 }
 
 function isGenericClause(normalized: string): boolean {
@@ -144,12 +159,12 @@ export interface AppealCoachingAssessment {
   degenerateAsks: boolean;
 }
 
-export function assessAppealCoaching(verdicts: Verdict[]): AppealCoachingAssessment {
-  const ordered = appealCoachingVerdicts(verdicts);
+/** Judges whose normalized evidence ask collides with another panel member. */
+export function findDuplicateEvidenceJudges(verdicts: Verdict[]): Set<JudgeId> {
   const duplicateJudges = new Set<JudgeId>();
   const seen = new Map<string, JudgeId>();
 
-  for (const verdict of ordered) {
+  for (const verdict of verdicts) {
     const normalized = normalizeSentence(appealCoachingHint(verdict));
     if (!normalized) continue;
     const prior = seen.get(normalized);
@@ -160,6 +175,36 @@ export function assessAppealCoaching(verdicts: Verdict[]): AppealCoachingAssessm
       seen.set(normalized, verdict.judge);
     }
   }
+
+  const evidenceItems: { judge: JudgeId; text: string }[] = [];
+  for (const verdict of verdicts) {
+    const evidence = verdict.evidence_to_change_verdict?.trim();
+    if (!evidence) continue;
+    evidenceItems.push({
+      judge: verdict.judge,
+      text: normalizeSentence(evidence),
+    });
+  }
+  for (let index = 0; index < evidenceItems.length; index += 1) {
+    for (let other = index + 1; other < evidenceItems.length; other += 1) {
+      const left = evidenceItems[index];
+      const right = evidenceItems[other];
+      if (
+        left.text === right.text ||
+        sentenceSimilarity(left.text, right.text) >= LENS_SIMILARITY_THRESHOLD
+      ) {
+        duplicateJudges.add(left.judge);
+        duplicateJudges.add(right.judge);
+      }
+    }
+  }
+
+  return duplicateJudges;
+}
+
+export function assessAppealCoaching(verdicts: Verdict[]): AppealCoachingAssessment {
+  const ordered = appealCoachingVerdicts(verdicts);
+  const duplicateJudges = findDuplicateEvidenceJudges(ordered);
 
   const items: AppealCoachingItem[] = ordered.map((verdict) => ({
     judge: verdict.judge,
@@ -173,6 +218,8 @@ export function assessAppealCoaching(verdicts: Verdict[]): AppealCoachingAssessm
   const reasons: string[] = [];
   if (degenerateAsks) {
     reasons.push("Judges returned near-identical evidence asks.");
+  } else if (duplicateJudges.size > 0) {
+    reasons.push("Some judges asked for the same proof.");
   } else {
     const genericCount = items.filter((item) => item.quality === "generic").length;
     if (genericCount > 0) {

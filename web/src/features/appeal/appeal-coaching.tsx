@@ -9,6 +9,8 @@ import type { JudgeId, Verdict } from "@/lib/sse/types";
 import { cn } from "@/lib/utils";
 import { Label } from "@/ui/label";
 
+import { JudgeLensTag } from "../run/judge-column";
+
 const VERDICT_TONE: Record<Verdict["verdict"], string> = {
   PASS: "text-pass",
   FAIL: "text-fail",
@@ -106,6 +108,7 @@ export function AppealCoaching({
                     {item.verdict} · {item.score}/10
                   </span>
                 </Label>
+                <JudgeLensTag meta={meta} />
                 <p id={`${inputId}-hint`} className="mt-1 font-sans text-sm text-ink-muted">
                   {item.hint}
                 </p>

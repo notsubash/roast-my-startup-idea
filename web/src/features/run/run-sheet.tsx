@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import { AlertTriangle, CheckCircle2, ChevronDown, XCircle } from "lucide-react";
 
 import { EditorialContainer } from "@/components/app-shell";
 import { resolveExportIdea } from "@/lib/format/run-idea";
-import { appealBaselineVerdicts } from "@/lib/appeal/coaching";
+import { appealBaselineVerdicts, findDuplicateEvidenceJudges } from "@/lib/appeal/coaching";
 import { ApiError } from "@/lib/api/client";
 import { getRunStatus } from "@/lib/api/runs";
 import { heatCtaClass } from "@/lib/cta-classes";
@@ -25,6 +26,7 @@ import { PhaseRail } from "./phase-rail";
 import { RunControls } from "./run-controls";
 import { collapsibleSummaryClass, RunContextGroup } from "./run-context-group";
 import { NextActionsStrip } from "./next-actions-strip";
+import { PanelQualityDebugBadge } from "./panel-quality-debug";
 import { VerdictCard } from "./verdict-card";
 import { RUN_FOLD_ORDERS, type RunFoldSection } from "./run-fold-layout";
 import { useRunFoldVariant } from "./use-run-fold-variant";
@@ -121,6 +123,8 @@ function RunSheetContent({
   initialFold?: string | null;
 }) {
   const { variant } = useRunFoldVariant(initialFold);
+  const searchParams = useSearchParams();
+  const showQualityDebug = searchParams.get("debug") === "1";
   const stream = useRunStream(runId, {
     initialStatus:
       restStatus === "completed" ||
@@ -161,6 +165,10 @@ function RunSheetContent({
 
   const appealBaseline = useMemo(
     () => appealBaselineVerdicts(revealedVerdicts),
+    [revealedVerdicts],
+  );
+  const duplicateEvidenceJudges = useMemo(
+    () => findDuplicateEvidenceJudges(revealedVerdicts),
     [revealedVerdicts],
   );
   const appealLink = useMemo(() => {
@@ -207,7 +215,7 @@ function RunSheetContent({
         </h2>
         <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {showJudgeSkeletons
-            ? JUDGE_ORDER.map((id) => <JudgeColumnSkeleton key={id} />)
+            ? JUDGE_ORDER.map((id) => <JudgeColumnSkeleton key={id} judgeId={id} />)
             : JUDGE_ORDER.map((id) => {
                 const baseline = stream.revoteBaseline[id];
                 const current = stream.judges[id].verdict;
@@ -221,6 +229,7 @@ function RunSheetContent({
                     animateStamp={stream.judges[id].status === "revealed"}
                     scoreDelta={scoreDelta}
                     scoreChangeReason={stream.revoteChangeReasons[id]}
+                    evidenceAskCollides={duplicateEvidenceJudges.has(id)}
                   />
                 );
               })}
@@ -245,6 +254,12 @@ function RunSheetContent({
           <p className="mt-3 max-w-prose font-sans text-sm text-ink-muted">
             No judge changed their score after the debate.
           </p>
+        )}
+        {showQualityDebug && status === "completed" && (
+          <PanelQualityDebugBadge
+            panelQuality={stream.panelQuality}
+            verdicts={revealedVerdicts}
+          />
         )}
       </section>
     ),

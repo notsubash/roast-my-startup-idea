@@ -11,6 +11,7 @@ from appeal.coaching import (
     appeal_judge_outcomes,
     appeal_score_movement,
     assess_appeal_coaching,
+    find_duplicate_evidence_judges,
     is_degenerate_evidence_asks,
     normalize_target_judges,
 )
@@ -312,8 +313,28 @@ class AppealCoachingPhase3Tests(unittest.TestCase):
         self.assertEqual(qualities["pm"], "generic")
         self.assertEqual(qualities["customer"], "duplicate")
         self.assertTrue(coaching["degraded"])
+        self.assertIn("same proof", coaching["reasons"][0])
         self.assertFalse(is_generic_evidence("Show traction with signed LOIs."))
         self.assertTrue(is_generic_evidence("Do more research on the buyer."))
+
+    def test_find_duplicate_evidence_judges_flags_derived_collisions(self):
+        shared_concern = "No signed LOIs yet."
+        verdicts = [
+            _verdict(
+                judgeLabel.VC,
+                verdict=VerdictLabel.CONDITIONAL,
+                score=4,
+                key_concern=shared_concern,
+            ),
+            _verdict(
+                judgeLabel.CUSTOMER,
+                verdict=VerdictLabel.FAIL,
+                score=3,
+                key_concern=shared_concern,
+            ),
+        ]
+        duplicates = find_duplicate_evidence_judges(verdicts)
+        self.assertEqual(duplicates, {"vc", "customer"})
 
     def test_single_derived_ask_does_not_degrade_banner(self):
         panel = RoastPanel(

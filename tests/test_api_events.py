@@ -128,6 +128,169 @@ class ApiEventSerializationTest(unittest.TestCase):
             "run_completed",
         )
 
+    def test_pipeline_completed_payload_includes_panel_quality(self):
+        panel = RoastPanel(
+            verdicts=[
+                Verdict(
+                    judge="vc",
+                    verdict="FAIL",
+                    roast="x" * 40,
+                    score=3,
+                    key_concern="Weak distribution.",
+                    evidence_to_change_verdict="Three signed LOIs with $50k ACV.",
+                ),
+                Verdict(
+                    judge="engineer",
+                    verdict="CONDITIONAL",
+                    roast="x" * 40,
+                    score=5,
+                    key_concern="Stack risk.",
+                    evidence_to_change_verdict="Benchmark p99 latency under 200ms.",
+                ),
+                Verdict(
+                    judge="pm",
+                    verdict="FAIL",
+                    roast="x" * 40,
+                    score=4,
+                    key_concern="ICP unclear.",
+                    evidence_to_change_verdict="Ten ICP interviews naming top-two pain.",
+                ),
+                Verdict(
+                    judge="customer",
+                    verdict="FAIL",
+                    roast="x" * 40,
+                    score=3,
+                    key_concern="No buyers.",
+                    evidence_to_change_verdict="Twenty paid pilots without month-one churn.",
+                ),
+                Verdict(
+                    judge="competitor",
+                    verdict="FAIL",
+                    roast="x" * 40,
+                    score=2,
+                    key_concern="No moat.",
+                    evidence_to_change_verdict="Exclusive distribution for eighteen months.",
+                ),
+            ]
+        )
+        payload = pipeline_event_payload(
+            PipelineCompleted(
+                roast_panel=panel,
+                debate_result={"debate_messages": [], "final_synthesis": "summary"},
+            )
+        )
+        quality = payload["panel_quality"]
+        self.assertIn("lens_uniqueness_passed", quality)
+        self.assertFalse(quality["lens_legacy"])
+        self.assertTrue(quality["lens_uniqueness_passed"])
+
+    def test_pipeline_completed_panel_quality_uses_revised_verdicts(self):
+        distinct_panel = RoastPanel(
+            verdicts=[
+                Verdict(
+                    judge="vc",
+                    verdict="FAIL",
+                    roast="x" * 40,
+                    score=3,
+                    key_concern="Weak fundability.",
+                    evidence_to_change_verdict="Three signed LOIs with $50k ACV.",
+                ),
+                Verdict(
+                    judge="engineer",
+                    verdict="CONDITIONAL",
+                    roast="x" * 40,
+                    score=5,
+                    key_concern="Stack risk.",
+                    evidence_to_change_verdict="Benchmark p99 latency under 200ms.",
+                ),
+                Verdict(
+                    judge="pm",
+                    verdict="FAIL",
+                    roast="x" * 40,
+                    score=4,
+                    key_concern="ICP unclear.",
+                    evidence_to_change_verdict="Ten ICP interviews naming top-two pain.",
+                ),
+                Verdict(
+                    judge="customer",
+                    verdict="FAIL",
+                    roast="x" * 40,
+                    score=3,
+                    key_concern="No buyers.",
+                    evidence_to_change_verdict="Twenty paid pilots without month-one churn.",
+                ),
+                Verdict(
+                    judge="competitor",
+                    verdict="FAIL",
+                    roast="x" * 40,
+                    score=2,
+                    key_concern="No moat.",
+                    evidence_to_change_verdict="Exclusive distribution for eighteen months.",
+                ),
+            ]
+        )
+        shared_ask = "Provide more evidence and validate the market."
+        revised = [
+            {
+                "judge": "vc",
+                "verdict": "CONDITIONAL",
+                "roast": "x" * 40,
+                "score": 4,
+                "key_concern": "Weak fundability.",
+                "evidence_to_change_verdict": shared_ask,
+            },
+            {
+                "judge": "engineer",
+                "verdict": "CONDITIONAL",
+                "roast": "x" * 40,
+                "score": 5,
+                "key_concern": "Stack risk.",
+                "evidence_to_change_verdict": "Benchmark p99 latency under 200ms.",
+            },
+            {
+                "judge": "pm",
+                "verdict": "FAIL",
+                "roast": "x" * 40,
+                "score": 4,
+                "key_concern": "ICP unclear.",
+                "evidence_to_change_verdict": "Ten ICP interviews naming top-two pain.",
+            },
+            {
+                "judge": "customer",
+                "verdict": "FAIL",
+                "roast": "x" * 40,
+                "score": 3,
+                "key_concern": "No buyers.",
+                "evidence_to_change_verdict": shared_ask,
+            },
+            {
+                "judge": "competitor",
+                "verdict": "FAIL",
+                "roast": "x" * 40,
+                "score": 2,
+                "key_concern": "No moat.",
+                "evidence_to_change_verdict": "Exclusive distribution for eighteen months.",
+            },
+        ]
+        payload = pipeline_event_payload(
+            PipelineCompleted(
+                roast_panel=distinct_panel,
+                debate_result={
+                    "debate_messages": [],
+                    "final_synthesis": "summary",
+                    "initial_verdicts": [
+                        v.model_dump(mode="json") for v in distinct_panel.verdicts
+                    ],
+                    "revised_verdicts": revised,
+                },
+            )
+        )
+        quality = payload["panel_quality"]
+        self.assertFalse(quality["lens_legacy"])
+        self.assertFalse(quality["lens_uniqueness_passed"])
+        self.assertIn("vc", quality["lens_duplicate_evidence_judges"])
+        self.assertIn("customer", quality["lens_duplicate_evidence_judges"])
+
     def test_judge_verdict_completed_payload_shape(self):
         payload = pipeline_event_payload(
             JudgeVerdictCompleted(
