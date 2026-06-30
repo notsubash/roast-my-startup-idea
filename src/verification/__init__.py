@@ -13,6 +13,7 @@ from verification.lens import (
     assess_lens_uniqueness,
     coaching_hint,
     find_duplicate_evidence_judges,
+    panel_quality_for_api,
 )
 from verification.panel import assess_revote_quality, is_degenerate_fixes, is_degenerate_panel
 from verification.result import Check, VerificationResult
@@ -24,6 +25,7 @@ __all__ = [
     "fix_fields_missing_judges",
     "is_generic_evidence",
     "assess_lens_uniqueness",
+    "panel_quality_for_api",
     "assess_revote_quality",
     "coaching_hint",
     "DERIVED_HINT_PREFIX",

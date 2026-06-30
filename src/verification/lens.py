@@ -174,3 +174,17 @@ def assess_lens_uniqueness(
         "lens_generic_evidence_count": generic_count,
         "lens_generic_evidence_rate": round(generic_rate, 3),
     }
+
+
+def panel_quality_for_api(verdicts: list[Verdict | dict[str, Any]]) -> dict[str, Any]:
+    """Slim maintainer payload for run_completed SSE."""
+    full = assess_lens_uniqueness(verdicts)
+    return {
+        "lens_legacy": full["lens_legacy"],
+        "lens_uniqueness_passed": full["lens_uniqueness_passed"],
+        "lens_duplicate_evidence_judges": full["lens_duplicate_evidence_judges"],
+        "lens_overlapping_concern_pairs": full["lens_overlapping_concern_pairs"],
+        "lens_overlapping_evidence_pairs": full["lens_overlapping_evidence_pairs"],
+        "lens_generic_evidence_count": full["lens_generic_evidence_count"],
+        "lens_generic_evidence_rate": full["lens_generic_evidence_rate"],
+    }

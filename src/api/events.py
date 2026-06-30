@@ -22,6 +22,7 @@ from events import (
     RunMetrics,
 )
 from research.service import ResearchContext, research_context_payload
+from verification import panel_quality_for_api
 
 
 def _camel_to_snake(name: str) -> str:
@@ -97,9 +98,14 @@ def pipeline_event_payload(event: PipelineEvent) -> dict[str, Any]:
             "revised_verdicts": event.revised_verdicts,
         }
     if isinstance(event, PipelineCompleted):
+        debate_result = event.debate_result or {}
+        roast_panel = event.roast_panel.model_dump(mode="json")
+        revised = debate_result.get("revised_verdicts")
+        verdicts = revised if isinstance(revised, list) and revised else roast_panel.get("verdicts", [])
         return {
-            "roast_panel": event.roast_panel.model_dump(mode="json"),
+            "roast_panel": roast_panel,
             "debate_result": event.debate_result,
+            "panel_quality": panel_quality_for_api(verdicts),
         }
     if isinstance(event, RunMetrics):
         return event.as_dict()

@@ -1,3 +1,5 @@
+import type { LensUniquenessAssessment } from "../lens/lens-quality.ts";
+
 export type VerdictLabel = "PASS" | "FAIL" | "CONDITIONAL";
 
 export const JUDGE_ORDER = [
@@ -124,6 +126,7 @@ export interface RunState {
   cancelMessage: string | null;
   appeal: AppealResult | null;
   researchFindings: ResearchFindings | null;
+  panelQuality: LensUniquenessAssessment | null;
 }
 
 export interface ApiEventEnvelope {
@@ -165,5 +168,6 @@ export function initialRunState(
     cancelMessage: null,
     appeal: null,
     researchFindings: null,
+    panelQuality: null,
   };
 }

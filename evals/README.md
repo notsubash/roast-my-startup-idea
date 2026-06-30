@@ -94,6 +94,20 @@ Reports: `evals/results/local/<timestamp>.json` and `.md` (gitignored).
 
 **Pass criteria:** `pass_rate` = 1.0 (all ideas structurally complete). Block prompt merges if any idea fails.
 
+Tier 1 also gates **judge lens differentiation** Each idea must pass `metrics.lens.lens_differentiation_passed` when the panel includes `evidence_to_change_verdict` on all five judges. The gate fails when:
+
+- Normalized evidence asks collide (exact or Jaccard ≥ 0.85)
+- `key_concern` text overlaps across judges
+- More than 40% of evidence asks match generic filler phrases
+
+Implementation: `evals/scorers/lens.py` (wraps `src/verification/lens.py`). Legacy baselines without evidence fields skip the gate (`lens_legacy: true`).
+
+Naming: Tier 1 reports use `metrics.lens.lens_differentiation_passed`; runtime/SSE uses `panel_quality.lens_uniqueness_passed` (same boolean, different keys).
+
+Aggregate reports include `lens_differentiation_pass_rate`. Per-idea markdown reports list duplicate judges and generic rates when the gate fails.
+
+**Maintainer debug on live runs:** append `?debug=1` to any `/run/[id]` URL to surface a non-founder lens-quality badge (uses `panel_quality` from the `run_completed` SSE payload).
+
 ### Refresh committed baselines
 
 After prompt changes that intentionally alter outputs:
@@ -172,6 +186,8 @@ evals/
   run_audit.py               # Tier 2 CLI
   grader/deepseek_judge.py   # Single-call LLM grader
   scorers/reliability.py     # Tier 1 structural checks only
+  scorers/lens.py            # Judge lens overlap gate (Feature 2 Phase 3)
+  scorers/appeal.py          # Appeal discrimination gate
   results/                   # Local + audit reports (gitignored)
 src/prompts/
   eval_grader_system.jinja2  # Grader system prompt

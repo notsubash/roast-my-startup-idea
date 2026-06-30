@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import { AlertTriangle, CheckCircle2, ChevronDown, XCircle } from "lucide-react";
 
 import { EditorialContainer } from "@/components/app-shell";
@@ -25,6 +26,7 @@ import { PhaseRail } from "./phase-rail";
 import { RunControls } from "./run-controls";
 import { collapsibleSummaryClass, RunContextGroup } from "./run-context-group";
 import { NextActionsStrip } from "./next-actions-strip";
+import { PanelQualityDebugBadge } from "./panel-quality-debug";
 import { VerdictCard } from "./verdict-card";
 import { RUN_FOLD_ORDERS, type RunFoldSection } from "./run-fold-layout";
 import { useRunFoldVariant } from "./use-run-fold-variant";
@@ -121,6 +123,8 @@ function RunSheetContent({
   initialFold?: string | null;
 }) {
   const { variant } = useRunFoldVariant(initialFold);
+  const searchParams = useSearchParams();
+  const showQualityDebug = searchParams.get("debug") === "1";
   const stream = useRunStream(runId, {
     initialStatus:
       restStatus === "completed" ||
@@ -250,6 +254,12 @@ function RunSheetContent({
           <p className="mt-3 max-w-prose font-sans text-sm text-ink-muted">
             No judge changed their score after the debate.
           </p>
+        )}
+        {showQualityDebug && status === "completed" && (
+          <PanelQualityDebugBadge
+            panelQuality={stream.panelQuality}
+            verdicts={revealedVerdicts}
+          />
         )}
       </section>
     ),

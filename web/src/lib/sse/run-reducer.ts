@@ -11,6 +11,7 @@ import {
   type ResearchFindings,
 } from "./types.ts";
 import { appealJudgeOutcomes } from "../appeal/coaching.ts";
+import { parsePanelQuality } from "../lens/lens-quality.ts";
 
 function isJudgeId(value: string): value is JudgeId {
   return (JUDGE_ORDER as readonly string[]).includes(value);
@@ -508,7 +509,11 @@ export function runReducer(state: RunState, envelope: ApiEventEnvelope): RunStat
           );
         }
       }
-      return terminalStatus(next, "completed");
+      const panelQuality = parsePanelQuality(payload.panel_quality);
+      return terminalStatus(
+        panelQuality ? { ...next, panelQuality } : next,
+        "completed",
+      );
     }
 
     case "run_failed": {
