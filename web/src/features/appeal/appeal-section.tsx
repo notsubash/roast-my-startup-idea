@@ -1,14 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import type { AppealResponse } from "@/lib/api/types-helpers";
 import { appealBaselineVerdicts, appealJudgeOutcomes } from "@/lib/appeal/coaching";
 import type { AppealResult, JudgeId, Verdict } from "@/lib/sse/types";
 import { JUDGE_ORDER } from "@/lib/sse/types";
+import type { ConfidenceLevel } from "@/features/run/structured-synthesis";
 
-import { AppealForm } from "./appeal-form";
 import { AppealResultView } from "./appeal-result";
+import { EvidenceProgressDelta } from "./evidence-progress-delta";
 
 function toVerdictMap(panel: AppealResponse["revised_panel"]): Record<JudgeId, Verdict> {
   const map = {} as Record<JudgeId, Verdict>;
@@ -64,55 +65,35 @@ function responseToAppeal(result: AppealResponse): AppealResult {
 }
 
 export function AppealSection({
-  runId,
   completed,
   baselineVerdicts,
-  streamAppeal,
-  onAppealChange,
+  appeal,
+  confidenceBefore,
 }: {
-  runId: string;
   completed: boolean;
   baselineVerdicts: Verdict[];
-  streamAppeal: AppealResult | null;
-  onAppealChange?: (result: AppealResult) => void;
+  appeal: AppealResult | null;
+  confidenceBefore: ConfidenceLevel | null;
 }) {
-  const [localAppeal, setLocalAppeal] = useState<AppealResult | null>(streamAppeal);
   const coachingBaseline = useMemo(
     () => appealBaselineVerdicts(baselineVerdicts),
     [baselineVerdicts],
   );
 
-  useEffect(() => {
-    if (streamAppeal) {
-      setLocalAppeal(streamAppeal);
-      onAppealChange?.(streamAppeal);
-    }
-  }, [streamAppeal, onAppealChange]);
-
-  const onSuccess = useCallback(
-    (result: AppealResponse) => {
-      const appeal = responseToAppeal(result);
-      setLocalAppeal(appeal);
-      onAppealChange?.(appeal);
-    },
-    [onAppealChange],
-  );
-
   if (!completed) return null;
-
-  if (localAppeal) {
-    return <AppealResultView appeal={localAppeal} />;
-  }
-
-  if (coachingBaseline.length === 0) return null;
+  if (coachingBaseline.length === 0 && !appeal) return null;
+  if (!appeal) return null;
 
   return (
-    <section className="mt-12 border-t-2 border-rule-soft pt-10" aria-labelledby="appeal-form-heading">
-      <AppealForm
-        runId={runId}
-        baselineVerdicts={coachingBaseline}
-        onSuccess={onSuccess}
+    <div className="mt-12 border-t-2 border-rule-soft pt-10">
+      <EvidenceProgressDelta
+        appeal={appeal}
+        confidenceBefore={confidenceBefore}
+        className="mb-8"
       />
-    </section>
+      <AppealResultView appeal={appeal} embedded />
+    </div>
   );
 }
+
+export { responseToAppeal };

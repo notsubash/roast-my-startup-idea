@@ -22,7 +22,13 @@ function outcomeVariant(outcome: string): "pass" | "fail" | "conditional" | "def
   return "fail";
 }
 
-export function AppealResultView({ appeal }: { appeal: AppealResult }) {
+export function AppealResultView({
+  appeal,
+  embedded = false,
+}: {
+  appeal: AppealResult;
+  embedded?: boolean;
+}) {
   const outcomes = new Map(
     (appeal.evidenceOutcomes ?? []).map((item) => [item.judge, item]),
   );
@@ -31,8 +37,13 @@ export function AppealResultView({ appeal }: { appeal: AppealResult }) {
     [appeal.originalByJudge],
   );
 
+  const Wrapper = embedded ? "div" : "section";
+
   return (
-    <section className="mt-12 border-t-2 border-rule-soft pt-10" aria-labelledby="appeal-result-heading">
+    <Wrapper
+      className={embedded ? undefined : "mt-12 border-t-2 border-rule-soft pt-10"}
+      aria-labelledby="appeal-result-heading"
+    >
       <h2 id="appeal-result-heading" className="scroll-mt-28 font-serif text-2xl font-semibold text-ink">
         {EVIDENCE_COPY.resultTitle}
       </h2>
@@ -71,7 +82,7 @@ export function AppealResultView({ appeal }: { appeal: AppealResult }) {
           <SynthesisBlock content={appeal.revisedSynthesis} variant="appeal" />
         </div>
       </div>
-    </section>
+    </Wrapper>
   );
 }
 

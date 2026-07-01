@@ -17,13 +17,17 @@ export function WorkflowBrief({
   verdicts,
   completed,
   evidenceLink,
+  evidenceReplayPending = false,
+  onCompleteExperiment,
   className,
 }: {
   synthesisProse: string | null;
   structuredSynthesis: unknown;
   verdicts: Verdict[];
   completed: boolean;
-  evidenceLink?: { href: string; label: string } | null;
+  evidenceLink?: { href: string; label: string; useModal?: boolean } | null;
+  evidenceReplayPending?: boolean;
+  onCompleteExperiment?: () => void;
   className?: string;
 }) {
   const { problems, blocker, experiment } = deriveWorkflowBrief(
@@ -116,9 +120,19 @@ export function WorkflowBrief({
               </p>
             </div>
           </div>
-          <a href={evidenceLink.href} className={heatCtaClass}>
-            {evidenceLink.label}
-          </a>
+          {evidenceReplayPending ? (
+            <span className="font-sans text-sm text-ink-muted" aria-live="polite">
+              {RUN_PAGE_COPY.evidenceStatusLoading}
+            </span>
+          ) : onCompleteExperiment && evidenceLink.useModal ? (
+            <button type="button" onClick={onCompleteExperiment} className={heatCtaClass}>
+              {RUN_PAGE_COPY.completeExperiment}
+            </button>
+          ) : (
+            <a href={evidenceLink.href} className={heatCtaClass}>
+              {evidenceLink.label}
+            </a>
+          )}
         </section>
       )}
     </div>

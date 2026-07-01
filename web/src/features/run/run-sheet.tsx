@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { AlertTriangle, CheckCircle2, ChevronDown, XCircle } from "lucide-react";
 
 import { EditorialContainer } from "@/components/app-shell";
 import { resolveExportIdea } from "@/lib/format/run-idea";
-import { appealBaselineVerdicts, findDuplicateEvidenceJudges } from "@/lib/appeal/coaching";
+import { appealBaselineVerdicts, deriveTargetJudgesForEvidence, findDuplicateEvidenceJudges } from "@/lib/appeal/coaching";
 import { ApiError } from "@/lib/api/client";
 import { getRunStatus } from "@/lib/api/runs";
 import { heatCtaClass } from "@/lib/cta-classes";
@@ -20,7 +20,8 @@ import { cn } from "@/lib/utils";
 import { Skeleton } from "@/ui/skeleton";
 
 import { DebateTranscript } from "./debate-transcript";
-import { AppealSection } from "../appeal/appeal-section";
+import { AppealSection, responseToAppeal } from "../appeal/appeal-section";
+import { CompleteExperimentModal } from "../appeal/complete-experiment-modal";
 import { VersionBadge, VersionComparison } from "../iteration/version-comparison";
 import { JudgeColumn, JudgeColumnSkeleton } from "./judge-column";
 import { PhaseRail } from "./phase-rail";
@@ -29,7 +30,7 @@ import { collapsibleSummaryClass, RunContextGroup } from "./run-context-group";
 import { NextActionsStrip } from "./next-actions-strip";
 import { PanelQualityDebugBadge } from "./panel-quality-debug";
 import { RUN_PAGE_COPY } from "./run-page-copy";
-import { deriveWorkflowBrief } from "./structured-synthesis";
+import { deriveWorkflowBrief, parseDecisionVerdictProse, parseStructuredSynthesis } from "./structured-synthesis";
 import { VerdictCard } from "./verdict-card";
 import { WorkflowBrief } from "./workflow-brief";
 import { RUN_FOLD_ORDERS, type RunFoldSection } from "./run-fold-layout";
@@ -159,13 +160,39 @@ function RunSheetContent({
   const showDecisionCard = Boolean(stream.synthesis || stream.structuredSynthesis);
   const liveDebate = status === "running" && stream.phase === "debate";
   const [appealResult, setAppealResult] = useState<AppealResult | null>(stream.appeal);
-  const onAppealChange = useCallback((result: AppealResult) => {
-    setAppealResult(result);
-  }, []);
+  const [experimentModalOpen, setExperimentModalOpen] = useState(false);
+  const [postRunReplaySettled, setPostRunReplaySettled] = useState(false);
+  const scrollToAppealOnSubmit = useRef(false);
+
+  const appeal = appealResult ?? stream.appeal;
 
   useEffect(() => {
     if (stream.appeal) setAppealResult(stream.appeal);
   }, [stream.appeal]);
+
+  useEffect(() => {
+    if (status !== "completed" || !stream.synthesis) {
+      setPostRunReplaySettled(false);
+      return;
+    }
+    if (appeal) {
+      setPostRunReplaySettled(true);
+      return;
+    }
+    const timer = window.setTimeout(() => setPostRunReplaySettled(true), 400);
+    return () => window.clearTimeout(timer);
+  }, [status, stream.synthesis, appeal, stream.lastSequence]);
+
+  useEffect(() => {
+    if (!scrollToAppealOnSubmit.current || !appeal) return;
+    scrollToAppealOnSubmit.current = false;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.getElementById("evidence-progress-heading")?.focus({ preventScroll: true });
+        document.getElementById("appeal-result-heading")?.scrollIntoView({ behavior: "smooth" });
+      });
+    });
+  }, [appeal]);
 
   const appealBaseline = useMemo(
     () => appealBaselineVerdicts(revealedVerdicts),
@@ -184,17 +211,39 @@ function RunSheetContent({
       ),
     [stream.synthesis, stream.structuredSynthesis, revealedVerdicts],
   );
+  const confidenceBefore = useMemo(() => {
+    const structured =
+      parseStructuredSynthesis(stream.structuredSynthesis) ??
+      (stream.synthesis ? parseDecisionVerdictProse(stream.synthesis) : null);
+    return structured?.confidence ?? null;
+  }, [stream.structuredSynthesis, stream.synthesis]);
+  const autoTargetJudges = useMemo(
+    () =>
+      deriveTargetJudgesForEvidence(
+        revealedVerdicts,
+        workflowBrief.blocker ?? workflowBrief.problems[0] ?? null,
+      ),
+    [revealedVerdicts, workflowBrief.blocker, workflowBrief.problems],
+  );
+  const canSubmitEvidence =
+    appealBaseline.length > 0 && !appeal && postRunReplaySettled;
+  const evidenceReplayPending =
+    status === "completed" && appealBaseline.length > 0 && !appeal && !postRunReplaySettled;
 
   const evidenceLink = useMemo(() => {
     if (status !== "completed") return null;
-    if (appealResult) {
+    if (appeal) {
       return { href: "#appeal-result-heading", label: RUN_PAGE_COPY.viewEvidenceResult };
     }
     if (appealBaseline.length > 0) {
-      return { href: "#appeal-form-heading", label: RUN_PAGE_COPY.presentEvidence };
+      return {
+        href: "#appeal-result-heading",
+        label: RUN_PAGE_COPY.presentEvidence,
+        useModal: true,
+      };
     }
     return null;
-  }, [status, appealResult, appealBaseline.length]);
+  }, [status, appeal, appealBaseline.length]);
 
   const collapseJudgeDetail = status === "completed" && !showJudgeSkeletons;
 
@@ -240,6 +289,10 @@ function RunSheetContent({
             verdicts={revealedVerdicts}
             completed={status === "completed"}
             evidenceLink={evidenceLink}
+            evidenceReplayPending={evidenceReplayPending}
+            onCompleteExperiment={
+              canSubmitEvidence ? () => setExperimentModalOpen(true) : undefined
+            }
           />
           <NextActionsStrip
             runId={runId}
@@ -300,11 +353,10 @@ function RunSheetContent({
     ),
     appeal: (
       <AppealSection
-        runId={runId}
         completed={status === "completed"}
         baselineVerdicts={revealedVerdicts}
-        streamAppeal={stream.appeal}
-        onAppealChange={onAppealChange}
+        appeal={appeal}
+        confidenceBefore={confidenceBefore}
       />
     ),
     transcript: (
@@ -388,6 +440,19 @@ function RunSheetContent({
           return <Fragment key={section}>{node}</Fragment>;
         })}
       </div>
+
+      <CompleteExperimentModal
+        runId={runId}
+        open={experimentModalOpen}
+        onOpenChange={setExperimentModalOpen}
+        targetJudges={autoTargetJudges}
+        baselineVerdicts={revealedVerdicts}
+        experiment={workflowBrief.experiment}
+        onSuccess={(result) => {
+          scrollToAppealOnSubmit.current = true;
+          setAppealResult(responseToAppeal(result));
+        }}
+      />
     </>
   );
 }

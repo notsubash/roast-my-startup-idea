@@ -6,9 +6,12 @@ import {
   appealJudgeOutcomes,
   appealScoreMovement,
   assessAppealCoaching,
+  deriveTargetJudgesForEvidence,
   findDuplicateEvidenceJudges,
   isGenericEvidence,
   normalizeTargetJudges,
+  panelAverageScore,
+  summarizeEvidenceOutcomes,
 } from "../src/lib/appeal/coaching.ts";
 
 const BASELINE = {
@@ -82,4 +85,50 @@ test("appealScoreMovement counts positive moves", () => {
     positiveMoves: 1,
     netDelta: 2,
   });
+});
+
+test("deriveTargetJudgesForEvidence maps recommended fix to judge", () => {
+  const verdicts = [
+    { ...BASELINE, judge: "vc", recommended_fix: "Interview ten buyers." },
+    { ...BASELINE, judge: "pm", recommended_fix: "Narrow the wedge." },
+  ];
+  assert.deepEqual(deriveTargetJudgesForEvidence(verdicts, "Interview ten buyers."), ["vc"]);
+});
+
+test("deriveTargetJudgesForEvidence falls back to worst judge", () => {
+  const verdicts = [
+    { ...BASELINE, judge: "vc", verdict: "PASS", score: 8 },
+    { ...BASELINE, judge: "pm", verdict: "FAIL", score: 2 },
+  ];
+  assert.deepEqual(deriveTargetJudgesForEvidence(verdicts, "Unknown risk."), ["pm"]);
+});
+
+test("deriveTargetJudgesForEvidence ignores synthesis-only problem text", () => {
+  const verdicts = [
+    { ...BASELINE, judge: "vc", verdict: "FAIL", score: 2, recommended_fix: "Interview ten buyers." },
+    { ...BASELINE, judge: "pm", verdict: "CONDITIONAL", score: 5, recommended_fix: "Narrow the wedge." },
+  ];
+  assert.deepEqual(
+    deriveTargetJudgesForEvidence(verdicts, "No buyer proof yet."),
+    ["vc"],
+  );
+});
+
+test("panelAverageScore averages judge scores", () => {
+  assert.equal(
+    panelAverageScore([
+      { ...BASELINE, score: 4 },
+      { ...BASELINE, judge: "pm", score: 6 },
+    ]),
+    5,
+  );
+});
+
+test("summarizeEvidenceOutcomes describes targeted outcomes", () => {
+  const outcomes = appealJudgeOutcomes(
+    [BASELINE],
+    [{ ...BASELINE, score: 6 }],
+    ["vc"],
+  );
+  assert.match(summarizeEvidenceOutcomes(outcomes), /targeted judge.*met/i);
 });

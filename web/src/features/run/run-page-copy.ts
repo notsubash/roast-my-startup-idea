@@ -19,6 +19,8 @@ export const RUN_PAGE_COPY = {
   todaysGoal: "Today's goal",
   presentEvidence: "Present evidence",
   presentEvidenceLead: "Completed your experiment? Share results to update this review.",
+  completeExperiment: "Complete experiment",
+  evidenceStatusLoading: "Checking evidence status…",
   viewEvidenceResult: "View evidence result",
   judgePanel: "Judge detail",
   debateTranscript: "Debate transcript",
@@ -60,19 +62,26 @@ export const HISTORY_COPY = {
 } as const;
 
 export const EVIDENCE_COPY = {
-  formTitle: "Present evidence",
-  formLead:
-    "Share what you learned from your experiment. Tag the judges you are addressing so the panel knows what you are trying to prove.",
+  modalTitle: "Complete experiment",
+  modalLead: "Tell the panel what you learned. We will route your update to the judges most tied to your top blocker.",
+  modalSubmit: "Submit evidence",
+  experimentFocus: "Your experiment:",
+  autoTargetJudges: "Auto-selected judges",
+  evidenceAsk: "Needs to hear:",
+  attachmentsLabel: "Supporting notes",
+  attachmentsPlaceholder: "File uploads coming soon — paste links or summaries in the text field for now.",
   evidenceLabel: "What happened?",
   evidencePlaceholder:
     "We completed two validation studies, signed LOIs with pilot customers, and filed a provisional patent…",
-  submit: "Submit evidence",
   submitting: "Submitting evidence — the panel is revising their verdicts.",
   submitFailed: "Evidence submission failed",
   submitFailedDetail: "Could not submit evidence.",
   resultTitle: "Evidence result",
   resultLead:
     "Updated verdicts after your evidence. Outcome badges show whether each judge's ask was met.",
+  progressTitle: "Progress update",
+  panelScore: "Panel score",
+  confidence: "Confidence",
   yourEvidence: "Your evidence:",
   minLengthError: (min: number) => `Evidence must be at least ${min} characters.`,
   maxLengthError: (max: number) => `Evidence must be at most ${max} characters.`,

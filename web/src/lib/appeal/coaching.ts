@@ -1,5 +1,6 @@
 /**
- * Appeal coaching helpers — keep in sync with src/appeal/coaching.py (canonical).
+ * Appeal coaching helpers — Python mirror for hint/outcome logic lives in
+ * src/appeal/coaching.py. Frontend-only helpers (target mapping, progress) stay TS-only.
  */
 import { JUDGE_ORDER } from "../sse/types.ts";
 import type { JudgeId, Verdict, VerdictLabel } from "../sse/types.ts";
@@ -300,4 +301,58 @@ export function appealScoreMovement(
     if (delta > 0) positiveMoves += 1;
   }
   return { positiveMoves, netDelta };
+}
+
+export function panelAverageScore(verdicts: Verdict[]): number | null {
+  if (!verdicts.length) return null;
+  const total = verdicts.reduce((sum, verdict) => sum + verdict.score, 0);
+  return Math.round((total / verdicts.length) * 10) / 10;
+}
+
+/** Map the top workflow problem to judge(s) for auto-targeted evidence. */
+export function deriveTargetJudgesForEvidence(
+  verdicts: Verdict[],
+  topProblem: string | null,
+): JudgeId[] {
+  const ordered = appealCoachingVerdicts(verdicts);
+  if (!ordered.length) return [];
+
+  if (!topProblem?.trim()) {
+    const worst = ordered.find((verdict) => verdict.verdict !== "PASS");
+    return worst ? [worst.judge] : [ordered[0].judge];
+  }
+
+  const normalizedProblem = normalizeSentence(topProblem);
+  const byFix = ordered.filter((verdict) => {
+    const fix = verdict.recommended_fix?.trim();
+    return fix && normalizeSentence(fix) === normalizedProblem;
+  });
+  if (byFix.length > 0) return byFix.map((verdict) => verdict.judge);
+
+  for (const verdict of ordered) {
+    const hint = normalizeSentence(appealCoachingHint(verdict));
+    if (hint && sentenceSimilarity(hint, normalizedProblem) >= 0.35) {
+      return [verdict.judge];
+    }
+  }
+
+  const worst = ordered.find((verdict) => verdict.verdict !== "PASS");
+  return worst ? [worst.judge] : [ordered[0].judge];
+}
+
+export function summarizeEvidenceOutcomes(outcomes: AppealJudgeOutcome[]): string {
+  const targeted = outcomes.filter((item) => item.targeted);
+  const met = targeted.filter((item) => item.outcome === "Evidence met");
+  const positive = outcomes.filter((item) => item.scoreDelta > 0);
+
+  if (met.length > 0) {
+    return `${met.length} targeted judge${met.length === 1 ? "" : "s"} marked evidence as met.`;
+  }
+  if (positive.length > 0) {
+    return `${positive.length} judge${positive.length === 1 ? "" : "s"} raised scores after your evidence.`;
+  }
+  if (targeted.length > 0 && targeted.every((item) => item.scoreDelta === 0)) {
+    return "Targeted judges unchanged — your evidence did not move their scores yet.";
+  }
+  return "Panel re-evaluated your idea with the new evidence.";
 }
