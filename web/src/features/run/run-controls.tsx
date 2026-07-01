@@ -14,7 +14,8 @@ import {
 import { ApiError } from "@/lib/api/client";
 import { cancelRun } from "@/lib/api/runs";
 import { parseApiDetail } from "@/lib/api/types-helpers";
-import { secondaryCtaClass, heatCtaClass } from "@/lib/cta-classes";
+import { secondaryCtaClass } from "@/lib/cta-classes";
+import { RUN_PAGE_COPY } from "@/features/run/run-page-copy";
 import { JUDGE_ORDER } from "@/lib/sse/types";
 import type { RunStatus } from "@/lib/sse/types";
 import { Button } from "@/ui/button";
@@ -128,10 +129,8 @@ export function RunControls({
           <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Stop this roast?</DialogTitle>
-                <DialogDescription>
-                  The judges will halt between turns. You can always submit a new idea.
-                </DialogDescription>
+                <DialogTitle>{RUN_PAGE_COPY.stopReviewTitle}</DialogTitle>
+                <DialogDescription>{RUN_PAGE_COPY.stopReviewDescription}</DialogDescription>
               </DialogHeader>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setConfirmOpen(false)}>
@@ -180,8 +179,8 @@ export function RunControls({
       )}
 
       {isTerminal && (
-        <Link href="/" className={heatCtaClass}>
-          Roast another idea
+        <Link href="/" className={secondaryCtaClass}>
+          {RUN_PAGE_COPY.submitAnother}
         </Link>
       )}
     </div>

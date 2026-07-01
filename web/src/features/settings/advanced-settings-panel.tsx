@@ -9,6 +9,7 @@ import {
   RUN_FOLD_VARIANTS,
   type RunFoldVariant,
 } from "@/features/run/run-fold-layout";
+import { SETTINGS_COPY } from "@/features/run/run-page-copy";
 import {
   DEFAULT_ADVANCED_SETTINGS,
   loadAdvancedSettings,
@@ -82,8 +83,7 @@ export function AdvancedSettingsPanel() {
           Advanced settings
         </h1>
         <p className="mt-4 max-w-prose font-sans text-ink-muted">
-          Defaults for new roasts and how completed verdict sheets are laid out. Stored in this
-          browser only — founders can ignore this page and use the simple submit flow on{" "}
+          {SETTINGS_COPY.intro}{" "}
           <Link href="/" className="font-semibold text-ink underline-offset-4 hover:underline">
             home
           </Link>
@@ -92,8 +92,8 @@ export function AdvancedSettingsPanel() {
       </header>
 
       <SettingsSection
-        title="New roast defaults"
-        description="Applied every time you submit or refine an idea. The submit form no longer shows these controls."
+        title={SETTINGS_COPY.newReviewDefaults}
+        description={SETTINGS_COPY.newReviewDescription}
       >
         <div className="grid gap-8 md:grid-cols-2">
           <div className="space-y-2">
@@ -151,14 +151,14 @@ export function AdvancedSettingsPanel() {
             id="settings-web-search"
             checked={settings.enable_web_search}
             onCheckedChange={(checked) => patch({ enable_web_search: checked })}
-            aria-label="Enable web search for new roasts"
+            aria-label={SETTINGS_COPY.webSearchLabel}
           />
         </div>
       </SettingsSection>
 
       <SettingsSection
-        title="Verdict sheet layout"
-        description="Controls section order on /run/[id] after a roast finishes. Does not change API behavior or scores — only what you scroll past first."
+        title="Review page layout"
+        description={SETTINGS_COPY.reviewLayoutDescription}
       >
         <fieldset aria-labelledby="fold-variant-legend">
           <legend

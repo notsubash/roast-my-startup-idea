@@ -12,6 +12,8 @@ import { Skeleton } from "@/ui/skeleton";
 
 import { groupByLineage } from "@/lib/lineage/lineage";
 
+import { HISTORY_COPY, RUN_PAGE_COPY } from "@/features/run/run-page-copy";
+
 import { LineageHistoryGroup } from "./lineage-history-group";
 
 function HistorySkeleton() {
@@ -39,13 +41,13 @@ export function RunHistoryList() {
     <EditorialContainer className="py-12 md:py-16 lg:py-24">
       <header className="col-span-12 lg:col-span-10 lg:col-start-2">
         <p className="font-sans text-sm font-semibold uppercase tracking-widest text-heat-ink">
-          Archive
+          {HISTORY_COPY.eyebrow}
         </p>
         <h1 className="mt-2 font-serif text-title font-semibold text-ink md:text-display-md">
-          Past roasts
+          {HISTORY_COPY.title}
         </h1>
         <p className="mt-4 max-w-prose font-sans text-ink-muted">
-          Every idea you&apos;ve put before the panel — reopen any verdict sheet.
+          {HISTORY_COPY.description}
         </p>
       </header>
 
@@ -65,12 +67,12 @@ export function RunHistoryList() {
 
         {query.isSuccess && query.data.runs.length === 0 && (
           <div className="border-2 border-dashed border-rule-soft bg-paper-2 p-10 text-center">
-            <p className="font-serif text-xl font-semibold text-ink">No roasts yet</p>
+            <p className="font-serif text-xl font-semibold text-ink">{HISTORY_COPY.emptyTitle}</p>
             <p className="mt-2 font-sans text-sm text-ink-muted">
-              Roast your first idea — it will show up here when the panel finishes.
+              {HISTORY_COPY.emptyDescription}
             </p>
             <Link href="/" className={cn("mt-6 inline-flex", heatCtaClass)}>
-              Roast an idea
+              {RUN_PAGE_COPY.submitIdea}
             </Link>
           </div>
         )}

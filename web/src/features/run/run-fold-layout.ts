@@ -1,28 +1,28 @@
-/** Section keys for the decision-first run fold (Feature 1). */
+/** Section keys for the workflow-first run fold. */
 export type RunFoldSection =
   | "decision"
   | "version"
-  | "judges"
   | "appeal"
+  | "judges"
   | "transcript"
   | "context";
 
-/** A = panel before version deltas; B = version deltas before full panel (roadmap winner). */
+/** A = panel before evidence loop; B = action guidance before judge detail (default). */
 export type RunFoldVariant = "panel-first" | "iterate-first";
 
 /** @deprecated Use ADVANCED_SETTINGS_STORAGE_KEY via advanced-settings.ts */
 export const RUN_FOLD_STORAGE_KEY = "rms-run-fold-variant";
 
-/** Default after local A/B validation — matches proposed IA (coach brief before panel). */
+/** Default — workflow-first: decision, progress, evidence, then collapsed detail. */
 export const DEFAULT_RUN_FOLD_VARIANT: RunFoldVariant = "iterate-first";
 
 export const RUN_FOLD_SECTION_LABELS: Record<RunFoldSection, string> = {
-  decision: "Decision and next steps",
-  version: "Version comparison (vs your last roast)",
-  judges: "Full roast panel (all five judges)",
-  appeal: "Appeal a verdict",
+  decision: "Overall decision and next steps",
+  version: "Progress since last version",
+  appeal: "Present evidence",
+  judges: "Judge detail (collapsed)",
   transcript: "Debate transcript (collapsed)",
-  context: "Context: sources, metrics, related roasts (collapsed)",
+  context: "Sources, metrics, and related reviews (collapsed)",
 };
 
 export const RUN_FOLD_VARIANTS: Record<
@@ -35,24 +35,24 @@ export const RUN_FOLD_VARIANTS: Record<
   }
 > = {
   "panel-first": {
-    label: "Scores first",
+    label: "Judges first",
     queryFlag: "a",
     summary:
-      "Read every judge's score and roast before checking whether this version improved on the last one.",
-    bestFor: "Best when you care about the raw panel verdict before iteration context.",
+      "Read every judge score before the evidence loop and version progress.",
+    bestFor: "Rollback — panel detail before action guidance.",
   },
   "iterate-first": {
-    label: "Progress first",
+    label: "Workflow first",
     queryFlag: "b",
     summary:
-      "See decision and version deltas before scrolling through all five judge cards.",
-    bestFor: "Best when you are refining a pitch and want proof of progress up front.",
+      "See decision, progress, and evidence guidance before judge detail.",
+    bestFor: "Default — one next action above the fold.",
   },
 };
 
 export const RUN_FOLD_ORDERS: Record<RunFoldVariant, RunFoldSection[]> = {
   "panel-first": ["decision", "judges", "version", "appeal", "transcript", "context"],
-  "iterate-first": ["decision", "version", "judges", "appeal", "transcript", "context"],
+  "iterate-first": ["decision", "version", "appeal", "judges", "transcript", "context"],
 };
 
 export function formatFoldSectionOrder(variant: RunFoldVariant): string[] {

@@ -180,7 +180,7 @@ export function JudgeColumn({
       </p>
       {evidenceAskCollides && (
         <p className="mt-1 font-sans text-xs text-ink-subtle" role="status">
-          Same bar as another judge — use lens-specific proof when appealing.
+          Same bar as another judge — use lens-specific proof when presenting evidence.
         </p>
       )}
 

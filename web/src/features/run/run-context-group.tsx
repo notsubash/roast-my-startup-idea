@@ -4,6 +4,8 @@ import { ChevronDown } from "lucide-react";
 
 import type { ResearchFindings, RunMetrics, RunStatus } from "@/lib/sse/types";
 
+import { RUN_PAGE_COPY } from "./run-page-copy";
+
 import { RelatedRoasts } from "./related-roasts";
 import { RunMetricsBar } from "./run-metrics-bar";
 import { SourcesPanel } from "./sources-panel";
@@ -41,7 +43,7 @@ export function RunContextGroup({
           Context
         </h2>
         <span className="font-sans text-sm font-normal text-ink-muted">
-          Related roasts, sources, metrics
+          {RUN_PAGE_COPY.contextSummary}
         </span>
       </summary>
       <div className="mt-6 space-y-10">

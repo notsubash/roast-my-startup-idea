@@ -41,7 +41,7 @@ export function AppHeader() {
             Settings
           </Link>
           <Link href="/" className={heatCtaClass}>
-            Roast an idea
+            Review an idea
           </Link>
         </div>
       </div>

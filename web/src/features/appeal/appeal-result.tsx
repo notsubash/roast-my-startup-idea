@@ -9,6 +9,7 @@ import { findDuplicateEvidenceJudges } from "@/lib/appeal/coaching";
 import { Badge } from "@/ui/badge";
 
 import { JudgeColumn } from "../run/judge-column";
+import { EVIDENCE_COPY } from "../run/run-page-copy";
 import { SynthesisBlock } from "../run/synthesis-block";
 
 function scoreDelta(original: number, revised: number): number {
@@ -33,15 +34,14 @@ export function AppealResultView({ appeal }: { appeal: AppealResult }) {
   return (
     <section className="mt-12 border-t-2 border-rule-soft pt-10" aria-labelledby="appeal-result-heading">
       <h2 id="appeal-result-heading" className="scroll-mt-28 font-serif text-2xl font-semibold text-ink">
-        Appeal result
+        {EVIDENCE_COPY.resultTitle}
       </h2>
       <p className="mt-2 max-w-prose font-sans text-sm text-ink-muted">
-        Revised verdicts after your rebuttal. Outcome badges show whether each judge&apos;s
-        evidence ask was met.
+        {EVIDENCE_COPY.resultLead}
       </p>
 
       <blockquote className="mt-6 border-l-2 border-heat pl-4 font-sans text-sm text-ink-muted">
-        <span className="font-semibold text-ink">Your appeal:</span> {appeal.appealText}
+        <span className="font-semibold text-ink">{EVIDENCE_COPY.yourEvidence}</span> {appeal.appealText}
       </blockquote>
 
       {appeal.targetJudges.length > 0 && (

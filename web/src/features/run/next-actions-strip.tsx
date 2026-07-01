@@ -1,34 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Gavel } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
-import type { Verdict } from "@/lib/sse/types";
 import { secondaryCtaClass } from "@/lib/cta-classes";
 import { cn } from "@/lib/utils";
 
-import { deriveNextActions, NEXT_ACTION_SLOTS } from "./structured-synthesis";
+import { RUN_PAGE_COPY } from "./run-page-copy";
 
+/** Today's goal — experiment focus + refine CTA. Problems live in WorkflowBrief. */
 export function NextActionsStrip({
   runId,
-  synthesisProse,
-  structuredSynthesis,
-  verdicts,
+  experiment,
   completed,
-  appealLink,
   className,
 }: {
   runId: string;
-  synthesisProse: string | null;
-  structuredSynthesis: unknown;
-  verdicts: Verdict[];
+  experiment: string;
   completed: boolean;
-  appealLink?: { href: string; label: string } | null;
   className?: string;
 }) {
-  const actions = deriveNextActions(synthesisProse, structuredSynthesis, verdicts);
-  const showAppeal = completed && appealLink;
-
   return (
     <section
       id="next-actions-strip"
@@ -40,7 +31,7 @@ export function NextActionsStrip({
           id="next-actions-heading"
           className="font-sans text-xs font-semibold uppercase tracking-widest text-ink-muted"
         >
-          Next actions
+          {RUN_PAGE_COPY.todaysGoal}
         </h3>
         <div
           className={cn(
@@ -50,52 +41,12 @@ export function NextActionsStrip({
           aria-hidden={!completed}
         >
           <Link href={`/?refine=${runId}`} className={secondaryCtaClass} tabIndex={completed ? 0 : -1}>
-            Refine this idea
+            {RUN_PAGE_COPY.refineIdea}
             <ArrowRight className="ml-2 size-4" aria-hidden />
           </Link>
-          {showAppeal && (
-            <a href={appealLink.href} className={secondaryCtaClass} tabIndex={0}>
-              <Gavel className="mr-2 size-4" aria-hidden />
-              {appealLink.label}
-            </a>
-          )}
-          {!showAppeal && (
-            <span
-              className={cn(secondaryCtaClass, "invisible pointer-events-none")}
-              aria-hidden
-            >
-              <Gavel className="mr-2 size-4" aria-hidden />
-              Appeal a verdict
-            </span>
-          )}
         </div>
       </div>
-
-      {/* ponytail: fixed slot count prevents layout shift as verdicts stream in */}
-      <ol className="px-4 py-4 sm:px-5" aria-label="Top actions from this verdict">
-        {Array.from({ length: NEXT_ACTION_SLOTS }, (_, index) => {
-          const action = actions[index];
-          return (
-            <li
-              key={index}
-              className="flex min-h-7 gap-3 font-sans text-sm leading-relaxed"
-            >
-              <span
-                className={cn(
-                  "w-5 shrink-0 font-mono text-xs font-bold",
-                  action ? "text-heat-ink" : "text-transparent",
-                )}
-                aria-hidden={!action}
-              >
-                {index + 1}.
-              </span>
-              <span className={action ? "text-ink" : "text-transparent"} aria-hidden={!action}>
-                {action ?? "—"}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
+      <p className="px-4 py-4 font-sans text-sm leading-relaxed text-ink sm:px-5">{experiment}</p>
     </section>
   );
 }
