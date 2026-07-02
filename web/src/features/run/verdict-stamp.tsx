@@ -13,17 +13,17 @@ const STAMP_CONFIG: Record<
 > = {
   PASS: {
     Icon: CheckCircle,
-    className: "border-pass text-pass",
+    className: "border-pass/40 bg-pass/10 text-pass",
     label: "PASS",
   },
   FAIL: {
     Icon: AlertTriangle,
-    className: "border-fail text-fail",
+    className: "border-fail/40 bg-fail/10 text-fail",
     label: "FAIL",
   },
   CONDITIONAL: {
     Icon: HelpCircle,
-    className: "border-conditional text-conditional",
+    className: "border-conditional/40 bg-conditional/10 text-conditional",
     label: "CONDITIONAL",
   },
 };
@@ -42,7 +42,7 @@ export function VerdictStamp({
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-2 border-2 bg-card px-4 py-2 font-sans text-sm font-extrabold uppercase tracking-widest shadow-hard -rotate-3",
+        "inline-flex items-center gap-2 rounded-ui border px-4 py-2 font-sans text-sm font-semibold uppercase tracking-wide",
         verdictClass,
         animate && "animate-stamp-slam",
         className,

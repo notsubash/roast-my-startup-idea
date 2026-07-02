@@ -59,8 +59,8 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="col-span-12 border-t-2 border-ink pt-12 first:border-t-0 first:pt-0">
-      <h2 className="font-serif text-2xl font-semibold text-ink">{title}</h2>
+    <section className="col-span-12 border-t border-rule-soft pt-12 first:border-t-0 first:pt-0">
+      <h2 className="font-sans text-2xl font-semibold text-ink">{title}</h2>
       <div className="mt-6 flex flex-wrap items-start gap-4">{children}</div>
     </section>
   );
@@ -102,10 +102,10 @@ export function DevGallery() {
   return (
     <TooltipProvider>
       <div className="col-span-12 space-y-4">
-        <p className="font-sans text-sm font-semibold uppercase tracking-widest text-heat-ink">
+        <p className="font-sans text-sm font-semibold uppercase tracking-widest text-cta">
           Phase 3
         </p>
-        <h1 className="font-serif text-title font-semibold text-ink md:text-display-md">
+        <h1 className="font-sans text-title font-semibold text-ink md:text-display-md">
           Component gallery
         </h1>
         <p className="max-w-prose font-sans text-ink-muted">
@@ -124,7 +124,7 @@ export function DevGallery() {
         <Button variant="ghost">Ghost</Button>
         <Button disabled>Disabled</Button>
         <Button disabled>
-          <span className="inline-block size-4 animate-spin rounded-full border-2 border-ink border-t-transparent" />
+          <span className="inline-block size-4 animate-spin rounded-full border border-rule-soft border-t-transparent" />
           Submitting…
         </Button>
       </Section>

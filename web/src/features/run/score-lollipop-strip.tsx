@@ -21,7 +21,7 @@ export function ScoreLollipopStrip({
   className?: string;
 }) {
   return (
-    <div className={cn("border-2 border-ink bg-card p-4", className)}>
+    <div className={cn("border border-rule-soft bg-card p-4", className)}>
       <div className="mb-4 flex justify-between font-mono text-[10px] text-ink-subtle">
         {[0, 2, 4, 6, 8, 10].map((tick) => (
           <span key={tick}>{tick}</span>
@@ -43,7 +43,7 @@ export function ScoreLollipopStrip({
               </span>
 
               <div
-                className="relative h-3 border-2 border-ink bg-paper-2"
+                className="relative h-3 border border-rule-soft bg-paper-2"
                 role="img"
                 aria-label={
                   score !== null
@@ -65,7 +65,7 @@ export function ScoreLollipopStrip({
                     />
                     <div
                       className={cn(
-                        "absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 border-2 border-ink",
+                        "absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 border border-rule-soft",
                         JUDGE_DOT_CLASS[id],
                       )}
                       style={{ left: `${pct}%` }}

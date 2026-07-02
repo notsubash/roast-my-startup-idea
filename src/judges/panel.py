@@ -129,12 +129,16 @@ def stream_roast_panel(
         uniform_score = verdicts[0].score if degenerate else None
         uniform_verdict = verdicts[0].verdict.value if degenerate else None
         suffix_factory = (
-            (lambda judge, suffixes=retry_suffixes, score=uniform_score, verdict=uniform_verdict: _judge_retry_suffix(
-                judge,
-                base_suffixes=suffixes,
-                uniform_score=score,
-                uniform_verdict=verdict,
-            ))
+            (
+                lambda judge, suffixes=retry_suffixes, score=uniform_score, verdict=uniform_verdict: (
+                    _judge_retry_suffix(
+                        judge,
+                        base_suffixes=suffixes,
+                        uniform_score=score,
+                        uniform_verdict=verdict,
+                    )
+                )
+            )
             if degenerate
             else None
         )

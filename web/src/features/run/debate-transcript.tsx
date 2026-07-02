@@ -8,7 +8,7 @@ export function DebateTurn({ turn }: { turn: DebateTurnView }) {
 
   return (
     <article
-      className="border-l-2 border-ink py-3 pl-4"
+      className="border-l-2 border-primary py-3 pl-4"
       aria-label={`${meta.name}, round ${turn.round}`}
     >
       <header className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -22,7 +22,7 @@ export function DebateTurn({ turn }: { turn: DebateTurnView }) {
         <p className="mt-2 whitespace-pre-wrap font-mono text-sm leading-relaxed text-ink">
           {turn.content}
           {turn.streaming && (
-            <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-heat" aria-hidden />
+            <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-cta" aria-hidden />
           )}
         </p>
       ) : turn.thinking ? (

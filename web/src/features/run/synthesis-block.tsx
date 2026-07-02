@@ -8,7 +8,7 @@ function SynthesisFallback({ content, className }: { content: string; className?
   return (
     <blockquote
       className={cn(
-        "border-2 border-ink bg-paper-2 p-6 font-serif text-base leading-relaxed text-ink shadow-hard whitespace-pre-wrap md:text-lg",
+        "border border-rule-soft bg-paper-2 p-6 font-sans text-base leading-relaxed text-ink shadow-soft whitespace-pre-wrap md:text-lg",
         className,
       )}
     >
@@ -27,7 +27,7 @@ function SynthesisHeader({
   if (!verdict && !score) return null;
 
   return (
-    <header className="flex flex-wrap items-end gap-8 border-b-2 border-ink px-6 py-5">
+    <header className="flex flex-wrap items-end gap-8 border-b border-rule-soft px-6 py-5">
       {verdict && (
         <div>
           <p className="font-sans text-xs font-semibold uppercase tracking-widest text-ink-muted">
@@ -87,7 +87,7 @@ function SynthesisSection({
 
   return (
     <section>
-      <h3 className="font-serif text-xl font-semibold text-ink">{title}</h3>
+      <h3 className="font-sans text-xl font-semibold text-ink">{title}</h3>
       {bullets.length === 1 && !bullets[0].includes("\n") ? (
         <p className="mt-3 font-sans text-base leading-relaxed text-ink-muted">
           {renderBullet(bullets[0])}
@@ -139,7 +139,7 @@ export function SynthesisBlock({
   return (
     <article
       className={cn(
-        "border-2 border-ink bg-card shadow-hard",
+        "border border-rule-soft bg-card shadow-soft",
         className,
       )}
     >

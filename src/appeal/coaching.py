@@ -22,12 +22,10 @@ AppealHintQuality = Literal["precise", "derived", "generic", "duplicate"]
 
 
 def is_derived_coaching_hint(hint: str) -> bool:
-
     return hint.strip().startswith(DERIVED_HINT_PREFIX)
 
 
 def is_degenerate_evidence_asks(verdicts: list[Verdict]) -> bool:
-
     asks = [
         normalize_sentence(appeal_coaching_hint(verdict))
         for verdict in verdicts
@@ -47,7 +45,6 @@ def _hint_quality(
     *,
     duplicate_judges: set[str],
 ) -> AppealHintQuality:
-
     judge = verdict.judge.value
 
     if judge in duplicate_judges:
@@ -69,7 +66,6 @@ def appeal_coaching_hint(verdict: Verdict) -> str:
 
 
 def appeal_coaching_verdicts(panel: RoastPanel) -> list[Verdict]:
-
     return sorted(
         panel.verdicts,
         key=lambda verdict: (_APPEAL_PRIORITY.get(verdict.verdict, 99), verdict.judge.value),

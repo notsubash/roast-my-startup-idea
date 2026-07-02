@@ -31,9 +31,9 @@ export class ErrorBoundary extends Component<Props, State> {
         this.props.fallback ?? (
           <div
             role="alert"
-            className="mx-auto max-w-[1200px] px-4 py-16 md:px-6 lg:px-8"
+            className="mx-auto w-full max-w-3xl px-4 py-16 md:px-6"
           >
-            <h1 className="font-serif text-title font-semibold leading-tight text-ink">
+            <h1 className="font-sans text-title font-semibold leading-tight text-ink">
               Something went wrong
             </h1>
             <p className="mt-4 max-w-prose text-ink-muted">

@@ -4,6 +4,8 @@ import test from "node:test";
 import {
   collectRecommendedFixes,
   deriveNextActions,
+  deriveRecommendedExperiment,
+  deriveWorkflowBrief,
   parseDecisionVerdictProse,
   parseStructuredSynthesis,
   topPriorities,
@@ -17,6 +19,45 @@ const STRUCTURED = {
   top_risks: ["No buyer proof yet.", "Long sales cycles."],
   biggest_disagreement: "VC and PM disagree on wedge size.",
 };
+
+test("deriveRecommendedExperiment templates blocker into validation step", () => {
+  assert.match(
+    deriveRecommendedExperiment("Interview ten buyers."),
+    /Interview ten buyers/,
+  );
+  assert.match(deriveRecommendedExperiment(null), /concrete customer evidence/);
+});
+
+test("deriveWorkflowBrief surfaces top blocker and experiment", () => {
+  const brief = deriveWorkflowBrief(null, STRUCTURED, []);
+  assert.equal(brief.blocker, "VC and PM disagree on wedge size.");
+  assert.match(brief.experiment, /No buyer proof yet/);
+  assert.equal(brief.problems.length, 2);
+});
+
+test("deriveWorkflowBrief omits blocker when it would repeat problem one", () => {
+  const structured = {
+    ...STRUCTURED,
+    biggest_disagreement: "No buyer proof yet.",
+  };
+  const brief = deriveWorkflowBrief(null, structured, []);
+  assert.equal(brief.blocker, null);
+  assert.equal(brief.problems[0], "No buyer proof yet.");
+});
+
+test("deriveWorkflowBrief uses judge fixes when synthesis has no risks", () => {
+  const structured = {
+    ...STRUCTURED,
+    top_risks: [],
+    biggest_disagreement: "Split on go-to-market.",
+  };
+  const verdicts = [
+    { judge: "vc", verdict: "FAIL", score: 2, recommended_fix: "Interview ten buyers." },
+  ];
+  const brief = deriveWorkflowBrief(null, structured, verdicts);
+  assert.deepEqual(brief.problems, ["Interview ten buyers."]);
+  assert.equal(brief.blocker, "Split on go-to-market.");
+});
 
 test("parseStructuredSynthesis validates decision-ready shape", () => {
   const parsed = parseStructuredSynthesis(STRUCTURED);

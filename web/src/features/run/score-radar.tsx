@@ -48,7 +48,7 @@ export function ScoreRadar({
   return (
     <div className={cn("grid gap-6 lg:grid-cols-2", className)}>
       <div
-        className="border-2 border-ink bg-card p-4"
+        className="border border-rule-soft bg-card p-4"
         role="img"
         aria-label={
           hasAny
@@ -88,11 +88,11 @@ export function ScoreRadar({
         )}
       </div>
 
-      <div className="overflow-x-auto border-2 border-rule-soft bg-paper-2">
+      <div className="overflow-x-auto border border-rule-soft bg-paper-2">
         <table className="w-full min-w-[240px] border-collapse font-sans text-sm">
           <caption className="sr-only">Judge scores</caption>
           <thead>
-            <tr className="border-b-2 border-ink text-left">
+            <tr className="border-b border-rule-soft text-left">
               <th scope="col" className="px-4 py-2 font-semibold text-ink">
                 Judge
               </th>

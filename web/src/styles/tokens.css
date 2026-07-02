@@ -1,51 +1,59 @@
 :root {
-  /* Paper & ink */
-  --paper: #faf7f0;
-  --paper-2: #f2ede3;
+  /* Trust & authority palette (product-realignment-plan §3) */
+  --primary: #0f172a;
+  --secondary: #334155;
+  --cta: #0369a1;
+  --cta-fg: #ffffff;
+  --paper: #f8fafc;
+  --paper-2: #f1f5f9;
   --card: #ffffff;
-  --ink: #14110f;
-  --ink-muted: #5b544c;
-  --ink-subtle: #8a8178;
-  --rule: #14110f;
-  --rule-soft: #dad2c5;
+  --ink: #020617;
+  --ink-muted: #334155;
+  --ink-subtle: #64748b;
+  --rule: #0f172a;
+  --rule-soft: #e2e8f0;
 
-  /* Accent */
-  --heat: #ff3b1d;
-  --heat-ink: #c42e16;
+  /* Legacy accent aliases (--heat-ink = accent on light bg, not CTA button text) */
+  --heat: var(--cta);
+  --heat-ink: var(--cta);
+
+  /* Elevation (non-circular names for @theme mapping) */
+  --elevation-hard: 0 1px 2px rgb(15 23 42 / 0.06);
+  --elevation-soft: 0 1px 3px rgb(15 23 42 / 0.08), 0 1px 2px rgb(15 23 42 / 0.04);
 
   /* Verdict semantics */
-  --pass: #1f8a4c;
-  --fail: #c2161a;
-  --conditional: #b8770a;
+  --pass: #15803d;
+  --fail: #b91c1c;
+  --conditional: #a16207;
 
-  /* Judge accents */
-  --judge-vc: #b8770a;
-  --judge-engineer: #2563eb;
-  --judge-pm: #7c3aed;
-  --judge-customer: #1f8a4c;
-  --judge-competitor: #c2161a;
-  --judge-moderator: #14110f;
+  /* Judge accents (muted for document tone) */
+  --judge-vc: #475569;
+  --judge-engineer: #0369a1;
+  --judge-pm: #5b21b6;
+  --judge-customer: #15803d;
+  --judge-competitor: #b91c1c;
+  --judge-moderator: #0f172a;
 
   /* Radii */
   --radius-0: 0px;
-  --radius: 6px;
+  --radius: 8px;
 
-  /* Elevation */
-  --shadow-hard: 4px 4px 0 var(--ink);
-  --shadow-soft: 0 2px 8px rgb(20 17 15 / 0.08);
+  /* Elevation aliases */
+  --shadow-hard: var(--elevation-hard);
+  --shadow-soft: var(--elevation-soft);
 
-  /* Motion */
+  /* Motion (150–300ms) */
   --ease: cubic-bezier(0.2, 0, 0, 1);
-  --dur-in: 150ms;
-  --dur-out: 200ms;
+  --dur-in: 200ms;
+  --dur-out: 250ms;
 
-  /* Type scale (§2.2) */
+  /* Type scale */
   --text-12: 0.75rem;
   --text-14: 0.875rem;
   --text-16: 1rem;
   --text-20: 1.25rem;
   --text-28: 1.75rem;
-  --text-44: 2.75rem;
-  --text-56: 3.5rem;
-  --text-72: 4.5rem;
+  --text-44: 2.25rem;
+  --text-56: 2.75rem;
+  --text-72: 3.5rem;
 }

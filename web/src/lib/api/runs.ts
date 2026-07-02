@@ -52,6 +52,10 @@ export async function getRunPanel(runId: string): Promise<RunPanelResponse> {
   return apiClient<RunPanelResponse>(`/api/runs/${runId}/panel`);
 }
 
+export function runPanelQueryKey(runId: string) {
+  return ["run", runId, "panel"] as const;
+}
+
 export async function getSimilarRuns(
   runId: string,
   params?: { limit?: number },

@@ -73,19 +73,19 @@ export function VerdictCard({
 
   return (
     <article
-      className={cn("border-2 border-ink bg-card shadow-hard", className)}
+      className={cn("border border-rule-soft bg-card shadow-soft", className)}
       aria-labelledby="decision-verdict-heading"
     >
       {quality.lowConfidence && <LowConfidenceBanner reasons={quality.reasons} />}
 
-      <header className="border-b-2 border-ink px-6 py-5">
+      <header className="border-b border-rule-soft px-5 py-4">
         <p className="font-sans text-xs font-semibold uppercase tracking-widest text-ink-muted">
           Recommendation
         </p>
         <h3
           id="decision-verdict-heading"
           className={cn(
-            "mt-2 font-serif text-3xl font-semibold md:text-4xl",
+            "mt-2 font-sans text-3xl font-semibold md:text-4xl",
             RECOMMENDATION_CLASS[structured.overall_recommendation],
           )}
         >
@@ -96,14 +96,14 @@ export function VerdictCard({
         </p>
       </header>
 
-      <details className="group px-6 py-5">
+      <details className="group px-5 py-4">
         <summary className="cursor-pointer list-none font-sans text-sm font-semibold text-ink underline decoration-rule-soft underline-offset-4 marker:content-none group-open:mb-4">
           Full rationale
         </summary>
-        <div className="space-y-6 border-t-2 border-rule-soft pt-4">
+        <div className="space-y-5 border-t border-rule-soft pt-3">
           {structured.top_strengths.length > 0 && (
             <section>
-              <h4 className="font-serif text-lg font-semibold text-ink">Strengths</h4>
+              <h4 className="font-sans text-lg font-semibold text-ink">Strengths</h4>
               <ul className="mt-2 space-y-2 border-l-2 border-rule-soft pl-4">
                 {structured.top_strengths.map((item, index) => (
                   <li key={index} className="font-sans text-sm leading-relaxed text-ink-muted">
@@ -115,7 +115,7 @@ export function VerdictCard({
           )}
           {detailRisks && (
             <section>
-              <h4 className="font-serif text-lg font-semibold text-ink">Top risks</h4>
+              <h4 className="font-sans text-lg font-semibold text-ink">Top risks</h4>
               <ul className="mt-2 space-y-2 border-l-2 border-rule-soft pl-4">
                 {structured.top_risks.map((item, index) => (
                   <li key={index} className="font-sans text-sm leading-relaxed text-ink-muted">
@@ -126,7 +126,7 @@ export function VerdictCard({
             </section>
           )}
           <section>
-            <h4 className="font-serif text-lg font-semibold text-ink">Biggest disagreement</h4>
+            <h4 className="font-sans text-lg font-semibold text-ink">Biggest disagreement</h4>
             <p className="mt-2 font-sans text-sm leading-relaxed text-ink-muted">
               {structured.biggest_disagreement}
             </p>

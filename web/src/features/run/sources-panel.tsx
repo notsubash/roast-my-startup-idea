@@ -25,11 +25,11 @@ export function SourcesPanel({
 
   return (
     <section
-      className="border-2 border-ink bg-paper-2 p-4"
+      className="border border-rule-soft bg-paper-2 p-4"
       aria-labelledby="research-sources-heading"
     >
       <div className="flex items-start gap-3">
-        <Search className="mt-0.5 size-5 shrink-0 text-heat-ink" aria-hidden />
+        <Search className="mt-0.5 size-5 shrink-0 text-cta" aria-hidden />
         <div className="min-w-0 flex-1">
           <Heading
             id="research-sources-heading"
@@ -53,7 +53,7 @@ export function SourcesPanel({
                       href={href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="group inline-flex items-start gap-1.5 font-sans text-sm font-semibold text-heat-ink hover:text-heat focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-heat"
+                      className="group inline-flex items-start gap-1.5 font-sans text-sm font-semibold text-cta hover:text-cta focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
                     >
                       <span className="min-w-0">{finding.title}</span>
                       <ExternalLink

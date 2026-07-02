@@ -12,7 +12,7 @@ type RunPageProps = {
 function RunSheetFallback() {
   return (
     <EditorialContainer className="py-12 md:py-16 lg:py-24">
-      <div className="col-span-12 space-y-4 lg:col-span-10 lg:col-start-2">
+      <div className="space-y-4">
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-12 w-full max-w-xl" />
         <Skeleton className="h-24 w-full" />

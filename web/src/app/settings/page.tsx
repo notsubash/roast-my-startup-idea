@@ -4,9 +4,7 @@ import { AdvancedSettingsPanel } from "@/features/settings/advanced-settings-pan
 export default function SettingsPage() {
   return (
     <EditorialContainer className="py-12 md:py-16 lg:py-24">
-      <div className="col-span-12 lg:col-span-8 lg:col-start-3">
-        <AdvancedSettingsPanel />
-      </div>
+      <AdvancedSettingsPanel />
     </EditorialContainer>
   );
 }

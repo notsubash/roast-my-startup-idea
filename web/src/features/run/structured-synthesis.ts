@@ -153,4 +153,38 @@ export function deriveNextActions(
   return fixesToPriorities(collectRecommendedFixes(verdicts), limit);
 }
 
+export interface WorkflowBrief {
+  problems: string[];
+  blocker: string | null;
+  experiment: string;
+}
+
+/** Deterministic experiment suggestion from the top blocker — no LLM. */
+export function deriveRecommendedExperiment(blocker: string | null): string {
+  if (!blocker) {
+    return "Gather concrete customer evidence that addresses the panel's top concern.";
+  }
+  return `Run a focused validation experiment: ${blocker}`;
+}
+
+export function deriveWorkflowBrief(
+  synthesisProse: string | null,
+  structuredSynthesis: unknown,
+  verdicts: Array<{ verdict: string; score: number; recommended_fix?: string | null }>,
+): WorkflowBrief {
+  const problems = deriveNextActions(synthesisProse, structuredSynthesis, verdicts);
+  const structured =
+    parseStructuredSynthesis(structuredSynthesis) ??
+    (synthesisProse ? parseDecisionVerdictProse(synthesisProse) : null);
+  const disagreement = structured?.biggest_disagreement?.trim();
+  // ponytail: blocker = uncertainty signal; problem #1 already covers the top fix
+  const blocker = disagreement && disagreement !== problems[0] ? disagreement : null;
+  const experimentFocus = problems[0] ?? blocker;
+  return {
+    problems,
+    blocker,
+    experiment: deriveRecommendedExperiment(experimentFocus),
+  };
+}
+
 export { NEXT_ACTION_SLOTS };

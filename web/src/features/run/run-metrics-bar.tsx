@@ -62,7 +62,7 @@ function MetricsTooltip({
   if (!active || !payload?.[0]) return null;
   const row = payload[0].payload;
   return (
-    <div className="border-2 border-ink bg-card px-3 py-2 font-sans text-xs shadow-hard">
+    <div className="border border-rule-soft bg-card px-3 py-2 font-sans text-xs shadow-soft">
       <p className="font-semibold text-ink">{row.label}</p>
       <p className="mt-1 text-ink-muted">
         {row.seconds.toFixed(1)}s · {row.tokens.toLocaleString()} tokens · {row.phase}
@@ -121,7 +121,7 @@ export function RunMetricsBar({
       {calls.length > 0 && (
         <details className="group mt-4">
           <summary
-            className="flex cursor-pointer list-none items-center gap-2 font-sans text-sm font-semibold text-ink hover:text-heat-ink [&::-webkit-details-marker]:hidden"
+            className="flex cursor-pointer list-none items-center gap-2 font-sans text-sm font-semibold text-ink hover:text-cta [&::-webkit-details-marker]:hidden"
             aria-controls={detailsId}
           >
             <ChevronDown
@@ -132,7 +132,7 @@ export function RunMetricsBar({
           </summary>
           <div id={detailsId} className="mt-4 space-y-6">
             <div
-              className="border-2 border-ink bg-card p-4"
+              className="border border-rule-soft bg-card p-4"
               role="img"
               aria-label={`Per-call duration chart: ${chartSummary}`}
             >
@@ -165,11 +165,11 @@ export function RunMetricsBar({
               </ResponsiveContainer>
             </div>
 
-            <div className="overflow-x-auto border-2 border-rule-soft bg-paper-2">
+            <div className="overflow-x-auto border border-rule-soft bg-paper-2">
               <table className="w-full min-w-[480px] border-collapse font-sans text-sm">
                 <caption className="sr-only">Per-call metrics</caption>
                 <thead>
-                  <tr className="border-b-2 border-ink text-left">
+                  <tr className="border-b border-rule-soft text-left">
                     <th scope="col" className="px-3 py-2 font-semibold">
                       Call
                     </th>

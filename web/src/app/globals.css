@@ -2,6 +2,10 @@
 @import "../styles/tokens.css";
 
 @theme inline {
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-cta: var(--cta);
+  --color-cta-fg: var(--cta-fg);
   --color-paper: var(--paper);
   --color-paper-2: var(--paper-2);
   --color-card: var(--card);
@@ -21,22 +25,18 @@
   --color-judge-customer: var(--judge-customer);
   --color-judge-competitor: var(--judge-competitor);
   --color-judge-moderator: var(--judge-moderator);
-  --font-serif: var(--font-display), ui-serif, Georgia, serif;
+  --font-serif: var(--font-ui), system-ui, sans-serif;
   --font-sans: var(--font-ui), system-ui, sans-serif;
   --font-mono: var(--font-mono), ui-monospace, monospace;
   --text-title: var(--text-28);
   --text-display-md: var(--text-44);
   --text-display-lg: var(--text-56);
   --text-display-xl: var(--text-72);
-  --shadow-hard: 4px 4px 0 var(--ink);
-  --shadow-soft: 0 2px 8px rgb(20 17 15 / 0.08);
+  --shadow-hard: var(--elevation-hard);
+  --shadow-soft: var(--elevation-soft);
   --radius-editorial: var(--radius-0);
   --radius-ui: var(--radius);
   --radius-ui-token: var(--radius);
-}
-
-@utility rounded-ui {
-  border-radius: var(--radius);
 }
 
 body {
@@ -50,23 +50,23 @@ body {
 }
 
 :focus-visible {
-  outline: 2px solid var(--heat);
+  outline: 2px solid var(--cta);
   outline-offset: 2px;
 }
 
 @keyframes stamp-slam {
   0% {
-    transform: rotate(-3deg) scale(1.04);
-    box-shadow: none;
+    opacity: 0;
+    transform: translateY(4px);
   }
   100% {
-    transform: rotate(-3deg) scale(1);
-    box-shadow: var(--shadow-hard);
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
 .animate-stamp-slam {
-  animation: stamp-slam 120ms var(--ease) forwards;
+  animation: stamp-slam var(--dur-in) var(--ease) forwards;
 }
 
 @keyframes round-enter {
@@ -82,6 +82,47 @@ body {
 
 .animate-round-enter {
   animation: round-enter var(--dur-in) var(--ease) forwards;
+}
+
+@keyframes fade-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-rise {
+  animation: fade-rise var(--dur-in) var(--ease) forwards;
+}
+
+@keyframes delta-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-delta-pop {
+  animation: delta-pop var(--dur-in) var(--ease) forwards;
+}
+
+@keyframes progress-fill {
+  to {
+    width: var(--fill-pct);
+  }
+}
+
+.animate-progress-fill {
+  width: 0;
+  animation: progress-fill 250ms var(--ease) forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {

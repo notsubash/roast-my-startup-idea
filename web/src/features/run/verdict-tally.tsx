@@ -45,7 +45,7 @@ export function VerdictTallyBar({
   return (
     <div className={cn("space-y-3", className)}>
       <div
-        className="flex h-8 overflow-hidden border-2 border-ink bg-paper-2"
+        className="flex h-8 overflow-hidden border border-rule-soft bg-paper-2"
         role="img"
         aria-label={`Verdict split: ${verdictTallySummary(tally)}`}
       >

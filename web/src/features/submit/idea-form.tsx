@@ -189,7 +189,7 @@ export function IdeaForm({ refineRunId }: { refineRunId?: string | null }) {
       <div>
         <button
           type="button"
-          className="inline-flex min-h-11 items-center gap-2 font-sans text-sm font-semibold text-ink underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-heat"
+          className="inline-flex min-h-11 items-center gap-2 font-sans text-sm font-semibold text-ink underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
           aria-expanded={contextOpen}
           onClick={() => setContextOpen((open) => !open)}
         >

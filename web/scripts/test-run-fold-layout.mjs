@@ -35,9 +35,10 @@ test("foldVariantToQueryFlag round-trips through parseFoldQueryParam", () => {
   }
 });
 
-test("iterate-first places version comparison before judge panel", () => {
+test("iterate-first places evidence before judge detail", () => {
   const order = RUN_FOLD_ORDERS["iterate-first"];
-  assert.ok(order.indexOf("version") < order.indexOf("judges"));
+  assert.ok(order.indexOf("version") < order.indexOf("appeal"));
+  assert.ok(order.indexOf("appeal") < order.indexOf("judges"));
 });
 
 test("panel-first keeps judge panel before version comparison", () => {
@@ -47,10 +48,10 @@ test("panel-first keeps judge panel before version comparison", () => {
 
 test("formatFoldSectionOrder lists human-readable steps", () => {
   const steps = formatFoldSectionOrder("iterate-first");
-  assert.ok(steps[0].includes("Decision"));
-  const versionIdx = steps.findIndex((s) => s.includes("Version"));
-  const panelIdx = steps.findIndex((s) => s.includes("Full roast"));
-  assert.ok(versionIdx < panelIdx);
+  assert.ok(steps[0].includes("decision") || steps[0].includes("Decision"));
+  const evidenceIdx = steps.findIndex((s) => s.includes("Present evidence"));
+  const panelIdx = steps.findIndex((s) => s.includes("Judge detail"));
+  assert.ok(evidenceIdx < panelIdx);
 });
 
 test("both variants share the same trailing utility sections", () => {

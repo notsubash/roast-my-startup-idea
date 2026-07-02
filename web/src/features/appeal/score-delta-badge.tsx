@@ -1,6 +1,12 @@
 import { cn } from "@/lib/utils";
 
-export function ScoreDeltaBadge({ delta }: { delta: number }) {
+export function ScoreDeltaBadge({
+  delta,
+  animate = false,
+}: {
+  delta: number;
+  animate?: boolean;
+}) {
   if (delta === 0) {
     return (
       <span
@@ -13,16 +19,19 @@ export function ScoreDeltaBadge({ delta }: { delta: number }) {
   }
 
   const positive = delta > 0;
+  const display = Number.isInteger(delta) ? String(delta) : delta.toFixed(1);
+  const ariaDelta = Number.isInteger(delta) ? Math.abs(delta) : Math.abs(delta).toFixed(1);
   return (
     <span
       className={cn(
-        "inline-flex items-center border border-ink px-1.5 py-0.5 font-mono text-xs font-bold leading-none",
+        "inline-flex items-center border border-rule-soft px-1.5 py-0.5 font-mono text-xs font-bold leading-none",
         positive ? "bg-pass/15 text-pass" : "bg-fail/15 text-fail",
+        animate && "animate-delta-pop",
       )}
-      aria-label={`Score ${positive ? "increased" : "decreased"} by ${Math.abs(delta)}`}
+      aria-label={`Score ${positive ? "increased" : "decreased"} by ${ariaDelta}`}
     >
       {positive ? "+" : ""}
-      {delta}
+      {display}
     </span>
   );
 }

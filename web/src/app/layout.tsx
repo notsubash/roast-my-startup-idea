@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { JetBrains_Mono, Newsreader, Public_Sans } from "next/font/google";
+import { JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
 
 import { AppToaster } from "@/components/app-toaster";
 import { AppFooter, AppHeader, SkipLink } from "@/components/app-shell";
@@ -8,15 +8,7 @@ import { QueryProvider } from "@/components/query-provider";
 
 import "./globals.css";
 
-const newsreader = Newsreader({
-  subsets: ["latin"],
-  variable: "--font-display",
-  display: "swap",
-  weight: ["400", "600", "800"],
-  style: ["normal", "italic"],
-});
-
-const publicSans = Public_Sans({
+const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   variable: "--font-ui",
   display: "swap",
@@ -44,7 +36,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${newsreader.variable} ${publicSans.variable} ${jetbrainsMono.variable} h-full`}
+      className={`${plusJakarta.variable} ${jetbrainsMono.variable} h-full`}
     >
       <body className="flex min-h-full flex-col antialiased">
         <SkipLink />

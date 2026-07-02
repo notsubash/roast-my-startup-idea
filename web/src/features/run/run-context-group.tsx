@@ -4,12 +4,14 @@ import { ChevronDown } from "lucide-react";
 
 import type { ResearchFindings, RunMetrics, RunStatus } from "@/lib/sse/types";
 
+import { RUN_PAGE_COPY } from "./run-page-copy";
+
 import { RelatedRoasts } from "./related-roasts";
 import { RunMetricsBar } from "./run-metrics-bar";
 import { SourcesPanel } from "./sources-panel";
 
 export const collapsibleSummaryClass =
-  "flex cursor-pointer list-none items-center gap-2 font-serif text-2xl font-semibold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-heat [&::-webkit-details-marker]:hidden";
+  "flex cursor-pointer list-none items-center gap-2 font-sans text-2xl font-semibold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta [&::-webkit-details-marker]:hidden";
 
 const subsectionHeadingClass =
   "font-sans text-xs font-semibold uppercase tracking-widest text-ink-muted";
@@ -41,7 +43,7 @@ export function RunContextGroup({
           Context
         </h2>
         <span className="font-sans text-sm font-normal text-ink-muted">
-          Related roasts, sources, metrics
+          {RUN_PAGE_COPY.contextSummary}
         </span>
       </summary>
       <div className="mt-6 space-y-10">

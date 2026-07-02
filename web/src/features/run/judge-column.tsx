@@ -33,7 +33,7 @@ export function JudgeColumnSkeleton({ judgeId }: { judgeId?: JudgeId } = {}) {
 
   return (
     <article
-      className="flex flex-col border-2 border-rule-soft bg-card p-4"
+      className="flex flex-col border border-rule-soft bg-card p-4"
       aria-busy="true"
       aria-label={meta ? `${meta.name} — ${meta.lensTag} — loading` : "Judge verdict loading"}
     >
@@ -82,7 +82,7 @@ export function JudgeColumn({
   if (view.status === "failed") {
     return (
       <article
-        className="flex flex-col border-2 border-rule-soft bg-paper-2 p-4"
+        className="flex flex-col border border-rule-soft bg-paper-2 p-4"
         aria-label={`${meta.name} — ${meta.lensTag} — unavailable`}
       >
         <header>
@@ -103,7 +103,7 @@ export function JudgeColumn({
   if (view.status === "idle" || view.status === "thinking") {
     return (
       <article
-        className="flex flex-col border-2 border-ink bg-card p-4 shadow-soft"
+        className="flex flex-col border border-rule-soft bg-card p-4 shadow-soft"
         aria-busy={view.status === "thinking"}
         aria-label={`${meta.name} — ${meta.lensTag}${view.status === "thinking" ? " — reading your pitch" : ""}`}
       >
@@ -138,7 +138,7 @@ export function JudgeColumn({
 
   return (
     <article
-      className="flex flex-col border-2 border-ink bg-card p-4 shadow-soft"
+      className="flex flex-col border border-rule-soft bg-card p-4 shadow-soft"
       aria-label={`${meta.name} — ${meta.lensTag} — ${verdict.verdict}`}
     >
       <header className="flex items-start justify-between gap-3">
@@ -158,7 +158,7 @@ export function JudgeColumn({
         </div>
       </header>
 
-      <blockquote className="mt-6 border-l-2 border-ink pl-4 font-serif text-base italic leading-relaxed text-ink">
+      <blockquote className="mt-6 border-l-2 border-primary pl-4 font-sans text-base italic leading-relaxed text-ink">
         {verdict.roast}
       </blockquote>
 
@@ -180,7 +180,7 @@ export function JudgeColumn({
       </p>
       {evidenceAskCollides && (
         <p className="mt-1 font-sans text-xs text-ink-subtle" role="status">
-          Same bar as another judge — use lens-specific proof when appealing.
+          Same bar as another judge — use lens-specific proof when presenting evidence.
         </p>
       )}
 

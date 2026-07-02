@@ -9,7 +9,7 @@ export function AppToaster() {
       toastOptions={{
         classNames: {
           toast:
-            "font-sans border-2 border-ink bg-card text-ink shadow-hard rounded-ui",
+            "font-sans rounded-ui border border-rule-soft bg-card text-ink shadow-soft",
           title: "font-semibold",
           description: "text-ink-muted",
         },
